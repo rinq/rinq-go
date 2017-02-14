@@ -3,9 +3,9 @@ package bufferpool_test
 import (
 	"bytes"
 
-	"github.com/jmalloc/overpass-v2/src/internals/bufferpool"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/over-pass/overpass-go/src/internals/bufferpool"
 )
 
 var _ = Describe("bufferpool", func() {

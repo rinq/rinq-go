@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/jmalloc/overpass-v2/src/internals/bufferpool"
+	"github.com/over-pass/overpass-go/src/internals/bufferpool"
 	"github.com/ugorji/go/codec"
 )
 
