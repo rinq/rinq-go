@@ -1,0 +1,14 @@
+hash: 749442e7fc9faf4b2d541b2f530e01dbcfa1491039d013be4bcaba53ae822e1e
+updated: 2017-02-15T09:08:59.879653375+10:00
+imports:
+- name: github.com/davecgh/go-spew
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
+  subpackages:
+  - spew
+- name: github.com/onsi/ginkgo
+  version: 46c87bb63f2d8d62b3076873b7a84da124da72ce
+- name: github.com/onsi/gomega
+  version: d59fa0ac68bb5dd932ee8d24eed631cdd519efc3
+- name: github.com/streadway/amqp
+  version: 2e25825abdbd7752ff08b270d313b93519a0a232
+testImports: []
