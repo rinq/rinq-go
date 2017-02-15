@@ -25,7 +25,7 @@ func (ref SessionRef) Validate() error {
 // Before returns true if this ref's revision is before r.
 func (ref SessionRef) Before(r SessionRef) bool {
 	if ref.ID != r.ID {
-		panic("can not compare different references from different sessions")
+		panic("can not compare references from different sessions")
 	}
 
 	return ref.Rev < r.Rev
@@ -34,7 +34,7 @@ func (ref SessionRef) Before(r SessionRef) bool {
 // After returns true if this ref's revision is after r.
 func (ref SessionRef) After(r SessionRef) bool {
 	if ref.ID != r.ID {
-		panic("can not compare different references from different sessions")
+		panic("can not compare references from different sessions")
 	}
 
 	return ref.Rev > r.Rev
