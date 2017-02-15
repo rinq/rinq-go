@@ -16,9 +16,10 @@ var _ = Describe("Constraint", func() {
 			constraint := overpass.Constraint{"a": "1", "b": "2"}
 			str := constraint.String()
 
-			if str != "a=1, b=2" {
-				Expect(str).To(Equal("b=2, a=1"))
-			}
+			Expect(str).To(SatisfyAny(
+				Equal("a=1, b=2"),
+				Equal("b=2, a=1"),
+			))
 		})
 
 		It("empty attributes are represented with an exclamation mark", func() {

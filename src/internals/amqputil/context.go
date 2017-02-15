@@ -63,7 +63,6 @@ func PutExpiration(ctx context.Context, msg *amqp.Publishing) (bool, error) {
 
 	msg.Timestamp = time.Now()
 	msg.Expiration = "0"
-
 	remaining := deadline.Sub(msg.Timestamp) / time.Millisecond
 
 	select {
