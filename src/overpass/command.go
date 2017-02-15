@@ -74,8 +74,8 @@ type Responder interface {
 	Close()
 }
 
-// IsValidNamespace returns an error if the given namespace is invalid.
-func IsValidNamespace(namespace string) error {
+// ValidateNamespace returns an error if the given namespace is invalid.
+func ValidateNamespace(namespace string) error {
 	if namespace == "" {
 		return errors.New("namespace must not be empty")
 	} else if namespace[0] == '_' {
