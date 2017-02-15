@@ -1,5 +1,5 @@
 hash: 749442e7fc9faf4b2d541b2f530e01dbcfa1491039d013be4bcaba53ae822e1e
-updated: 2017-02-15T09:08:59.879653375+10:00
+updated: 2017-02-15T10:38:52.1352855+10:00
 imports:
 - name: github.com/davecgh/go-spew
   version: 346938d642f2ec3594ed81d874461961cd0faa76
@@ -7,8 +7,46 @@ imports:
   - spew
 - name: github.com/onsi/ginkgo
   version: 46c87bb63f2d8d62b3076873b7a84da124da72ce
+  subpackages:
+  - config
+  - extensions/table
+  - internal/codelocation
+  - internal/containernode
+  - internal/failer
+  - internal/leafnodes
+  - internal/remote
+  - internal/spec
+  - internal/specrunner
+  - internal/suite
+  - internal/testingtproxy
+  - internal/writer
+  - reporters
+  - reporters/stenographer
+  - types
 - name: github.com/onsi/gomega
   version: d59fa0ac68bb5dd932ee8d24eed631cdd519efc3
+  subpackages:
+  - format
+  - internal/assertion
+  - internal/asyncassertion
+  - internal/oraclematcher
+  - internal/testingtsupport
+  - matchers
+  - matchers/support/goraph/bipartitegraph
+  - matchers/support/goraph/edge
+  - matchers/support/goraph/node
+  - matchers/support/goraph/util
+  - types
 - name: github.com/streadway/amqp
   version: 2e25825abdbd7752ff08b270d313b93519a0a232
-testImports: []
+- name: github.com/ugorji/go
+  version: d23841a297e5489e787e72fceffabf9d2994b52a
+  subpackages:
+  - codec
+testImports:
+- name: golang.org/x/sys
+  version: d9157a9621b69ad1d8d77a1933590c416593f24f
+  subpackages:
+  - unix
+- name: gopkg.in/yaml.v2
+  version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
