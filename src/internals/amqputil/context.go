@@ -13,11 +13,10 @@ import (
 //
 // If ctx does not have a correlation ID, the return value is msg.MessageId.
 //
-// Overpass uses the AMQP correlation ID to track a "root" request (be it a
-// command execution or notification) across the entire network, included any
-// additional requests made in response to the "root" request. This is contrary
-// to the popular use of the correlation ID field, which is often used to relate
-// a response to a request.
+// Overpass uses the AMQP correlation ID to tie "root" requests (be they
+// command requests or notifications) to any requests that are made in response
+// to that "root" request. This is different to the popular use of the
+// correlation ID field, which is often used to relate a response to a request.
 func PutCorrelationID(ctx context.Context, msg *amqp.Publishing) string {
 	id := GetCorrelationID(ctx)
 
