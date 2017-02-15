@@ -88,10 +88,10 @@ var _ = Describe("Context", func() {
 	})
 
 	Describe("WithExpiration", func() {
-		It("it adds the deadline from the message", func() {
+		It("adds the deadline from the message", func() {
 			msg := amqp.Delivery{
 				Timestamp:  time.Now(),
-				Expiration: "10000",
+				Expiration: "1000",
 			}
 
 			ctx, cancel := amqputil.WithExpiration(context.Background(), msg)
@@ -100,7 +100,10 @@ var _ = Describe("Context", func() {
 			deadline, ok := ctx.Deadline()
 
 			Expect(ok).To(BeTrue())
-			Expect(deadline).To(BeTemporally("==", msg.Timestamp.Add(1000*time.Millisecond)))
+			Expect(deadline).To(BeTemporally(
+				"==",
+				msg.Timestamp.Add(1000*time.Millisecond),
+			))
 		})
 
 		It("does not add a deadline if there is no timestamp", func() {

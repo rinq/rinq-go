@@ -92,7 +92,7 @@ func WithExpiration(parent context.Context, msg amqp.Delivery) (context.Context,
 
 	return context.WithDeadline(
 		parent,
-		msg.Timestamp.Add(time.Duration(ttl)),
+		msg.Timestamp.Add(time.Duration(ttl)*time.Millisecond),
 	)
 }
 
