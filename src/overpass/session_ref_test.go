@@ -29,6 +29,46 @@ var _ = Describe("SessionRef", func() {
 		Entry("non-zero struct", overpass.SessionRef{ID: sessionID}, true),
 	)
 
+	Describe("Before", func() {
+		DescribeTable(
+			"compares the revision number",
+			func(a, b overpass.SessionRef, expected bool) {
+				Expect(a.Before(b)).To(Equal(expected))
+			},
+			Entry("a == b", overpass.SessionID{}.At(1), overpass.SessionID{}.At(1), false),
+			Entry("a < b", overpass.SessionID{}.At(1), overpass.SessionID{}.At(2), true),
+			Entry("a > b", overpass.SessionID{}.At(2), overpass.SessionID{}.At(1), false),
+		)
+
+		It("panics if the session IDs are not the same", func() {
+			Expect(func() {
+				a := overpass.SessionID{Seq: 1}.At(0)
+				b := overpass.SessionID{Seq: 2}.At(0)
+				a.Before(b)
+			}).Should(Panic())
+		})
+	})
+
+	Describe("After", func() {
+		DescribeTable(
+			"compares the revision number",
+			func(a, b overpass.SessionRef, expected bool) {
+				Expect(a.After(b)).To(Equal(expected))
+			},
+			Entry("a == b", overpass.SessionID{}.At(1), overpass.SessionID{}.At(1), false),
+			Entry("a < b", overpass.SessionID{}.At(1), overpass.SessionID{}.At(2), false),
+			Entry("a > b", overpass.SessionID{}.At(2), overpass.SessionID{}.At(1), true),
+		)
+
+		It("panics if the session IDs are not the same", func() {
+			Expect(func() {
+				a := overpass.SessionID{Seq: 1}.At(0)
+				b := overpass.SessionID{Seq: 2}.At(0)
+				a.After(b)
+			}).Should(Panic())
+		})
+	})
+
 	Describe("String", func() {
 		It("returns a human readable string", func() {
 			subject := overpass.SessionRef{ID: sessionID, Rev: 456}
