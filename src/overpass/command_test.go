@@ -11,7 +11,7 @@ var _ = Describe("Command", func() {
 	DescribeTable(
 		"ValidateNamespace",
 		func(namespace string, expected string) {
-			err := overpass.IsValidNamespace(namespace)
+			err := overpass.ValidateNamespace(namespace)
 
 			if expected == "" {
 				Expect(err).ShouldNot(HaveOccurred())
