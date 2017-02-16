@@ -1,4 +1,4 @@
-package notify
+package notifyamqp
 
 import "github.com/streadway/amqp"
 

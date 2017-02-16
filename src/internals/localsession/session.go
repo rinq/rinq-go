@@ -5,16 +5,17 @@ import (
 	"log"
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/internals"
+	"github.com/over-pass/overpass-go/src/internals/command"
+	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
 type session struct {
 	id       overpass.SessionID
 	catalog  Catalog
-	invoker  internals.Invoker
-	notifier internals.Notifier
-	listener internals.Listener
+	invoker  command.Invoker
+	notifier notify.Notifier
+	listener notify.Listener
 	logger   *log.Logger
 	done     chan struct{}
 
@@ -27,9 +28,9 @@ type session struct {
 func NewSession(
 	id overpass.SessionID,
 	catalog Catalog,
-	invoker internals.Invoker,
-	notifier internals.Notifier,
-	listener internals.Listener,
+	invoker command.Invoker,
+	notifier notify.Notifier,
+	listener notify.Listener,
 	logger *log.Logger,
 ) overpass.Session {
 	sess := &session{

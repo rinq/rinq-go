@@ -4,8 +4,10 @@ import (
 	"log"
 	"sync/atomic"
 
-	"github.com/over-pass/overpass-go/src/internals"
+	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
+	"github.com/over-pass/overpass-go/src/internals/notify"
+	"github.com/over-pass/overpass-go/src/internals/service"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
@@ -14,11 +16,11 @@ import (
 type peer struct {
 	id       overpass.PeerID
 	broker   *amqp.Connection
-	store    localsession.Store
-	invoker  internals.Invoker
-	server   internals.Server
-	notifier internals.Notifier
-	listener internals.Listener
+	sessions localsession.Store
+	invoker  command.Invoker
+	server   command.Server
+	notifier notify.Notifier
+	listener notify.Listener
 	logger   *log.Logger
 	seq      uint32
 }
@@ -26,17 +28,17 @@ type peer struct {
 func newPeer(
 	id overpass.PeerID,
 	broker *amqp.Connection,
-	store localsession.Store,
-	invoker internals.Invoker,
-	server internals.Server,
-	notifier internals.Notifier,
-	listener internals.Listener,
+	sessions localsession.Store,
+	invoker command.Invoker,
+	server command.Server,
+	notifier notify.Notifier,
+	listener notify.Listener,
 	logger *log.Logger,
 ) *peer {
 	return &peer{
 		id:       id,
 		broker:   broker,
-		store:    store,
+		sessions: sessions,
 		invoker:  invoker,
 		server:   server,
 		notifier: notifier,
@@ -65,11 +67,11 @@ func (p *peer) Session() overpass.Session {
 		p.logger,
 	)
 
-	p.store.Add(session, catalog)
+	p.sessions.Add(session, catalog)
 
 	go func() {
 		<-session.Done()
-		p.store.Remove(id)
+		p.sessions.Remove(id)
 	}()
 
 	return session
@@ -112,7 +114,7 @@ func (p *peer) Unlisten(namespace string) error {
 }
 
 func (p *peer) Wait() error {
-	return internals.Wait(
+	return service.Wait(
 		p.invoker,
 		p.server,
 		p.listener,

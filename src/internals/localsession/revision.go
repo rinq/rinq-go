@@ -26,6 +26,10 @@ func (r *revision) Refresh(ctx context.Context) (overpass.Revision, error) {
 }
 
 func (r *revision) Get(ctx context.Context, key string) (overpass.Attr, error) {
+	if r.ref.Rev == 0 {
+		return overpass.Attr{Key: key}, nil
+	}
+
 	attr, ok := r.attrs[key]
 
 	// The attribute hadn't yet been created at this revision.
@@ -44,6 +48,10 @@ func (r *revision) Get(ctx context.Context, key string) (overpass.Attr, error) {
 
 func (r *revision) GetMany(ctx context.Context, keys ...string) (overpass.AttrTable, error) {
 	attrs := overpass.AttrTable{}
+
+	if r.ref.Rev == 0 {
+		return attrs, nil
+	}
 
 	for _, key := range keys {
 		attr, ok := r.attrs[key]

@@ -1,4 +1,4 @@
-package command
+package commandamqp
 
 const (
 	// successResponse is the AMQP message type used for successful call

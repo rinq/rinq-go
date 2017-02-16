@@ -1,4 +1,4 @@
-package command
+package commandamqp
 
 const (
 	// executePriority is the AMQP priority for "Execute*" operations.

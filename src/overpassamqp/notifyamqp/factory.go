@@ -1,9 +1,10 @@
-package notify
+package notifyamqp
 
 import (
-	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
+	"github.com/over-pass/overpass-go/src/internals/notify"
+	"github.com/over-pass/overpass-go/src/internals/revision"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -12,9 +13,9 @@ func New(
 	peerID overpass.PeerID,
 	config overpass.Config,
 	sessions localsession.Store,
-	revisions internals.RevisionStore,
+	revisions revision.Store,
 	channels amqputil.ChannelPool,
-) (internals.Notifier, internals.Listener, error) {
+) (notify.Notifier, notify.Listener, error) {
 	channel, err := channels.Get() // do not return to pool, use for listener
 	if err != nil {
 		return nil, nil, err
