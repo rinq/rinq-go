@@ -4,10 +4,10 @@ import (
 	"log"
 	"sync/atomic"
 
-	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/internals/notify"
+	"github.com/over-pass/overpass-go/src/internals/service"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
@@ -114,7 +114,7 @@ func (p *peer) Unlisten(namespace string) error {
 }
 
 func (p *peer) Wait() error {
-	return internals.Wait(
+	return service.Wait(
 		p.invoker,
 		p.server,
 		p.listener,

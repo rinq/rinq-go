@@ -3,7 +3,7 @@ package command
 import (
 	"context"
 
-	"github.com/over-pass/overpass-go/src/internals"
+	"github.com/over-pass/overpass-go/src/internals/service"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -13,7 +13,7 @@ import (
 // The terminology "call" refers to an invocation that expects a response,
 // whereas "execute" is an invocation where no response is required.
 type Invoker interface {
-	internals.Service
+	service.Service
 
 	// CallUnicast sends a unicast command request to a specific peer and blocks
 	// until a response is received or the context deadline is met.
