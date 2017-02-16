@@ -7,6 +7,7 @@ import (
 	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/command"
+	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
@@ -21,13 +22,13 @@ type Dialer struct {
 	AMQPConfig amqp.Config
 }
 
-// Dial connects to an Overpass network and returns a new peer using the default dialer.
+// Dial connects to an AMQP broker and returns a new peer using the default dialer.
 func Dial(ctx context.Context, dsn string, config overpass.Config) (overpass.Peer, error) {
 	d := Dialer{}
 	return d.Dial(ctx, dsn, config)
 }
 
-// Dial connects to an Overpass network and returns a new peer.
+// Dial connects to an AMQP broker and returns a new peer.
 func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (overpass.Peer, error) {
 	if dsn == "" {
 		dsn = "amqp://localhost"
@@ -69,16 +70,16 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 		return nil, err
 	}
 
-	localStore := &localStore{}
-	remoteStore := &remoteStore{}
-	revStore := internals.NewAggregateRevisionStore(peerID, localStore, remoteStore)
+	store := localsession.NewStore()
+	// remoteStore := &remoteStore{} // TODO
+	revStore := internals.NewAggregateRevisionStore(peerID, store, nil)
 
 	invoker, server, err := command.New(peerID, config, revStore, channels)
 	if err != nil {
 		return nil, err
 	}
 
-	notifier, listener, err := notify.New(peerID, config, localStore, revStore, channels)
+	notifier, listener, err := notify.New(peerID, config, store, revStore, channels)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +94,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	return newPeer(
 		peerID,
 		broker,
-		localStore,
+		store,
 		invoker,
 		server,
 		notifier,

@@ -10,13 +10,14 @@ import (
 	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/deferutil"
+	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
 
 type listener struct {
 	peerID    overpass.PeerID
-	sessions  internals.SessionStore
+	sessions  localsession.Store
 	revisions internals.RevisionStore
 	logger    *log.Logger
 
@@ -31,7 +32,7 @@ type listener struct {
 // newListener creates, starts and returns a new listener.
 func newListener(
 	peerID overpass.PeerID,
-	sessions internals.SessionStore,
+	sessions localsession.Store,
 	revisions internals.RevisionStore,
 	channel *amqp.Channel,
 	logger *log.Logger,
@@ -212,8 +213,8 @@ func (l *listener) handleUnicast(msgID overpass.MessageID, msg amqp.Delivery) er
 		return err
 	}
 
-	sess, err := l.sessions.Get(sessID)
-	if overpass.IsNotFound(err) {
+	sess, _, ok := l.sessions.Get(sessID)
+	if !ok {
 		return nil
 	} else if err != nil {
 		return err
@@ -246,10 +247,16 @@ func (l *listener) handleMulticast(msgID overpass.MessageID, msg amqp.Delivery) 
 		}
 	}
 
-	sessions, err := l.sessions.Find(constraint)
-	if err != nil {
-		return err
-	} else if len(sessions) == 0 {
+	var sessions []overpass.Session
+
+	l.sessions.Each(func(session overpass.Session, catalog localsession.Catalog) {
+		_, attrs := catalog.Attrs()
+		if attrs.MatchConstraint(constraint) {
+			sessions = append(sessions, session)
+		}
+	})
+
+	if len(sessions) == 0 {
 		return nil
 	}
 
