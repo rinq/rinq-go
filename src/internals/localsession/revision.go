@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
+	"github.com/over-pass/overpass-go/src/internals/attrmeta"
 	"github.com/over-pass/overpass-go/src/internals/bufferpool"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
@@ -13,7 +13,7 @@ import (
 type revision struct {
 	ref     overpass.SessionRef
 	catalog Catalog
-	attrs   internals.AttrTableWithMetaData
+	attrs   attrmeta.Table
 	logger  *log.Logger
 }
 

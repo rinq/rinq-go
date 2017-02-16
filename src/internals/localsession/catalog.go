@@ -6,7 +6,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/internals"
+	"github.com/over-pass/overpass-go/src/internals/attrmeta"
 	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
@@ -30,7 +30,7 @@ type Catalog interface {
 	At(overpass.RevisionNumber) (overpass.Revision, error)
 
 	// Attrs returns all attributes at the most recent revision.
-	Attrs() (overpass.SessionRef, internals.AttrTableWithMetaData)
+	Attrs() (overpass.SessionRef, attrmeta.Table)
 
 	// TryUpdate adds or updates attributes in the attribute table and returns
 	// the new head revision.
@@ -62,7 +62,7 @@ type Catalog interface {
 type catalog struct {
 	mutex    sync.RWMutex
 	ref      overpass.SessionRef
-	attrs    internals.AttrTableWithMetaData
+	attrs    attrmeta.Table
 	seq      uint32
 	isClosed bool
 	logger   *log.Logger
@@ -122,7 +122,7 @@ func (c *catalog) At(rev overpass.RevisionNumber) (overpass.Revision, error) {
 	}, nil
 }
 
-func (c *catalog) Attrs() (overpass.SessionRef, internals.AttrTableWithMetaData) {
+func (c *catalog) Attrs() (overpass.SessionRef, attrmeta.Table) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
@@ -223,7 +223,7 @@ func (c *catalog) Close() {
 	c.isClosed = true
 }
 
-func writeDiff(w io.Writer, attr internals.AttrWithMetaData) (err error) {
+func writeDiff(w io.Writer, attr attrmeta.Attr) (err error) {
 	defer deferutil.Recover(&err)
 
 	write := func(s string) {
