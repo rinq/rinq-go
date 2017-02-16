@@ -91,8 +91,7 @@ func (p *Payload) Clone() *Payload {
 // If the payload was created from a non-empty byte-slice, the return value is
 // always that same byte-slic, unless the payload has been closed.
 //
-// If the payload was created from a nil value, the returned byte-slice is nil,
-// which makes it easy to omit the payload from AMQP messages entirely.
+// If the payload was created from a nil value, the returned byte-slice is nil.
 func (p *Payload) Bytes() []byte {
 	if p == nil || p.data == nil {
 		return nil

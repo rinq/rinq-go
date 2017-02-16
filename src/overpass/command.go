@@ -12,8 +12,7 @@ type Command struct {
 	// Source refers to the session that sent the request.
 	Source Revision
 
-	// Namespace holds the command namespace, each namespace has its own
-	// message queue.
+	// Namespace holds the command namespace.
 	Namespace string
 
 	// Command is the command to be executed.

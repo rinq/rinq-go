@@ -3,6 +3,7 @@ package notify
 import (
 	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
+	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -10,7 +11,7 @@ import (
 func New(
 	peerID overpass.PeerID,
 	config overpass.Config,
-	sessions internals.SessionStore,
+	sessions localsession.Store,
 	revisions internals.RevisionStore,
 	channels amqputil.ChannelPool,
 ) (internals.Notifier, internals.Listener, error) {

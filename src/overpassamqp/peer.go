@@ -5,27 +5,28 @@ import (
 	"sync/atomic"
 
 	"github.com/over-pass/overpass-go/src/internals"
+	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
 
 // peer is an AMQP-based implementation of overpass.Peer.
 type peer struct {
-	id         overpass.PeerID
-	broker     *amqp.Connection
-	sessions   *localStore
-	invoker    internals.Invoker
-	server     internals.Server
-	notifier   internals.Notifier
-	listener   internals.Listener
-	logger     *log.Logger
-	sessionSeq uint32
+	id       overpass.PeerID
+	broker   *amqp.Connection
+	store    localsession.Store
+	invoker  internals.Invoker
+	server   internals.Server
+	notifier internals.Notifier
+	listener internals.Listener
+	logger   *log.Logger
+	seq      uint32
 }
 
 func newPeer(
 	id overpass.PeerID,
 	broker *amqp.Connection,
-	sessions *localStore,
+	store localsession.Store,
 	invoker internals.Invoker,
 	server internals.Server,
 	notifier internals.Notifier,
@@ -35,7 +36,7 @@ func newPeer(
 	return &peer{
 		id:       id,
 		broker:   broker,
-		sessions: sessions,
+		store:    store,
 		invoker:  invoker,
 		server:   server,
 		notifier: notifier,
@@ -49,27 +50,29 @@ func (p *peer) ID() overpass.PeerID {
 }
 
 func (p *peer) Session() overpass.Session {
-	sessID := overpass.SessionID{
+	id := overpass.SessionID{
 		Peer: p.id,
-		Seq:  atomic.AddUint32(&p.sessionSeq, 1),
+		Seq:  atomic.AddUint32(&p.seq, 1),
 	}
 
-	sess := newLocalSession(
-		sessID,
+	catalog := localsession.NewCatalog(id, p.logger)
+	session := localsession.NewSession(
+		id,
+		catalog,
 		p.invoker,
 		p.notifier,
 		p.listener,
 		p.logger,
 	)
 
-	p.sessions.Add(sess)
+	p.store.Add(session, catalog)
 
 	go func() {
-		<-sess.Done()
-		p.sessions.Remove(sess)
+		<-session.Done()
+		p.store.Remove(id)
 	}()
 
-	return sess
+	return session
 }
 
 func (p *peer) Listen(namespace string, handler overpass.CommandHandler) error {

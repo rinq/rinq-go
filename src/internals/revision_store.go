@@ -25,8 +25,12 @@ type aggregateRevisionStore struct {
 
 func (r *aggregateRevisionStore) GetRevision(ref overpass.SessionRef) (overpass.Revision, error) {
 	if ref.ID.Peer == r.peerID {
-		return r.local.GetRevision(ref)
+		if r.local != nil {
+			return r.local.GetRevision(ref)
+		}
+	} else if r.remote != nil {
+		return r.remote.GetRevision(ref)
 	}
 
-	return r.remote.GetRevision(ref)
+	return NewClosedRevision(ref), nil
 }
