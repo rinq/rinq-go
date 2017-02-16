@@ -16,7 +16,7 @@ import (
 type peer struct {
 	id       overpass.PeerID
 	broker   *amqp.Connection
-	store    localsession.Store
+	sessions localsession.Store
 	invoker  command.Invoker
 	server   command.Server
 	notifier notify.Notifier
@@ -28,7 +28,7 @@ type peer struct {
 func newPeer(
 	id overpass.PeerID,
 	broker *amqp.Connection,
-	store localsession.Store,
+	sessions localsession.Store,
 	invoker command.Invoker,
 	server command.Server,
 	notifier notify.Notifier,
@@ -38,7 +38,7 @@ func newPeer(
 	return &peer{
 		id:       id,
 		broker:   broker,
-		store:    store,
+		sessions: sessions,
 		invoker:  invoker,
 		server:   server,
 		notifier: notifier,
@@ -67,11 +67,11 @@ func (p *peer) Session() overpass.Session {
 		p.logger,
 	)
 
-	p.store.Add(session, catalog)
+	p.sessions.Add(session, catalog)
 
 	go func() {
 		<-session.Done()
-		p.store.Remove(id)
+		p.sessions.Remove(id)
 	}()
 
 	return session

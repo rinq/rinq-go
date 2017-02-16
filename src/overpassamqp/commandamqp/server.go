@@ -8,10 +8,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/deferutil"
+	"github.com/over-pass/overpass-go/src/internals/revision"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
@@ -19,7 +19,7 @@ import (
 type server struct {
 	peerID    overpass.PeerID
 	preFetch  int
-	revisions internals.RevisionStore
+	revisions revision.Store
 	queues    *queueSet
 	channels  amqputil.ChannelPool
 	logger    *log.Logger
@@ -36,7 +36,7 @@ type server struct {
 func newServer(
 	peerID overpass.PeerID,
 	preFetch int,
-	revisions internals.RevisionStore,
+	revisions revision.Store,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
 	logger *log.Logger,

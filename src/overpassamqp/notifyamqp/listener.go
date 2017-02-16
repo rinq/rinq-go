@@ -7,11 +7,11 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/internals/notify"
+	"github.com/over-pass/overpass-go/src/internals/revision"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
@@ -19,7 +19,7 @@ import (
 type listener struct {
 	peerID    overpass.PeerID
 	sessions  localsession.Store
-	revisions internals.RevisionStore
+	revisions revision.Store
 	logger    *log.Logger
 
 	mutex    sync.RWMutex
@@ -34,7 +34,7 @@ type listener struct {
 func newListener(
 	peerID overpass.PeerID,
 	sessions localsession.Store,
-	revisions internals.RevisionStore,
+	revisions revision.Store,
 	channel *amqp.Channel,
 	logger *log.Logger,
 ) (notify.Listener, error) {

@@ -1,4 +1,4 @@
-package internals
+package revision
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
-// NewClosedRevision returns an revision that behaves as though its session has
+// Closed returns an revision that behaves as though its session has
 // been closed.
-func NewClosedRevision(ref overpass.SessionRef) overpass.Revision {
+func Closed(ref overpass.SessionRef) overpass.Revision {
 	return closedRevision(ref)
 }
 

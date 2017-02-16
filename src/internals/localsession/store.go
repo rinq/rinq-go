@@ -3,13 +3,13 @@ package localsession
 import (
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/internals"
+	revisionpkg "github.com/over-pass/overpass-go/src/internals/revision"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
 // Store is a collection of sessions and their catalogs.
 type Store interface {
-	internals.RevisionStore
+	revisionpkg.Store
 
 	Add(overpass.Session, Catalog)
 	Remove(overpass.SessionID)
@@ -71,5 +71,5 @@ func (s *store) GetRevision(ref overpass.SessionRef) (overpass.Revision, error) 
 		return cat.At(ref.Rev)
 	}
 
-	return internals.NewClosedRevision(ref), nil
+	return revisionpkg.Closed(ref), nil
 }
