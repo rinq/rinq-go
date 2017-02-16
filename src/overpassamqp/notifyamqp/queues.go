@@ -1,4 +1,4 @@
-package notify
+package notifyamqp
 
 import "github.com/over-pass/overpass-go/src/overpass"
 

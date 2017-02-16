@@ -8,8 +8,8 @@ import (
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
-	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp/notifyamqp"
 	"github.com/streadway/amqp"
 )
 
@@ -79,7 +79,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 		return nil, err
 	}
 
-	notifier, listener, err := notify.New(peerID, config, store, revStore, channels)
+	notifier, listener, err := notifyamqp.New(peerID, config, store, revStore, channels)
 	if err != nil {
 		return nil, err
 	}

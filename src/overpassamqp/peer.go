@@ -6,6 +6,7 @@ import (
 
 	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
+	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
@@ -17,8 +18,8 @@ type peer struct {
 	store    localsession.Store
 	invoker  internals.Invoker
 	server   internals.Server
-	notifier internals.Notifier
-	listener internals.Listener
+	notifier notify.Notifier
+	listener notify.Listener
 	logger   *log.Logger
 	seq      uint32
 }
@@ -29,8 +30,8 @@ func newPeer(
 	store localsession.Store,
 	invoker internals.Invoker,
 	server internals.Server,
-	notifier internals.Notifier,
-	listener internals.Listener,
+	notifier notify.Notifier,
+	listener notify.Listener,
 	logger *log.Logger,
 ) *peer {
 	return &peer{
