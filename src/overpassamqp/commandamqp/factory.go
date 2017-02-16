@@ -1,8 +1,9 @@
-package command
+package commandamqp
 
 import (
 	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
+	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -12,7 +13,7 @@ func New(
 	config overpass.Config,
 	revisions internals.RevisionStore,
 	channels amqputil.ChannelPool,
-) (internals.Invoker, internals.Server, error) {
+) (command.Invoker, command.Server, error) {
 	channel, err := channels.Get()
 	if err != nil {
 		return nil, nil, err

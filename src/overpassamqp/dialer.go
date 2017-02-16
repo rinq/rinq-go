@@ -6,9 +6,9 @@ import (
 
 	"github.com/over-pass/overpass-go/src/internals"
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
-	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp/commandamqp"
 	"github.com/over-pass/overpass-go/src/overpassamqp/notifyamqp"
 	"github.com/streadway/amqp"
 )
@@ -74,7 +74,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	// remoteStore := &remoteStore{} // TODO
 	revStore := internals.NewAggregateRevisionStore(peerID, store, nil)
 
-	invoker, server, err := command.New(peerID, config, revStore, channels)
+	invoker, server, err := commandamqp.New(peerID, config, revStore, channels)
 	if err != nil {
 		return nil, err
 	}

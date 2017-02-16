@@ -5,7 +5,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/internals"
+	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
@@ -13,7 +13,7 @@ import (
 type session struct {
 	id       overpass.SessionID
 	catalog  Catalog
-	invoker  internals.Invoker
+	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
 	logger   *log.Logger
@@ -28,7 +28,7 @@ type session struct {
 func NewSession(
 	id overpass.SessionID,
 	catalog Catalog,
-	invoker internals.Invoker,
+	invoker command.Invoker,
 	notifier notify.Notifier,
 	listener notify.Listener,
 	logger *log.Logger,

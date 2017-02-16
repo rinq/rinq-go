@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/over-pass/overpass-go/src/internals"
+	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/overpass"
@@ -16,8 +17,8 @@ type peer struct {
 	id       overpass.PeerID
 	broker   *amqp.Connection
 	store    localsession.Store
-	invoker  internals.Invoker
-	server   internals.Server
+	invoker  command.Invoker
+	server   command.Server
 	notifier notify.Notifier
 	listener notify.Listener
 	logger   *log.Logger
@@ -28,8 +29,8 @@ func newPeer(
 	id overpass.PeerID,
 	broker *amqp.Connection,
 	store localsession.Store,
-	invoker internals.Invoker,
-	server internals.Server,
+	invoker command.Invoker,
+	server command.Server,
 	notifier notify.Notifier,
 	listener notify.Listener,
 	logger *log.Logger,
