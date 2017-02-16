@@ -20,13 +20,13 @@ type aggregateStore struct {
 	remote Store
 }
 
-func (r *aggregateStore) GetRevision(ref overpass.SessionRef) (overpass.Revision, error) {
-	if ref.ID.Peer == r.peerID {
-		if r.local != nil {
-			return r.local.GetRevision(ref)
+func (s *aggregateStore) GetRevision(ref overpass.SessionRef) (overpass.Revision, error) {
+	if ref.ID.Peer == s.peerID {
+		if s.local != nil {
+			return s.local.GetRevision(ref)
 		}
-	} else if r.remote != nil {
-		return r.remote.GetRevision(ref)
+	} else if s.remote != nil {
+		return s.remote.GetRevision(ref)
 	}
 
 	return Closed(ref), nil
