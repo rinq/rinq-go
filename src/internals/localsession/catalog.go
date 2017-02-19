@@ -201,6 +201,7 @@ func (c *catalog) TryUpdate(
 		ref:     c.ref,
 		catalog: c,
 		attrs:   c.attrs,
+		logger:  c.logger,
 	}, nil
 }
 
