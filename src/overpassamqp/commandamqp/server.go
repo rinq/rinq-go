@@ -66,7 +66,6 @@ func (s *server) Listen(namespace string, handler overpass.CommandHandler) (bool
 	// we're already listening, just swap the handler
 	if _, ok := s.handlers[namespace]; ok {
 		s.handlers[namespace] = handler
-		fmt.Println("already listening")
 		return false, nil
 	}
 
@@ -77,13 +76,11 @@ func (s *server) Listen(namespace string, handler overpass.CommandHandler) (bool
 		false, // noWait
 		nil,   //  args
 	); err != nil {
-		fmt.Println(err)
 		return false, err
 	}
 
 	queue, err := s.queues.Get(s.channel, namespace)
 	if err != nil {
-		fmt.Println(err)
 		return false, err
 	}
 
@@ -97,7 +94,6 @@ func (s *server) Listen(namespace string, handler overpass.CommandHandler) (bool
 		nil,   // args
 	)
 	if err != nil {
-		fmt.Println(err)
 		return false, err
 	}
 
@@ -150,7 +146,6 @@ func (s *server) Error() error {
 
 func (s *server) dispatchEach(messages <-chan amqp.Delivery) {
 	for msg := range messages {
-		fmt.Println(msg)
 		go s.dispatch(msg)
 	}
 }
@@ -200,7 +195,6 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 	if handler == nil {
 		msg.Reject(true)
 		// TODO: log - request was probably in network buffer before unlisten was called
-		fmt.Println("no handler ", msg)
 		return nil
 	}
 
