@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -21,29 +22,46 @@ func runClient(peer overpass.Peer) error {
 		return err
 	}
 
-	rev, err = rev.Update(
-		context.Background(),
-		overpass.Freeze("product", "myapp"),
-		overpass.Set("accountId", "7"),
-		overpass.Set("foo", "bar"),
-	)
-	if err != nil {
-		return err
-	}
+	// rev, err = rev.Update(
+	// 	context.Background(),
+	// 	overpass.Freeze("product", "myapp"),
+	// 	overpass.Set("accountId", "7"),
+	// 	overpass.Set("foo", "bar"),
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
-	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
+	var counter uint64
+	for {
+		counter++
 
-	res, err := sess.Call(
-		ctx,
-		"myapp.v1",
-		"purchase",
-		overpass.NewPayload("hello, joe"),
-	)
-	defer res.Close()
-	if err != nil {
-		spew.Dump(err)
+		ctx := context.Background()
+
+		rev, err = rev.Update(
+			ctx,
+			overpass.Set("counter", strconv.FormatUint(counter, 10)),
+		)
+		if err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+		defer cancel()
+
+		res, err := sess.Call(
+			ctx,
+			"myapp.v1",
+			"read-counter",
+			nil,
+		)
+		defer res.Close()
+		if err != nil {
+			spew.Dump(err)
+			break
+		}
+
+		time.Sleep(time.Second * 10)
 	}
 
 	// if err = sess.NotifyMany(

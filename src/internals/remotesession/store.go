@@ -1,6 +1,8 @@
 package remotesession
 
 import (
+	"sync"
+
 	"github.com/over-pass/overpass-go/src/internals/command"
 	revisionpkg "github.com/over-pass/overpass-go/src/internals/revision"
 	"github.com/over-pass/overpass-go/src/overpass"
@@ -8,6 +10,9 @@ import (
 
 type store struct {
 	client *client
+
+	mutex    sync.Mutex
+	catalogs map[overpass.SessionID]*catalog
 }
 
 // NewStore returns a new store for revisions of remote sessions.
@@ -20,12 +25,25 @@ func NewStore(
 			peerID:  peerID,
 			invoker: invoker,
 		},
+		catalogs: map[overpass.SessionID]*catalog{},
 	}
 }
 
 func (s *store) GetRevision(ref overpass.SessionRef) (overpass.Revision, error) {
-	return &revision{
-		ref:    ref,
-		client: s.client,
-	}, nil
+	cat := s.getCatalog(ref.ID)
+	return cat.At(ref.Rev), nil
+}
+
+func (s *store) getCatalog(id overpass.SessionID) *catalog {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if cat, ok := s.catalogs[id]; ok {
+		return cat
+	}
+
+	cat := &catalog{id: id, client: s.client}
+	s.catalogs[id] = cat
+
+	return cat
 }

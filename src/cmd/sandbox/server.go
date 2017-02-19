@@ -18,10 +18,9 @@ func runServer(peer overpass.Peer) error {
 		) {
 			defer cmd.Payload.Close()
 
-			// attr, err := cmd.
-			attr, err := cmd.Source.Get(ctx, "product")
+			attr, err := cmd.Source.Get(ctx, "counter")
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("get() error:", err)
 				res.Error(err)
 			} else {
 				res.Close()
