@@ -18,11 +18,11 @@ type client struct {
 func (c *client) Fetch(
 	ctx context.Context,
 	sessID overpass.SessionID,
-	keys ...string,
+	keys []string,
 ) (
-	ref overpass.SessionRef,
-	attrs []attrmeta.Attr,
-	err error,
+	overpass.RevisionNumber,
+	[]attrmeta.Attr,
+	error,
 ) {
 	out := overpass.NewPayload(fetchRequest{
 		Seq:  sessID.Seq,
@@ -42,18 +42,17 @@ func (c *client) Fetch(
 		if overpass.IsFailureType(notFoundFailure, err) {
 			err = overpass.NotFoundError{ID: sessID}
 		}
-		return
+		return 0, nil, err
 	}
 
 	var rsp fetchResponse
 	err = in.Decode(&rsp)
 
-	if err == nil {
-		ref = sessID.At(rsp.Rev)
-		attrs = rsp.Attrs
+	if err != nil {
+		return 0, nil, err
 	}
 
-	return
+	return rsp.Rev, rsp.Attrs, nil
 }
 
 func (c *client) nextMessageID() overpass.MessageID {
