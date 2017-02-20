@@ -48,6 +48,11 @@ func NewSession(
 		sess.catalog.Ref().ShortString(),
 	)
 
+	go func() {
+		<-catalog.Done()
+		sess.Close()
+	}()
+
 	return sess
 }
 
@@ -153,7 +158,7 @@ func (s *session) Close() {
 	s.listener.Unlisten(s.id)
 
 	s.logger.Printf(
-		"%s session destroyed", // TODO: log args
+		"%s session destroyed", // TODO: log attrs
 		s.catalog.Ref().ShortString(),
 	)
 }

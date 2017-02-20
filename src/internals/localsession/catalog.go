@@ -50,22 +50,23 @@ type Catalog interface {
 	//
 	// The operation fails if ref is not the current session-ref. It is not an
 	// error to close an already-closed catalog.
-	//
-	// The return value is only true if this call caused the catalog to close.
-	TryClose(ref overpass.SessionRef) (bool, error)
+	TryClose(ref overpass.SessionRef) error
 
 	// Close forcefully closes the catalog, preventing further updates.
 	// It is not an error to close an already-closed catalog.
 	Close()
+
+	// Done returns a channel that is closed when the catalog is closed.
+	Done() <-chan struct{}
 }
 
 type catalog struct {
-	mutex    sync.RWMutex
-	ref      overpass.SessionRef
-	attrs    attrmeta.Table
-	seq      uint32
-	isClosed bool
-	logger   *log.Logger
+	mutex  sync.RWMutex
+	ref    overpass.SessionRef
+	attrs  attrmeta.Table
+	seq    uint32
+	done   chan struct{}
+	logger *log.Logger
 }
 
 // NewCatalog returns a catalog for the given session.
@@ -75,6 +76,7 @@ func NewCatalog(
 ) Catalog {
 	return &catalog{
 		ref:    id.At(0),
+		done:   make(chan struct{}),
 		logger: logger,
 	}
 }
@@ -137,8 +139,10 @@ func (c *catalog) TryUpdate(
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	if c.isClosed {
+	select {
+	case <-c.done:
 		return nil, overpass.NotFoundError{ID: c.ref.ID}
+	default:
 	}
 
 	if ref != c.ref {
@@ -200,27 +204,36 @@ func (c *catalog) TryUpdate(
 	}, nil
 }
 
-func (c *catalog) TryClose(ref overpass.SessionRef) (bool, error) {
+func (c *catalog) TryClose(ref overpass.SessionRef) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	if ref != c.ref {
-		return false, overpass.StaleUpdateError{Ref: ref}
+		return overpass.StaleUpdateError{Ref: ref}
 	}
 
-	if c.isClosed {
-		return false, nil
+	select {
+	case <-c.done:
+	default:
+		close(c.done)
 	}
 
-	c.isClosed = true
-	return true, nil
+	return nil
 }
 
 func (c *catalog) Close() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	c.isClosed = true
+	select {
+	case <-c.done:
+	default:
+		close(c.done)
+	}
+}
+
+func (c *catalog) Done() <-chan struct{} {
+	return c.done
 }
 
 func writeDiff(w io.Writer, attr attrmeta.Attr) (err error) {
