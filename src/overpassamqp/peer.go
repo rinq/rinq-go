@@ -1,7 +1,6 @@
 package overpassamqp
 
 import (
-	"log"
 	"sync/atomic"
 
 	"github.com/over-pass/overpass-go/src/internals/command"
@@ -21,7 +20,7 @@ type peer struct {
 	server   command.Server
 	notifier notify.Notifier
 	listener notify.Listener
-	logger   *log.Logger
+	logger   overpass.Logger
 	seq      uint32
 }
 
@@ -33,7 +32,7 @@ func newPeer(
 	server command.Server,
 	notifier notify.Notifier,
 	listener notify.Listener,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) *peer {
 	return &peer{
 		id:       id,
@@ -85,7 +84,7 @@ func (p *peer) Listen(namespace string, handler overpass.CommandHandler) error {
 	added, err := p.server.Listen(namespace, handler)
 
 	if added {
-		p.logger.Printf(
+		p.logger.Log(
 			"%s started listening for command requests in '%s' namespace",
 			p.id.ShortString(),
 			namespace,
@@ -103,7 +102,7 @@ func (p *peer) Unlisten(namespace string) error {
 	removed, err := p.server.Unlisten(namespace)
 
 	if removed {
-		p.logger.Printf(
+		p.logger.Log(
 			"%s stopped listening for command requests in '%s' namespace",
 			p.id.ShortString(),
 			namespace,

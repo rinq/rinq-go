@@ -2,7 +2,6 @@ package notifyamqp
 
 import (
 	"context"
-	"log"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/notify"
@@ -12,13 +11,13 @@ import (
 
 type notifier struct {
 	channels amqputil.ChannelPool
-	logger   *log.Logger
+	logger   overpass.Logger
 }
 
 // newNotifier creates, initializes and returns a new notifier.
 func newNotifier(
 	channels amqputil.ChannelPool,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) notify.Notifier {
 	return &notifier{
 		channels: channels,
@@ -44,7 +43,7 @@ func (n *notifier) NotifyUnicast(
 		return err
 	}
 
-	n.logger.Printf(
+	n.logger.Log(
 		"%s sent '%s' notification to %s (%d bytes) [%s]",
 		msgID.ShortString(),
 		notificationType,
@@ -79,7 +78,7 @@ func (n *notifier) NotifyMulticast(
 		return err
 	}
 
-	n.logger.Printf(
+	n.logger.Log(
 		"%s sent '%s' notification to {%s} (%d bytes) [%s]",
 		msgID.ShortString(),
 		notificationType,

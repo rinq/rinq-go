@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 
@@ -22,7 +21,7 @@ type server struct {
 	revisions revision.Store
 	queues    *queueSet
 	channels  amqputil.ChannelPool
-	logger    *log.Logger
+	logger    overpass.Logger
 
 	mutex    sync.RWMutex
 	channel  *amqp.Channel
@@ -39,7 +38,7 @@ func newServer(
 	revisions revision.Store,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) (command.Server, error) {
 	s := &server{
 		peerID:    peerID,
@@ -154,7 +153,7 @@ func (s *server) dispatch(msg amqp.Delivery) {
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
 		msg.Reject(false)
-		s.logger.Printf(
+		s.logger.Log(
 			"%s ignored AMQP message, '%s' is not a valid message ID",
 			s.peerID.ShortString(),
 			msg.MessageId,
@@ -177,7 +176,7 @@ func (s *server) dispatch(msg amqp.Delivery) {
 
 	if err != nil {
 		msg.Reject(false)
-		s.logger.Printf(
+		s.logger.Log(
 			"%s ignored AMQP message %s, %s",
 			s.peerID.ShortString(),
 			msgID.ShortString(),

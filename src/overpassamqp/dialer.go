@@ -2,7 +2,6 @@ package overpassamqp
 
 import (
 	"context"
-	"log"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
@@ -92,7 +91,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 
 	remotesession.Listen(peerID, sessions, server)
 
-	config.Logger.Printf(
+	config.Logger.Log(
 		"%s peer connected to '%s' as %s",
 		peerID.ShortString(),
 		dsn,
@@ -115,7 +114,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 func (d *Dialer) establishIdentity(
 	ctx context.Context,
 	channels amqputil.ChannelPool,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) (id overpass.PeerID, err error) {
 	var channel *amqp.Channel
 
@@ -148,10 +147,12 @@ func (d *Dialer) establishIdentity(
 			err = ctx.Err()
 			return
 		default:
-			logger.Printf(
-				"%s peer already registered, retrying",
-				id.ShortString(),
-			)
+			if logger.IsDebug() {
+				logger.Log(
+					"%s peer already registered, retrying",
+					id.ShortString(),
+				)
+			}
 		}
 	}
 }

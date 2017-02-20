@@ -3,7 +3,6 @@ package localsession
 import (
 	"errors"
 	"io"
-	"log"
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/internals/attrmeta"
@@ -66,13 +65,13 @@ type catalog struct {
 	attrs  attrmeta.Table
 	seq    uint32
 	done   chan struct{}
-	logger *log.Logger
+	logger overpass.Logger
 }
 
 // NewCatalog returns a catalog for the given session.
 func NewCatalog(
 	id overpass.SessionID,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) Catalog {
 	return &catalog{
 		ref:    id.At(0),

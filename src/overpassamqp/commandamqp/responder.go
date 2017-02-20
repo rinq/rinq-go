@@ -3,7 +3,6 @@ package commandamqp
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
@@ -17,7 +16,7 @@ type responder struct {
 	channels amqputil.ChannelPool
 	context  context.Context
 	msgID    overpass.MessageID
-	logger   *log.Logger
+	logger   overpass.Logger
 
 	mutex      sync.RWMutex
 	isRequired bool

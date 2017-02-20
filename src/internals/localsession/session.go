@@ -2,7 +2,6 @@ package localsession
 
 import (
 	"context"
-	"log"
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/internals/command"
@@ -16,7 +15,7 @@ type session struct {
 	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
-	logger   *log.Logger
+	logger   overpass.Logger
 	done     chan struct{}
 
 	// mutex guards Call(), Listen(), Unlisten() and Close() so that Close()
@@ -32,7 +31,7 @@ func NewSession(
 	invoker command.Invoker,
 	notifier notify.Notifier,
 	listener notify.Listener,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) overpass.Session {
 	sess := &session{
 		id:       id,
@@ -44,7 +43,7 @@ func NewSession(
 		done:     make(chan struct{}),
 	}
 
-	sess.logger.Printf(
+	sess.logger.Log(
 		"%s session created",
 		sess.catalog.Ref().ShortString(),
 	)
@@ -161,7 +160,7 @@ func (s *session) Close() {
 	s.catalog.Close()
 	s.listener.Unlisten(s.id)
 
-	s.logger.Printf(
+	s.logger.Log(
 		"%s session destroyed", // TODO: log attrs
 		s.catalog.Ref().ShortString(),
 	)

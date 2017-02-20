@@ -3,7 +3,6 @@ package notifyamqp
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 
@@ -20,7 +19,7 @@ type listener struct {
 	peerID    overpass.PeerID
 	sessions  localsession.Store
 	revisions revision.Store
-	logger    *log.Logger
+	logger    overpass.Logger
 
 	mutex    sync.RWMutex
 	channel  *amqp.Channel
@@ -36,7 +35,7 @@ func newListener(
 	sessions localsession.Store,
 	revisions revision.Store,
 	channel *amqp.Channel,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) (notify.Listener, error) {
 	l := &listener{
 		peerID:    peerID,
@@ -181,7 +180,7 @@ func (l *listener) consume(messages <-chan amqp.Delivery) {
 func (l *listener) dispatch(msg amqp.Delivery) {
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
-		l.logger.Printf(
+		l.logger.Log(
 			"%s ignored AMQP message, '%s' is not a valid message ID",
 			l.peerID.ShortString(),
 			msg.MessageId,
@@ -199,7 +198,7 @@ func (l *listener) dispatch(msg amqp.Delivery) {
 	}
 
 	if err != nil {
-		l.logger.Printf(
+		l.logger.Log(
 			"%s ignored AMQP message %s, %s",
 			l.peerID.ShortString(),
 			msgID.ShortString(),
@@ -285,7 +284,7 @@ func (l *listener) handleMulticast(msgID overpass.MessageID, msg amqp.Delivery) 
 		)
 
 		if err != nil {
-			l.logger.Printf(
+			l.logger.Log(
 				"%s ignored notification %s for %s, %s",
 				l.peerID.ShortString(),
 				msgID.ShortString(),
@@ -323,7 +322,7 @@ func (l *listener) handle(
 		return err
 	}
 
-	l.logger.Printf(
+	l.logger.Log(
 		"%s received '%s' notification from %s (%d bytes) [%s]",
 		rev.Ref().ShortString(),
 		n.Type,

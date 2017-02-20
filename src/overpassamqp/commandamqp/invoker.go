@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,7 +20,7 @@ type invoker struct {
 	defaultTimeout time.Duration
 	queues         *queueSet
 	channels       amqputil.ChannelPool
-	logger         *log.Logger
+	logger         overpass.Logger
 
 	mutex   sync.RWMutex
 	pending map[string]chan returnValue
@@ -37,7 +36,7 @@ func newInvoker(
 	defaultTimeout time.Duration,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) (command.Invoker, error) {
 	i := &invoker{
 		peerID:         peerID,
@@ -148,7 +147,7 @@ func (i *invoker) CallBalanced(
 		}
 	}
 
-	i.logger.Printf(
+	i.logger.Log(
 		"%s called '%s' in '%s' namespace (%d bytes), %s after %dms (%s) [%s]",
 		msgID.ShortString(),
 		command,
@@ -183,7 +182,7 @@ func (i *invoker) ExecuteBalanced(
 		return err
 	}
 
-	i.logger.Printf(
+	i.logger.Log(
 		"%s executed '%s' in '%s' namespace (%d bytes) [%s]",
 		msgID.ShortString(),
 		command,
@@ -214,7 +213,7 @@ func (i *invoker) ExecuteMulticast(
 		return err
 	}
 
-	i.logger.Printf(
+	i.logger.Log(
 		"%s executed '%s' in '%s' namespace on multiple peers (%d bytes) [%s]",
 		msgID.ShortString(),
 		command,

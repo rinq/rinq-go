@@ -2,7 +2,6 @@ package localsession
 
 import (
 	"context"
-	"log"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/attrmeta"
@@ -14,7 +13,7 @@ type revision struct {
 	ref     overpass.SessionRef
 	catalog Catalog
 	attrs   attrmeta.Table
-	logger  *log.Logger
+	logger  overpass.Logger
 }
 
 func (r *revision) Ref() overpass.SessionRef {
@@ -89,14 +88,14 @@ func (r *revision) Update(ctx context.Context, attrs ...overpass.Attr) (overpass
 	}
 
 	if corrID := amqputil.GetCorrelationID(ctx); corrID != "" {
-		r.logger.Printf(
+		r.logger.Log(
 			"%s session updated {%s} [%s]",
 			rev.Ref().ShortString(),
 			diff.String(),
 			corrID,
 		)
 	} else {
-		r.logger.Printf(
+		r.logger.Log(
 			"%s session updated {%s}",
 			rev.Ref().ShortString(),
 			diff.String(),
