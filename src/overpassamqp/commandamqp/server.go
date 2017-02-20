@@ -153,11 +153,13 @@ func (s *server) dispatch(msg amqp.Delivery) {
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
 		msg.Reject(false)
-		s.logger.Log(
-			"%s ignored AMQP message, '%s' is not a valid message ID",
-			s.peerID.ShortString(),
-			msg.MessageId,
-		)
+		if s.logger.IsDebug() {
+			s.logger.Log(
+				"%s ignored AMQP message, '%s' is not a valid message ID",
+				s.peerID.ShortString(),
+				msg.MessageId,
+			)
+		}
 		return
 	}
 
@@ -176,12 +178,15 @@ func (s *server) dispatch(msg amqp.Delivery) {
 
 	if err != nil {
 		msg.Reject(false)
-		s.logger.Log(
-			"%s ignored AMQP message %s, %s",
-			s.peerID.ShortString(),
-			msgID.ShortString(),
-			err,
-		)
+
+		if s.logger.IsDebug() {
+			s.logger.Log(
+				"%s ignored AMQP message %s, %s",
+				s.peerID.ShortString(),
+				msgID.ShortString(),
+				err,
+			)
+		}
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/attrmeta"
 	"github.com/over-pass/overpass-go/src/internals/bufferpool"
 	"github.com/over-pass/overpass-go/src/internals/command"
@@ -240,7 +241,27 @@ func (s *session) Listen(handler overpass.NotificationHandler) error {
 	default:
 	}
 
-	changed, err := s.listener.Listen(s.id, handler)
+	changed, err := s.listener.Listen(
+		s.id,
+		func(
+			ctx context.Context,
+			target overpass.Session,
+			n overpass.Notification,
+		) {
+			rev := s.catalog.Head()
+
+			s.logger.Log(
+				"%s received '%s' notification from %s (%d bytes) [%s]",
+				rev.Ref().ShortString(),
+				n.Type,
+				n.Source.Ref().ShortString(),
+				n.Payload.Len(),
+				amqputil.GetCorrelationID(ctx),
+			)
+
+			handler(ctx, target, n)
+		},
+	)
 
 	if err != nil {
 		return err

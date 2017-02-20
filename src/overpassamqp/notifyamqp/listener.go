@@ -183,11 +183,13 @@ func (l *listener) consume(messages <-chan amqp.Delivery) {
 func (l *listener) dispatch(msg amqp.Delivery) {
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
-		l.logger.Log(
-			"%s ignored AMQP message, '%s' is not a valid message ID",
-			l.peerID.ShortString(),
-			msg.MessageId,
-		)
+		if l.logger.IsDebug() {
+			l.logger.Log(
+				"%s ignored AMQP message, '%s' is not a valid message ID",
+				l.peerID.ShortString(),
+				msg.MessageId,
+			)
+		}
 		return
 	}
 
@@ -200,7 +202,7 @@ func (l *listener) dispatch(msg amqp.Delivery) {
 		err = fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
 	}
 
-	if err != nil {
+	if err != nil && l.logger.IsDebug() {
 		l.logger.Log(
 			"%s ignored AMQP message %s, %s",
 			l.peerID.ShortString(),
@@ -286,7 +288,7 @@ func (l *listener) handleMulticast(msgID overpass.MessageID, msg amqp.Delivery) 
 			},
 		)
 
-		if err != nil {
+		if err != nil && l.logger.IsDebug() {
 			l.logger.Log(
 				"%s ignored notification %s for %s, %s",
 				l.peerID.ShortString(),
@@ -317,22 +319,6 @@ func (l *listener) handle(
 	if handler == nil {
 		return nil
 	}
-
-	rev, err := sess.CurrentRevision()
-	if overpass.IsNotFound(err) {
-		return nil
-	} else if err != nil {
-		return err
-	}
-
-	l.logger.Log(
-		"%s received '%s' notification from %s (%d bytes) [%s]",
-		rev.Ref().ShortString(),
-		n.Type,
-		n.Source.Ref().ShortString(),
-		n.Payload.Len(),
-		amqputil.GetCorrelationID(ctx),
-	)
 
 	handler(ctx, sess, n)
 
