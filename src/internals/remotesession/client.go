@@ -38,6 +38,8 @@ func (c *client) Fetch(
 		fetchCommand,
 		out,
 	)
+	defer in.Close()
+
 	if err != nil {
 		if overpass.IsFailureType(notFoundFailure, err) {
 			err = overpass.NotFoundError{ID: sessID}
@@ -78,6 +80,8 @@ func (c *client) Update(
 		updateCommand,
 		out,
 	)
+	defer in.Close()
+
 	if err != nil {
 		if overpass.IsFailureType(notFoundFailure, err) {
 			err = overpass.NotFoundError{ID: ref.ID}
@@ -98,6 +102,39 @@ func (c *client) Update(
 	}
 
 	return overpass.RevisionNumber(rsp), nil
+}
+
+func (c *client) Close(
+	ctx context.Context,
+	ref overpass.SessionRef,
+) error {
+	out := overpass.NewPayload(closeRequest{
+		Seq: ref.ID.Seq,
+		Rev: ref.Rev,
+	})
+	defer out.Close()
+
+	in, err := c.invoker.CallUnicast(
+		ctx,
+		c.nextMessageID(),
+		ref.ID.Peer,
+		sessionNamespace,
+		closeCommand,
+		out,
+	)
+	defer in.Close()
+
+	if err != nil {
+		if overpass.IsFailureType(notFoundFailure, err) {
+			err = overpass.NotFoundError{ID: ref.ID}
+		} else if overpass.IsFailureType(staleUpdateFailure, err) {
+			err = overpass.StaleUpdateError{Ref: ref}
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 func (c *client) nextMessageID() overpass.MessageID {

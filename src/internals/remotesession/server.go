@@ -42,6 +42,8 @@ func (s *server) handle(
 		s.fetch(ctx, cmd, res)
 	case updateCommand:
 		s.update(ctx, cmd, res)
+	case closeCommand:
+		s.close(ctx, cmd, res)
 	default:
 		res.Error(errors.New("unknown command"))
 	}
@@ -123,4 +125,39 @@ func (s *server) update(
 	payload := overpass.NewPayload(updateResponse(rev.Ref().Rev))
 	defer payload.Close()
 	res.Done(payload)
+}
+
+func (s *server) close(
+	ctx context.Context,
+	cmd overpass.Command,
+	res overpass.Responder,
+) {
+	var req closeRequest
+
+	if err := cmd.Payload.Decode(&req); err != nil {
+		res.Error(err)
+		return
+	}
+
+	sessID := overpass.SessionID{Peer: s.peerID, Seq: req.Seq}
+	_, cat, ok := s.sessions.Get(sessID)
+	if !ok {
+		res.Fail(notFoundFailure, "")
+		return
+	}
+
+	if err := cat.TryClose(sessID.At(req.Rev)); err != nil {
+		switch err.(type) {
+		case overpass.NotFoundError:
+			res.Fail(notFoundFailure, "")
+		case overpass.StaleUpdateError:
+			res.Fail(staleUpdateFailure, "")
+		default:
+			res.Error(err)
+		}
+
+		return
+	}
+
+	res.Close()
 }

@@ -87,7 +87,7 @@ func runClient(peer overpass.Peer) error {
 	// 	return err
 	// }
 
-	// <-sess.Done()
+	<-sess.Done()
 	return nil
 }
 

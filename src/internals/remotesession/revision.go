@@ -63,6 +63,6 @@ func (r *revision) Update(ctx context.Context, attrs ...overpass.Attr) (overpass
 	return rev, nil
 }
 
-func (r *revision) Close(context.Context) error {
-	return nil
+func (r *revision) Close(ctx context.Context) error {
+	return r.catalog.TryClose(ctx, r.ref.Rev)
 }

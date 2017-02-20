@@ -17,13 +17,22 @@ func runServer(peer overpass.Peer) error {
 		) {
 			defer cmd.Payload.Close()
 
-			_, err := cmd.Source.Update(ctx, overpass.Set("product", "myapp"))
+			rev, err := cmd.Source.Update(ctx, overpass.Set("product", "myapp"))
 			if err != nil {
 				fmt.Println("update error:", err)
 				res.Error(err)
-			} else {
-				res.Close()
+				return
 			}
+
+			err = rev.Close(ctx)
+			if err != nil {
+				fmt.Println("close error:", err)
+				res.Error(err)
+				return
+			}
+
+			fmt.Println("done")
+			res.Close()
 
 			// attr, err := cmd.Source.Get(ctx, "counter")
 			// if err != nil {

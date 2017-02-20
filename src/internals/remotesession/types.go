@@ -12,6 +12,7 @@ const (
 const (
 	fetchCommand  = "fetch"
 	updateCommand = "update"
+	closeCommand  = "close"
 )
 
 const (
@@ -37,3 +38,8 @@ type updateRequest struct {
 }
 
 type updateResponse overpass.RevisionNumber
+
+type closeRequest struct {
+	Seq uint32
+	Rev overpass.RevisionNumber
+}

@@ -174,6 +174,10 @@ func (c *catalog) TryUpdate(
 	unlock := deferutil.RLock(&c.mutex)
 	defer unlock()
 
+	if c.isClosed {
+		return nil, overpass.NotFoundError{ID: c.id}
+	}
+
 	ref := c.id.At(rev)
 
 	if c.highestRev > rev {
@@ -225,6 +229,38 @@ func (c *catalog) TryUpdate(
 		ref:     c.id.At(c.highestRev),
 		catalog: c,
 	}, nil
+}
+
+func (c *catalog) TryClose(
+	ctx context.Context,
+	rev overpass.RevisionNumber,
+) error {
+	unlock := deferutil.RLock(&c.mutex)
+	defer unlock()
+
+	if c.isClosed {
+		return overpass.NotFoundError{ID: c.id}
+	}
+
+	ref := c.id.At(rev)
+
+	if c.highestRev > rev {
+		return overpass.StaleUpdateError{Ref: ref}
+	}
+
+	unlock()
+
+	err := c.client.Close(ctx, ref)
+	if err != nil {
+		return err
+	}
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	c.isClosed = true
+
+	return nil
 }
 
 func (c *catalog) fetchLocal(
