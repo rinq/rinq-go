@@ -5,7 +5,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/over-pass/overpass-go/src/internals/attrmeta"
+	"github.com/over-pass/overpass-go/src/internals/bufferpool"
 	"github.com/over-pass/overpass-go/src/internals/command"
+	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
@@ -276,8 +279,8 @@ func (s *session) Unlisten() error {
 }
 
 func (s *session) Close() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	unlock := deferutil.Lock(&s.mutex)
+	defer unlock()
 
 	select {
 	case <-s.done:
@@ -289,9 +292,29 @@ func (s *session) Close() {
 	s.catalog.Close()
 	s.listener.Unlisten(s.id)
 
+	unlock()
+
+	ref, attrs := s.catalog.Attrs()
+
+	buffer := bufferpool.Get()
+	defer bufferpool.Put(buffer)
+
+	for _, attr := range attrs {
+		if !attr.IsFrozen && attr.Value == "" {
+			continue
+		}
+
+		if buffer.Len() != 0 {
+			buffer.WriteString(", ")
+		}
+
+		attrmeta.Write(buffer, attr)
+	}
+
 	s.logger.Log(
-		"%s session destroyed", // TODO: log attrs
-		s.catalog.Ref().ShortString(),
+		"%s session destroyed {%s}",
+		ref,
+		buffer,
 	)
 }
 
