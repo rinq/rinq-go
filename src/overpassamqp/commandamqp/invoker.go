@@ -80,7 +80,7 @@ func (i *invoker) CallUnicast(
 	}
 
 	_, done, cancel, err := i.call(
-		ctx,
+		&ctx,
 		&msg,
 		unicastExchange,
 		target.String(),
@@ -116,7 +116,7 @@ func (i *invoker) CallBalanced(
 
 	sentAt := time.Now()
 	corrID, done, cancel, err := i.call(
-		ctx,
+		&ctx,
 		&msg,
 		balancedExchange,
 		namespace,
@@ -239,7 +239,7 @@ func (i *invoker) Error() error {
 }
 
 func (i *invoker) call(
-	ctx context.Context,
+	ctx *context.Context,
 	msg *amqp.Publishing,
 	exchange string,
 	key string,
@@ -254,18 +254,18 @@ func (i *invoker) call(
 	cancel := deferutil.Set{}
 	defer cancel.Run()
 
-	if _, ok := ctx.Deadline(); !ok {
-		var cancelTimeout func()
-		ctx, cancelTimeout = context.WithTimeout(ctx, i.defaultTimeout)
+	if _, ok := (*ctx).Deadline(); !ok {
+		timeoutCtx, cancelTimeout := context.WithTimeout(*ctx, i.defaultTimeout)
+		*ctx = timeoutCtx
 		cancel.Add(cancelTimeout)
 	}
 
-	if _, err := amqputil.PutExpiration(ctx, msg); err != nil {
+	if _, err := amqputil.PutExpiration(*ctx, msg); err != nil {
 		return "", nil, nil, err
 	}
 
 	msg.ReplyTo = "Y"
-	corrID := amqputil.PutCorrelationID(ctx, msg)
+	corrID := amqputil.PutCorrelationID(*ctx, msg)
 
 	done := make(chan returnValue, 1)
 
