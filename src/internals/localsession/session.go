@@ -3,6 +3,7 @@ package localsession
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/notify"
@@ -77,8 +78,53 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 	case <-s.done:
 		return nil, overpass.NotFoundError{ID: s.id}
 	default:
-		return s.invoker.CallBalanced(ctx, s.catalog.NextMessageID(), ns, cmd, p)
 	}
+
+	msgID := s.catalog.NextMessageID()
+
+	start := time.Now()
+	corrID, payload, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, p)
+	elapsed := time.Now().Sub(start) / time.Millisecond
+
+	switch e := err.(type) {
+	case nil:
+		s.logger.Log(
+			"%s called '%s' in '%s' namespace (%d bytes), returned after %dms (%d bytes) [%s]",
+			msgID.ShortString(),
+			cmd,
+			ns,
+			p.Len(),
+			elapsed,
+			payload.Len(),
+			corrID,
+		)
+	case overpass.Failure:
+		s.logger.Log(
+			"%s called '%s' in '%s' namespace (%d bytes), '%s' failure after %dms (%s, %d bytes) [%s]",
+			msgID.ShortString(),
+			cmd,
+			ns,
+			p.Len(),
+			e.Type,
+			elapsed,
+			e.Message,
+			e.Payload.Len(),
+			corrID,
+		)
+	case command.RemoteError:
+		s.logger.Log(
+			"%s called '%s' in '%s' namespace (%d bytes), errored after %dms (%s) [%s]",
+			msgID.ShortString(),
+			cmd,
+			ns,
+			p.Len(),
+			elapsed,
+			err,
+			corrID,
+		)
+	}
+
+	return payload, err
 }
 
 func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Payload) error {
@@ -86,8 +132,23 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Paylo
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.invoker.ExecuteBalanced(ctx, s.catalog.NextMessageID(), ns, cmd, p)
 	}
+
+	msgID := s.catalog.NextMessageID()
+	corrID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
+
+	if err == nil {
+		s.logger.Log(
+			"%s executed '%s' in '%s' namespace (%d bytes) [%s]",
+			msgID.ShortString(),
+			cmd,
+			ns,
+			p.Len(),
+			corrID,
+		)
+	}
+
+	return err
 }
 
 func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *overpass.Payload) error {
@@ -95,8 +156,23 @@ func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *overpass.P
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.invoker.ExecuteMulticast(ctx, s.catalog.NextMessageID(), ns, cmd, p)
 	}
+
+	msgID := s.catalog.NextMessageID()
+	corrID, err := s.invoker.ExecuteMulticast(ctx, msgID, ns, cmd, p)
+
+	if err == nil {
+		s.logger.Log(
+			"%s executed '%s' in '%s' namespace on multiple peers (%d bytes) [%s]",
+			msgID.ShortString(),
+			cmd,
+			ns,
+			p.Len(),
+			corrID,
+		)
+	}
+
+	return err
 }
 
 func (s *session) Notify(ctx context.Context, target overpass.SessionID, typ string, p *overpass.Payload) error {

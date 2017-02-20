@@ -31,7 +31,6 @@ func New(
 		config.DefaultTimeout,
 		queues,
 		channels,
-		config.Logger,
 	)
 	if err != nil {
 		return nil, nil, err

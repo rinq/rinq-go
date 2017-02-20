@@ -30,7 +30,7 @@ func (c *client) Fetch(
 	})
 	defer out.Close()
 
-	in, err := c.invoker.CallUnicast(
+	_, in, err := c.invoker.CallUnicast(
 		ctx,
 		c.nextMessageID(),
 		sessID.Peer,
@@ -72,7 +72,7 @@ func (c *client) Update(
 	})
 	defer out.Close()
 
-	in, err := c.invoker.CallUnicast(
+	_, in, err := c.invoker.CallUnicast(
 		ctx,
 		c.nextMessageID(),
 		ref.ID.Peer,
@@ -114,7 +114,7 @@ func (c *client) Close(
 	})
 	defer out.Close()
 
-	in, err := c.invoker.CallUnicast(
+	_, in, err := c.invoker.CallUnicast(
 		ctx,
 		c.nextMessageID(),
 		ref.ID.Peer,
