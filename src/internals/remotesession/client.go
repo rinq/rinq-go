@@ -55,6 +55,51 @@ func (c *client) Fetch(
 	return rsp.Rev, rsp.Attrs, nil
 }
 
+func (c *client) Update(
+	ctx context.Context,
+	ref overpass.SessionRef,
+	attrs []overpass.Attr,
+) (
+	overpass.RevisionNumber,
+	error,
+) {
+	out := overpass.NewPayload(updateRequest{
+		Seq:   ref.ID.Seq,
+		Rev:   ref.Rev,
+		Attrs: attrs,
+	})
+	defer out.Close()
+
+	in, err := c.invoker.CallUnicast(
+		ctx,
+		c.nextMessageID(),
+		ref.ID.Peer,
+		sessionNamespace,
+		updateCommand,
+		out,
+	)
+	if err != nil {
+		if overpass.IsFailureType(notFoundFailure, err) {
+			err = overpass.NotFoundError{ID: ref.ID}
+		} else if overpass.IsFailureType(staleUpdateFailure, err) {
+			err = overpass.StaleUpdateError{Ref: ref}
+		} else if overpass.IsFailureType(frozenAttributesFailure, err) {
+			err = overpass.FrozenAttributesError{Ref: ref}
+		}
+
+		return 0, err
+	}
+
+	var rsp updateResponse
+	err = in.Decode(&rsp)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return overpass.RevisionNumber(rsp), nil
+}
+
 func (c *client) nextMessageID() overpass.MessageID {
 	return overpass.MessageID{
 		Session: overpass.SessionRef{

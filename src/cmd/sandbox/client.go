@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"strconv"
-	"time"
+	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -17,10 +15,23 @@ func runClient(peer overpass.Peer) error {
 	// 	return err
 	// }
 
+	res, err := sess.Call(
+		context.Background(),
+		"myapp.v1",
+		"command-name",
+		nil,
+	)
+	defer res.Close()
+	if err != nil {
+		return err
+	}
+
 	rev, err := sess.CurrentRevision()
 	if err != nil {
 		return err
 	}
+
+	fmt.Println(rev.Get(context.Background(), "product"))
 
 	// rev, err = rev.Update(
 	// 	context.Background(),
@@ -32,37 +43,37 @@ func runClient(peer overpass.Peer) error {
 	// 	return err
 	// }
 
-	var counter uint64
-	for {
-		counter++
-
-		ctx := context.Background()
-
-		rev, err = rev.Update(
-			ctx,
-			overpass.Set("counter", strconv.FormatUint(counter, 10)),
-		)
-		if err != nil {
-			return err
-		}
-
-		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
-		defer cancel()
-
-		res, err := sess.Call(
-			ctx,
-			"myapp.v1",
-			"read-counter",
-			nil,
-		)
-		defer res.Close()
-		if err != nil {
-			spew.Dump(err)
-			break
-		}
-
-		time.Sleep(time.Second * 10)
-	}
+	// var counter uint64
+	// for {
+	// 	counter++
+	//
+	// 	ctx := context.Background()
+	//
+	// 	rev, err = rev.Update(
+	// 		ctx,
+	// 		overpass.Set("counter", strconv.FormatUint(counter, 10)),
+	// 	)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	//
+	// 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	// 	defer cancel()
+	//
+	// 	res, err := sess.Call(
+	// 		ctx,
+	// 		"myapp.v1",
+	// 		"read-counter",
+	// 		nil,
+	// 	)
+	// 	defer res.Close()
+	// 	if err != nil {
+	// 		spew.Dump(err)
+	// 		break
+	// 	}
+	//
+	// 	time.Sleep(time.Second * 10)
+	// }
 
 	// if err = sess.NotifyMany(
 	// 	context.Background(),

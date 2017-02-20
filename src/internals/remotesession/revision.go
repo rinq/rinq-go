@@ -54,8 +54,13 @@ func (r *revision) GetMany(ctx context.Context, keys ...string) (overpass.AttrTa
 	return table, nil
 }
 
-func (r *revision) Update(context.Context, ...overpass.Attr) (overpass.Revision, error) {
-	return r, overpass.NotFoundError{ID: r.ref.ID}
+func (r *revision) Update(ctx context.Context, attrs ...overpass.Attr) (overpass.Revision, error) {
+	rev, err := r.catalog.TryUpdate(ctx, r.ref.Rev, attrs)
+	if err != nil {
+		return r, err
+	}
+
+	return rev, nil
 }
 
 func (r *revision) Close(context.Context) error {

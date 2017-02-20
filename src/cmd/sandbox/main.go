@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpassamqp"
 )
@@ -30,6 +31,7 @@ func main() {
 	}
 
 	if err != nil {
+		spew.Dump(err)
 		panic(err)
 	}
 }

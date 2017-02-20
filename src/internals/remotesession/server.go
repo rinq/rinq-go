@@ -40,6 +40,8 @@ func (s *server) handle(
 	switch cmd.Command {
 	case fetchCommand:
 		s.fetch(ctx, cmd, res)
+	case updateCommand:
+		s.update(ctx, cmd, res)
 	default:
 		res.Error(errors.New("unknown command"))
 	}
@@ -60,7 +62,7 @@ func (s *server) fetch(
 	sessID := overpass.SessionID{Peer: s.peerID, Seq: req.Seq}
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
-		res.Fail("not-found", "")
+		res.Fail(notFoundFailure, "")
 		return
 	}
 
@@ -80,5 +82,45 @@ func (s *server) fetch(
 	payload := overpass.NewPayload(rsp)
 	defer payload.Close()
 
+	res.Done(payload)
+}
+
+func (s *server) update(
+	ctx context.Context,
+	cmd overpass.Command,
+	res overpass.Responder,
+) {
+	var req updateRequest
+
+	if err := cmd.Payload.Decode(&req); err != nil {
+		res.Error(err)
+		return
+	}
+
+	sessID := overpass.SessionID{Peer: s.peerID, Seq: req.Seq}
+	_, cat, ok := s.sessions.Get(sessID)
+	if !ok {
+		res.Fail(notFoundFailure, "")
+		return
+	}
+
+	rev, err := cat.TryUpdate(sessID.At(req.Rev), req.Attrs, nil) // TODO: diff
+	if err != nil {
+		switch err.(type) {
+		case overpass.NotFoundError:
+			res.Fail(notFoundFailure, "")
+		case overpass.StaleUpdateError:
+			res.Fail(staleUpdateFailure, "")
+		case overpass.FrozenAttributesError:
+			res.Fail(frozenAttributesFailure, "")
+		default:
+			res.Error(err)
+		}
+
+		return
+	}
+
+	payload := overpass.NewPayload(updateResponse(rev.Ref().Rev))
+	defer payload.Close()
 	res.Done(payload)
 }

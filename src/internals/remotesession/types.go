@@ -7,8 +7,17 @@ import (
 
 const (
 	sessionNamespace = "_sess"
-	fetchCommand     = "f"
-	notFoundFailure  = "nf"
+)
+
+const (
+	fetchCommand  = "fetch"
+	updateCommand = "update"
+)
+
+const (
+	notFoundFailure         = "not-found"
+	staleUpdateFailure      = "stale"
+	frozenAttributesFailure = "frozen"
 )
 
 type fetchRequest struct {
@@ -20,3 +29,11 @@ type fetchResponse struct {
 	Rev   overpass.RevisionNumber
 	Attrs []attrmeta.Attr
 }
+
+type updateRequest struct {
+	Seq   uint32
+	Rev   overpass.RevisionNumber
+	Attrs []overpass.Attr
+}
+
+type updateResponse overpass.RevisionNumber

@@ -166,6 +166,67 @@ func (c *catalog) Fetch(
 	return solvedAttrs, nil
 }
 
+func (c *catalog) TryUpdate(
+	ctx context.Context,
+	rev overpass.RevisionNumber,
+	attrs []overpass.Attr,
+) (overpass.Revision, error) {
+	unlock := deferutil.RLock(&c.mutex)
+	defer unlock()
+
+	ref := c.id.At(rev)
+
+	if c.highestRev > rev {
+		return nil, overpass.StaleUpdateError{Ref: ref}
+	}
+
+	updateAttrs := make([]overpass.Attr, 0, len(attrs))
+
+	for _, attr := range attrs {
+		if entry, ok := c.cache[attr.Key]; ok {
+			if entry.Attr.IsFrozen {
+				if attr == entry.Attr.Attr {
+					continue
+				}
+
+				return nil, overpass.FrozenAttributesError{Ref: ref}
+			}
+
+			if entry.FetchedAt == rev && attr == entry.Attr.Attr {
+				continue
+			}
+		}
+
+		updateAttrs = append(updateAttrs, attr)
+	}
+
+	unlock()
+
+	updatedRev, err := c.client.Update(ctx, ref, updateAttrs)
+	if err != nil {
+		return nil, err
+	}
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if err != nil {
+		if overpass.IsNotFound(err) {
+			c.isClosed = true
+		}
+		return nil, err
+	}
+
+	if updatedRev > c.highestRev {
+		c.highestRev = updatedRev
+	}
+
+	return &revision{
+		ref:     c.id.At(c.highestRev),
+		catalog: c,
+	}, nil
+}
+
 func (c *catalog) fetchLocal(
 	rev overpass.RevisionNumber,
 	keys []string,
