@@ -235,8 +235,20 @@ func (s *session) Listen(handler overpass.NotificationHandler) error {
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.listener.Listen(s.id, handler)
 	}
+
+	changed, err := s.listener.Listen(s.id, handler)
+
+	if err != nil {
+		return err
+	} else if changed && s.logger.IsDebug() {
+		s.logger.Log(
+			"%s started listening for notifications",
+			s.catalog.Ref().ShortString(),
+		)
+	}
+
+	return nil
 }
 
 func (s *session) Unlisten() error {
@@ -247,8 +259,20 @@ func (s *session) Unlisten() error {
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.listener.Unlisten(s.id)
 	}
+
+	changed, err := s.listener.Unlisten(s.id)
+
+	if err != nil {
+		return err
+	} else if changed && s.logger.IsDebug() {
+		s.logger.Log(
+			"%s stopped listening for notifications",
+			s.catalog.Ref().ShortString(),
+		)
+	}
+
+	return nil
 }
 
 func (s *session) Close() {

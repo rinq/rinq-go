@@ -54,7 +54,7 @@ func newListener(
 	return l, nil
 }
 
-func (l *listener) Listen(id overpass.SessionID, handler overpass.NotificationHandler) error {
+func (l *listener) Listen(id overpass.SessionID, handler overpass.NotificationHandler) (bool, error) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
@@ -68,7 +68,7 @@ func (l *listener) Listen(id overpass.SessionID, handler overpass.NotificationHa
 			false, // noWait
 			nil,   // args
 		); err != nil {
-			return err
+			return false, err
 		}
 
 		if err := l.channel.QueueBind(
@@ -78,18 +78,21 @@ func (l *listener) Listen(id overpass.SessionID, handler overpass.NotificationHa
 			false, // noWait
 			nil,   // args
 		); err != nil {
-			return err
+			return false, err
 		}
 	}
 
+	_, exists := l.handlers[id]
 	l.handlers[id] = handler
-	return nil
+
+	return !exists, nil
 }
 
-func (l *listener) Unlisten(id overpass.SessionID) error {
+func (l *listener) Unlisten(id overpass.SessionID) (bool, error) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
+	_, exists := l.handlers[id]
 	delete(l.handlers, id)
 
 	if len(l.handlers) == 0 {
@@ -101,7 +104,7 @@ func (l *listener) Unlisten(id overpass.SessionID) error {
 			unicastExchange,
 			nil, // args
 		); err != nil {
-			return err
+			return false, err
 		}
 
 		if err := l.channel.QueueUnbind(
@@ -110,11 +113,11 @@ func (l *listener) Unlisten(id overpass.SessionID) error {
 			multicastExchange,
 			nil, // args
 		); err != nil {
-			return err
+			return false, err
 		}
 	}
 
-	return nil
+	return exists, nil
 }
 
 func (l *listener) Done() <-chan struct{} {
