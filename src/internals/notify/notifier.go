@@ -15,7 +15,7 @@ type Notifier interface {
 		sessID overpass.SessionID,
 		notificationType string,
 		payload *overpass.Payload,
-	) error
+	) (string, error)
 
 	// NotifyMulticast sends a notification to all sessions matching a constraint.
 	NotifyMulticast(
@@ -24,5 +24,5 @@ type Notifier interface {
 		constraint overpass.Constraint,
 		notificationType string,
 		payload *overpass.Payload,
-	) error
+	) (string, error)
 }

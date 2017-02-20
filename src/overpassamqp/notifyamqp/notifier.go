@@ -31,7 +31,7 @@ func (n *notifier) NotifyUnicast(
 	target overpass.SessionID,
 	notificationType string,
 	payload *overpass.Payload,
-) error {
+) (string, error) {
 	msg := amqp.Publishing{
 		MessageId: msgID.String(),
 		Type:      notificationType,
@@ -40,19 +40,10 @@ func (n *notifier) NotifyUnicast(
 	corrID := amqputil.PutCorrelationID(ctx, &msg)
 
 	if err := n.send(unicastExchange, target.String(), msg); err != nil {
-		return err
+		return corrID, err
 	}
 
-	n.logger.Log(
-		"%s sent '%s' notification to %s (%d bytes) [%s]",
-		msgID.ShortString(),
-		notificationType,
-		target.ShortString(),
-		payload.Len(),
-		corrID,
-	)
-
-	return nil
+	return corrID, nil
 }
 
 func (n *notifier) NotifyMulticast(
@@ -61,7 +52,7 @@ func (n *notifier) NotifyMulticast(
 	constraint overpass.Constraint,
 	notificationType string,
 	payload *overpass.Payload,
-) error {
+) (string, error) {
 	msg := amqp.Publishing{
 		MessageId: msgID.String(),
 		Type:      notificationType,
@@ -75,19 +66,10 @@ func (n *notifier) NotifyMulticast(
 	}
 
 	if err := n.send(multicastExchange, "", msg); err != nil {
-		return err
+		return corrID, err
 	}
 
-	n.logger.Log(
-		"%s sent '%s' notification to {%s} (%d bytes) [%s]",
-		msgID.ShortString(),
-		notificationType,
-		constraint,
-		payload.Len(),
-		corrID,
-	)
-
-	return nil
+	return corrID, nil
 }
 
 func (n *notifier) send(exchange, key string, msg amqp.Publishing) error {

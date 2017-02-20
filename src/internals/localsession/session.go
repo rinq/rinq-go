@@ -180,9 +180,23 @@ func (s *session) Notify(ctx context.Context, target overpass.SessionID, typ str
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.notifier.NotifyUnicast(ctx, s.catalog.NextMessageID(), target, typ, p)
 	}
 
+	msgID := s.catalog.NextMessageID()
+	corrID, err := s.notifier.NotifyUnicast(ctx, msgID, target, typ, p)
+
+	if err == nil {
+		s.logger.Log(
+			"%s sent '%s' notification to %s (%d bytes) [%s]",
+			msgID.ShortString(),
+			typ,
+			target.ShortString(),
+			p.Len(),
+			corrID,
+		)
+	}
+
+	return err
 }
 
 func (s *session) NotifyMany(ctx context.Context, con overpass.Constraint, typ string, p *overpass.Payload) error {
@@ -190,8 +204,23 @@ func (s *session) NotifyMany(ctx context.Context, con overpass.Constraint, typ s
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.notifier.NotifyMulticast(ctx, s.catalog.NextMessageID(), con, typ, p)
 	}
+
+	msgID := s.catalog.NextMessageID()
+	corrID, err := s.notifier.NotifyMulticast(ctx, msgID, con, typ, p)
+
+	if err == nil {
+		s.logger.Log(
+			"%s sent '%s' notification to {%s} (%d bytes) [%s]",
+			msgID.ShortString(),
+			typ,
+			con,
+			p.Len(),
+			corrID,
+		)
+	}
+
+	return err
 }
 
 func (s *session) Listen(handler overpass.NotificationHandler) error {
