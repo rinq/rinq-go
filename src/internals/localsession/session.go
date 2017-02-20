@@ -19,8 +19,9 @@ type session struct {
 	logger   *log.Logger
 	done     chan struct{}
 
-	// mutex guards Listen(), Unlisten() and Close() so that we can guarantee
-	// that the call to listener.Unlisten() in Close() is actually final.
+	// mutex guards Call(), Listen(), Unlisten() and Close() so that Close()
+	// waits for pending calls to complete or timeout, and to ensure that it's
+	// call to listener.Unlisten() is not "undone" by the user.
 	mutex sync.RWMutex
 }
 
@@ -70,6 +71,9 @@ func (s *session) CurrentRevision() (overpass.Revision, error) {
 }
 
 func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload) (*overpass.Payload, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	select {
 	case <-s.done:
 		return nil, overpass.NotFoundError{ID: s.id}
