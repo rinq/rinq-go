@@ -8,25 +8,22 @@ type Store interface {
 	GetRevision(overpass.SessionRef) (overpass.Revision, error)
 }
 
-// NewAggregateStore returns a revision store that forwards to one of two
-// other stores based on whether the requested revision is "local" or "remote".
-func NewAggregateStore(peerID overpass.PeerID, local, remote Store) Store {
-	return &aggregateStore{peerID, local, remote}
+// AggregateStore is a revision store that forwards to one of two other stores
+// based on whether the requested revision is considered "local" or "remote".
+type AggregateStore struct {
+	PeerID overpass.PeerID
+	Local  Store
+	Remote Store
 }
 
-type aggregateStore struct {
-	peerID overpass.PeerID
-	local  Store
-	remote Store
-}
-
-func (r *aggregateStore) GetRevision(ref overpass.SessionRef) (overpass.Revision, error) {
-	if ref.ID.Peer == r.peerID {
-		if r.local != nil {
-			return r.local.GetRevision(ref)
+// GetRevision returns the session revision for the given ref.
+func (s *AggregateStore) GetRevision(ref overpass.SessionRef) (overpass.Revision, error) {
+	if ref.ID.Peer == s.PeerID {
+		if s.Local != nil {
+			return s.Local.GetRevision(ref)
 		}
-	} else if r.remote != nil {
-		return r.remote.GetRevision(ref)
+	} else if s.Remote != nil {
+		return s.Remote.GetRevision(ref)
 	}
 
 	return Closed(ref), nil

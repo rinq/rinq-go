@@ -334,20 +334,22 @@ func (i *invoker) initialize() error {
 	return nil
 }
 
-func (i *invoker) send(exchange, namespace string, msg amqp.Publishing) error {
+func (i *invoker) send(exchange, key string, msg amqp.Publishing) error {
 	channel, err := i.channels.Get()
 	if err != nil {
 		return err
 	}
 	defer i.channels.Put(channel)
 
-	if _, err := i.queues.Get(channel, namespace); err != nil {
-		return err
+	if exchange == balancedExchange {
+		if _, err := i.queues.Get(channel, key); err != nil {
+			return err
+		}
 	}
 
 	return channel.Publish(
 		exchange,
-		namespace,
+		key,
 		false, // mandatory
 		false, // immediate
 		msg,

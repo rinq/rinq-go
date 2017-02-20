@@ -83,14 +83,12 @@ func (err StaleUpdateError) Error() string {
 // FrozenAttributesError indicates a failure to apply a change-set because one
 // or more attributes in the change-set are frozen.
 type FrozenAttributesError struct {
-	Ref  SessionRef
-	Keys []string
+	Ref SessionRef
 }
 
 func (err FrozenAttributesError) Error() string {
 	return fmt.Sprintf(
-		"can not update %s, the change-set references %d frozen key(s)",
+		"can not update %s, the change-set references one or more frozen key(s)",
 		err.Ref,
-		len(err.Keys),
 	)
 }

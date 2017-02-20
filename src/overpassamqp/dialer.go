@@ -6,6 +6,7 @@ import (
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
+	"github.com/over-pass/overpass-go/src/internals/remotesession"
 	"github.com/over-pass/overpass-go/src/internals/revision"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpassamqp/commandamqp"
@@ -45,7 +46,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	config = config.WithDefaults()
 
 	// TODO: honour ctx deadline here, possibly by provided a custom Dial func
-	// in the AMQP context.
+	// in the AMQP config.
 	broker, err := amqp.DialConfig(dsn, amqpConfig)
 	if err != nil {
 		return nil, err
@@ -70,19 +71,26 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 		return nil, err
 	}
 
-	store := localsession.NewStore()
-	// remoteStore := &remoteStore{} // TODO
-	revStore := revision.NewAggregateStore(peerID, store, nil)
+	sessions := localsession.NewStore()
+	revisions := &revision.AggregateStore{
+		PeerID: peerID,
+		Local:  sessions,
+		// Remote revision store depends on invoker, created below
+	}
 
-	invoker, server, err := commandamqp.New(peerID, config, revStore, channels)
+	invoker, server, err := commandamqp.New(peerID, config, revisions, channels)
 	if err != nil {
 		return nil, err
 	}
 
-	notifier, listener, err := notifyamqp.New(peerID, config, store, revStore, channels)
+	notifier, listener, err := notifyamqp.New(peerID, config, sessions, revisions, channels)
 	if err != nil {
 		return nil, err
 	}
+
+	revisions.Remote = remotesession.NewStore(peerID, invoker)
+
+	remotesession.Listen(peerID, sessions, server)
 
 	config.Logger.Printf(
 		"%s peer connected to '%s' as %s",
@@ -94,7 +102,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	return newPeer(
 		peerID,
 		broker,
-		store,
+		sessions,
 		invoker,
 		server,
 		notifier,

@@ -152,8 +152,6 @@ func (c *catalog) TryUpdate(
 	nextAttrs := c.attrs.Clone()
 	nextRev := ref.Rev + 1
 
-	var frozen []string
-
 	for index, attr := range attrs {
 		entry, exists := nextAttrs[attr.Key]
 
@@ -162,8 +160,7 @@ func (c *catalog) TryUpdate(
 		}
 
 		if entry.IsFrozen {
-			frozen = append(frozen, attr.Key)
-			continue
+			return nil, overpass.FrozenAttributesError{Ref: ref}
 		}
 
 		if !exists {
@@ -189,10 +186,6 @@ func (c *catalog) TryUpdate(
 		}
 	}
 
-	if len(frozen) > 0 {
-		return nil, overpass.FrozenAttributesError{Ref: ref, Keys: frozen}
-	}
-
 	c.ref.Rev = nextRev
 	c.attrs = nextAttrs
 	c.seq = 0
@@ -201,6 +194,7 @@ func (c *catalog) TryUpdate(
 		ref:     c.ref,
 		catalog: c,
 		attrs:   c.attrs,
+		logger:  c.logger,
 	}, nil
 }
 
