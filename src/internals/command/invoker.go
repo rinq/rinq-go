@@ -24,7 +24,7 @@ type Invoker interface {
 		namespace string,
 		command string,
 		payload *overpass.Payload,
-	) (*overpass.Payload, error)
+	) (string, *overpass.Payload, error)
 
 	// CallBalanced sends a load-balanced command request to the first available
 	// peer and blocks until a response is received or the context deadline is met.
@@ -34,7 +34,7 @@ type Invoker interface {
 		namespace string,
 		command string,
 		payload *overpass.Payload,
-	) (*overpass.Payload, error)
+	) (string, *overpass.Payload, error)
 
 	// ExecuteBalanced sends a load-balanced command request to the first
 	// available peer and returns immediately.
@@ -44,7 +44,7 @@ type Invoker interface {
 		namespace string,
 		command string,
 		payload *overpass.Payload,
-	) error
+	) (string, error)
 
 	// ExecuteMulticast sends a multicast command request to the all available
 	// peers and returns immediately.
@@ -54,5 +54,5 @@ type Invoker interface {
 		namespace string,
 		command string,
 		payload *overpass.Payload,
-	) error
+	) (string, error)
 }

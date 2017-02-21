@@ -1,8 +1,6 @@
 package overpass
 
 import (
-	"log"
-	"os"
 	"runtime"
 	"time"
 )
@@ -11,8 +9,7 @@ import (
 type Config struct {
 	DefaultTimeout time.Duration
 	PreFetch       int
-	Logger         *log.Logger
-	DebugLogging   bool
+	Logger         Logger
 }
 
 // WithDefaults returns a copy of this config with empty properties replaced
@@ -27,7 +24,7 @@ func (config Config) WithDefaults() Config {
 	}
 
 	if config.Logger == nil {
-		config.Logger = log.New(os.Stdout, "", log.LstdFlags)
+		config.Logger = NewLogger(false)
 	}
 
 	return config

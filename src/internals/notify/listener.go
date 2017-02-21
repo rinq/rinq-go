@@ -9,6 +9,6 @@ import (
 type Listener interface {
 	service.Service
 
-	Listen(id overpass.SessionID, handler overpass.NotificationHandler) error
-	Unlisten(id overpass.SessionID) error
+	Listen(id overpass.SessionID, handler overpass.NotificationHandler) (bool, error)
+	Unlisten(id overpass.SessionID) (bool, error)
 }

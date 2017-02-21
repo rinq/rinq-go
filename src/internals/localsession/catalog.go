@@ -1,9 +1,9 @@
 package localsession
 
 import (
+	"bytes"
 	"errors"
 	"io"
-	"log"
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/internals/attrmeta"
@@ -43,7 +43,7 @@ type Catalog interface {
 	TryUpdate(
 		ref overpass.SessionRef,
 		attrs []overpass.Attr,
-		diff io.Writer,
+		diff *bytes.Buffer,
 	) (overpass.Revision, error)
 
 	// TryClose closes the catalog, preventing further updates.
@@ -66,13 +66,13 @@ type catalog struct {
 	attrs  attrmeta.Table
 	seq    uint32
 	done   chan struct{}
-	logger *log.Logger
+	logger overpass.Logger
 }
 
 // NewCatalog returns a catalog for the given session.
 func NewCatalog(
 	id overpass.SessionID,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) Catalog {
 	return &catalog{
 		ref:    id.At(0),
@@ -134,7 +134,7 @@ func (c *catalog) Attrs() (overpass.SessionRef, attrmeta.Table) {
 func (c *catalog) TryUpdate(
 	ref overpass.SessionRef,
 	attrs []overpass.Attr,
-	diff io.Writer,
+	diff *bytes.Buffer,
 ) (overpass.Revision, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -152,7 +152,7 @@ func (c *catalog) TryUpdate(
 	nextAttrs := c.attrs.Clone()
 	nextRev := ref.Rev + 1
 
-	for index, attr := range attrs {
+	for _, attr := range attrs {
 		entry, exists := nextAttrs[attr.Key]
 
 		if attr.Value == entry.Value && attr.IsFrozen == entry.IsFrozen {
@@ -163,26 +163,19 @@ func (c *catalog) TryUpdate(
 			return nil, overpass.FrozenAttributesError{Ref: ref}
 		}
 
+		entry.Attr = attr
+		entry.UpdatedAt = nextRev
 		if !exists {
-			entry.Key = attr.Key
 			entry.CreatedAt = nextRev
 		}
-
-		entry.Value = attr.Value
-		entry.UpdatedAt = nextRev
 
 		nextAttrs[attr.Key] = entry
 
 		if diff != nil {
-			if index > 0 {
-				_, err := io.WriteString(diff, ", ")
-				if err != nil {
-					return nil, err
-				}
+			if diff.Len() != 0 {
+				diff.WriteString(", ")
 			}
-			if err := writeDiff(diff, entry); err != nil {
-				return nil, err
-			}
+			attrmeta.WriteDiff(diff, entry)
 		}
 	}
 

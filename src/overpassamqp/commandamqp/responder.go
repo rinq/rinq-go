@@ -2,8 +2,6 @@ package commandamqp
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
@@ -17,7 +15,6 @@ type responder struct {
 	channels amqputil.ChannelPool
 	context  context.Context
 	msgID    overpass.MessageID
-	logger   *log.Logger
 
 	mutex      sync.RWMutex
 	isRequired bool
@@ -114,8 +111,6 @@ func (r *responder) Close() {
 }
 
 func (r *responder) close(msg amqp.Publishing) {
-	// TODO log
-	fmt.Println(msg)
 	if r.isRequired {
 		channel, err := r.channels.Get()
 		if err != nil {

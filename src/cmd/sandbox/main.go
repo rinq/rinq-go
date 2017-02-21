@@ -17,7 +17,9 @@ func main() {
 	peer, err := overpassamqp.Dial(
 		context.Background(),
 		"amqp://localhost",
-		overpass.Config{},
+		overpass.Config{
+			Logger: overpass.NewLogger(true),
+		},
 	)
 	if err != nil {
 		panic(err)

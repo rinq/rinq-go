@@ -2,10 +2,14 @@ package localsession
 
 import (
 	"context"
-	"log"
 	"sync"
+	"time"
 
+	"github.com/over-pass/overpass-go/src/internals/amqputil"
+	"github.com/over-pass/overpass-go/src/internals/attrmeta"
+	"github.com/over-pass/overpass-go/src/internals/bufferpool"
 	"github.com/over-pass/overpass-go/src/internals/command"
+	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
@@ -16,7 +20,7 @@ type session struct {
 	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
-	logger   *log.Logger
+	logger   overpass.Logger
 	done     chan struct{}
 
 	// mutex guards Call(), Listen(), Unlisten() and Close() so that Close()
@@ -32,7 +36,7 @@ func NewSession(
 	invoker command.Invoker,
 	notifier notify.Notifier,
 	listener notify.Listener,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) overpass.Session {
 	sess := &session{
 		id:       id,
@@ -44,7 +48,7 @@ func NewSession(
 		done:     make(chan struct{}),
 	}
 
-	sess.logger.Printf(
+	sess.logger.Log(
 		"%s session created",
 		sess.catalog.Ref().ShortString(),
 	)
@@ -78,8 +82,53 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 	case <-s.done:
 		return nil, overpass.NotFoundError{ID: s.id}
 	default:
-		return s.invoker.CallBalanced(ctx, s.catalog.NextMessageID(), ns, cmd, p)
 	}
+
+	msgID := s.catalog.NextMessageID()
+
+	start := time.Now()
+	corrID, payload, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, p)
+	elapsed := time.Now().Sub(start) / time.Millisecond
+
+	switch e := err.(type) {
+	case nil:
+		s.logger.Log(
+			"%s called '%s' in '%s' namespace (%d bytes), returned after %dms (%d bytes) [%s]",
+			msgID.ShortString(),
+			cmd,
+			ns,
+			p.Len(),
+			elapsed,
+			payload.Len(),
+			corrID,
+		)
+	case overpass.Failure:
+		s.logger.Log(
+			"%s called '%s' in '%s' namespace (%d bytes), '%s' failure after %dms (%s, %d bytes) [%s]",
+			msgID.ShortString(),
+			cmd,
+			ns,
+			p.Len(),
+			e.Type,
+			elapsed,
+			e.Message,
+			e.Payload.Len(),
+			corrID,
+		)
+	case command.RemoteError:
+		s.logger.Log(
+			"%s called '%s' in '%s' namespace (%d bytes), errored after %dms (%s) [%s]",
+			msgID.ShortString(),
+			cmd,
+			ns,
+			p.Len(),
+			elapsed,
+			err,
+			corrID,
+		)
+	}
+
+	return payload, err
 }
 
 func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Payload) error {
@@ -87,8 +136,23 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Paylo
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.invoker.ExecuteBalanced(ctx, s.catalog.NextMessageID(), ns, cmd, p)
 	}
+
+	msgID := s.catalog.NextMessageID()
+	corrID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
+
+	if err == nil {
+		s.logger.Log(
+			"%s executed '%s' in '%s' namespace (%d bytes) [%s]",
+			msgID.ShortString(),
+			cmd,
+			ns,
+			p.Len(),
+			corrID,
+		)
+	}
+
+	return err
 }
 
 func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *overpass.Payload) error {
@@ -96,8 +160,23 @@ func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *overpass.P
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.invoker.ExecuteMulticast(ctx, s.catalog.NextMessageID(), ns, cmd, p)
 	}
+
+	msgID := s.catalog.NextMessageID()
+	corrID, err := s.invoker.ExecuteMulticast(ctx, msgID, ns, cmd, p)
+
+	if err == nil {
+		s.logger.Log(
+			"%s executed '%s' in '%s' namespace on multiple peers (%d bytes) [%s]",
+			msgID.ShortString(),
+			cmd,
+			ns,
+			p.Len(),
+			corrID,
+		)
+	}
+
+	return err
 }
 
 func (s *session) Notify(ctx context.Context, target overpass.SessionID, typ string, p *overpass.Payload) error {
@@ -105,9 +184,23 @@ func (s *session) Notify(ctx context.Context, target overpass.SessionID, typ str
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.notifier.NotifyUnicast(ctx, s.catalog.NextMessageID(), target, typ, p)
 	}
 
+	msgID := s.catalog.NextMessageID()
+	corrID, err := s.notifier.NotifyUnicast(ctx, msgID, target, typ, p)
+
+	if err == nil {
+		s.logger.Log(
+			"%s sent '%s' notification to %s (%d bytes) [%s]",
+			msgID.ShortString(),
+			typ,
+			target.ShortString(),
+			p.Len(),
+			corrID,
+		)
+	}
+
+	return err
 }
 
 func (s *session) NotifyMany(ctx context.Context, con overpass.Constraint, typ string, p *overpass.Payload) error {
@@ -115,8 +208,23 @@ func (s *session) NotifyMany(ctx context.Context, con overpass.Constraint, typ s
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.notifier.NotifyMulticast(ctx, s.catalog.NextMessageID(), con, typ, p)
 	}
+
+	msgID := s.catalog.NextMessageID()
+	corrID, err := s.notifier.NotifyMulticast(ctx, msgID, con, typ, p)
+
+	if err == nil {
+		s.logger.Log(
+			"%s sent '%s' notification to {%s} (%d bytes) [%s]",
+			msgID.ShortString(),
+			typ,
+			con,
+			p.Len(),
+			corrID,
+		)
+	}
+
+	return err
 }
 
 func (s *session) Listen(handler overpass.NotificationHandler) error {
@@ -131,8 +239,40 @@ func (s *session) Listen(handler overpass.NotificationHandler) error {
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.listener.Listen(s.id, handler)
 	}
+
+	changed, err := s.listener.Listen(
+		s.id,
+		func(
+			ctx context.Context,
+			target overpass.Session,
+			n overpass.Notification,
+		) {
+			rev := s.catalog.Head()
+
+			s.logger.Log(
+				"%s received '%s' notification from %s (%d bytes) [%s]",
+				rev.Ref().ShortString(),
+				n.Type,
+				n.Source.Ref().ShortString(),
+				n.Payload.Len(),
+				amqputil.GetCorrelationID(ctx),
+			)
+
+			handler(ctx, target, n)
+		},
+	)
+
+	if err != nil {
+		return err
+	} else if changed && s.logger.IsDebug() {
+		s.logger.Log(
+			"%s started listening for notifications",
+			s.catalog.Ref().ShortString(),
+		)
+	}
+
+	return nil
 }
 
 func (s *session) Unlisten() error {
@@ -143,13 +283,25 @@ func (s *session) Unlisten() error {
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
 	default:
-		return s.listener.Unlisten(s.id)
 	}
+
+	changed, err := s.listener.Unlisten(s.id)
+
+	if err != nil {
+		return err
+	} else if changed && s.logger.IsDebug() {
+		s.logger.Log(
+			"%s stopped listening for notifications",
+			s.catalog.Ref().ShortString(),
+		)
+	}
+
+	return nil
 }
 
 func (s *session) Close() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	unlock := deferutil.Lock(&s.mutex)
+	defer unlock()
 
 	select {
 	case <-s.done:
@@ -161,9 +313,29 @@ func (s *session) Close() {
 	s.catalog.Close()
 	s.listener.Unlisten(s.id)
 
-	s.logger.Printf(
-		"%s session destroyed", // TODO: log attrs
-		s.catalog.Ref().ShortString(),
+	unlock()
+
+	ref, attrs := s.catalog.Attrs()
+
+	buffer := bufferpool.Get()
+	defer bufferpool.Put(buffer)
+
+	for _, attr := range attrs {
+		if !attr.IsFrozen && attr.Value == "" {
+			continue
+		}
+
+		if buffer.Len() != 0 {
+			buffer.WriteString(", ")
+		}
+
+		attrmeta.Write(buffer, attr)
+	}
+
+	s.logger.Log(
+		"%s session destroyed {%s}",
+		ref.ShortString(),
+		buffer,
 	)
 }
 

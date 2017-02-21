@@ -1,9 +1,10 @@
 package overpassamqp
 
 import (
-	"log"
+	"context"
 	"sync/atomic"
 
+	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/internals/notify"
@@ -21,7 +22,7 @@ type peer struct {
 	server   command.Server
 	notifier notify.Notifier
 	listener notify.Listener
-	logger   *log.Logger
+	logger   overpass.Logger
 	seq      uint32
 }
 
@@ -33,7 +34,7 @@ func newPeer(
 	server command.Server,
 	notifier notify.Notifier,
 	listener notify.Listener,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) *peer {
 	return &peer{
 		id:       id,
@@ -82,10 +83,29 @@ func (p *peer) Listen(namespace string, handler overpass.CommandHandler) error {
 		return err
 	}
 
-	added, err := p.server.Listen(namespace, handler)
+	added, err := p.server.Listen(
+		namespace,
+		func(
+			ctx context.Context,
+			cmd overpass.Command,
+			res overpass.Responder,
+		) {
+			handler(
+				ctx,
+				cmd,
+				newResponder(
+					res,
+					p.id,
+					amqputil.GetCorrelationID(ctx),
+					cmd,
+					p.logger,
+				),
+			)
+		},
+	)
 
 	if added {
-		p.logger.Printf(
+		p.logger.Log(
 			"%s started listening for command requests in '%s' namespace",
 			p.id.ShortString(),
 			namespace,
@@ -103,7 +123,7 @@ func (p *peer) Unlisten(namespace string) error {
 	removed, err := p.server.Unlisten(namespace)
 
 	if removed {
-		p.logger.Printf(
+		p.logger.Log(
 			"%s stopped listening for command requests in '%s' namespace",
 			p.id.ShortString(),
 			namespace,

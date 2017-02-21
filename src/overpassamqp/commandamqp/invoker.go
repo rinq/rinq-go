@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,7 +20,6 @@ type invoker struct {
 	defaultTimeout time.Duration
 	queues         *queueSet
 	channels       amqputil.ChannelPool
-	logger         *log.Logger
 
 	mutex   sync.RWMutex
 	pending map[string]chan returnValue
@@ -37,14 +35,12 @@ func newInvoker(
 	defaultTimeout time.Duration,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
-	logger *log.Logger,
 ) (command.Invoker, error) {
 	i := &invoker{
 		peerID:         peerID,
 		defaultTimeout: defaultTimeout,
 		queues:         queues,
 		channels:       channels,
-		logger:         logger,
 		pending:        map[string]chan returnValue{},
 		done:           make(chan struct{}),
 	}
@@ -70,7 +66,7 @@ func (i *invoker) CallUnicast(
 	namespace string,
 	command string,
 	payload *overpass.Payload,
-) (*overpass.Payload, error) {
+) (string, *overpass.Payload, error) {
 	msg := amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  callPriority,
@@ -79,7 +75,7 @@ func (i *invoker) CallUnicast(
 		Body:      payload.Bytes(),
 	}
 
-	_, done, cancel, err := i.call(
+	corrID, done, cancel, err := i.call(
 		&ctx,
 		&msg,
 		unicastExchange,
@@ -88,15 +84,15 @@ func (i *invoker) CallUnicast(
 		payload,
 	)
 	if err != nil {
-		return nil, err
+		return corrID, nil, err
 	}
 	defer cancel()
 
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return corrID, nil, ctx.Err()
 	case response := <-done:
-		return response.Payload, response.Error
+		return corrID, response.Payload, response.Error
 	}
 }
 
@@ -106,7 +102,7 @@ func (i *invoker) CallBalanced(
 	namespace string,
 	command string,
 	payload *overpass.Payload,
-) (*overpass.Payload, error) {
+) (string, *overpass.Payload, error) {
 	msg := amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  callPriority,
@@ -114,7 +110,6 @@ func (i *invoker) CallBalanced(
 		Body:      payload.Bytes(),
 	}
 
-	sentAt := time.Now()
 	corrID, done, cancel, err := i.call(
 		&ctx,
 		&msg,
@@ -124,43 +119,16 @@ func (i *invoker) CallBalanced(
 		payload,
 	)
 	if err != nil {
-		return nil, err
+		return corrID, nil, err
 	}
 	defer cancel()
 
-	var response returnValue
-	var action string
-	var info string
-
 	select {
 	case <-ctx.Done():
-		response.Error = ctx.Err()
-		action = "aborted"
-		info = response.Error.Error()
-
-	case response = <-done:
-		if response.Error == nil {
-			action = "returned"
-			info = fmt.Sprintf("%d bytes", response.Payload.Len())
-		} else {
-			action = "failed"
-			info = response.Error.Error()
-		}
+		return corrID, nil, ctx.Err()
+	case response := <-done:
+		return corrID, response.Payload, response.Error
 	}
-
-	i.logger.Printf(
-		"%s called '%s' in '%s' namespace (%d bytes), %s after %dms (%s) [%s]",
-		msgID.ShortString(),
-		command,
-		namespace,
-		payload.Len(),
-		action,
-		time.Now().Sub(sentAt)/time.Millisecond,
-		info,
-		corrID,
-	)
-
-	return response.Payload, response.Error
 }
 
 func (i *invoker) ExecuteBalanced(
@@ -169,7 +137,7 @@ func (i *invoker) ExecuteBalanced(
 	namespace string,
 	command string,
 	payload *overpass.Payload,
-) error {
+) (string, error) {
 	msg := amqp.Publishing{
 		MessageId:    msgID.String(),
 		Priority:     executePriority,
@@ -180,19 +148,10 @@ func (i *invoker) ExecuteBalanced(
 	corrID := amqputil.PutCorrelationID(ctx, &msg)
 
 	if err := i.send(balancedExchange, namespace, msg); err != nil {
-		return err
+		return corrID, err
 	}
 
-	i.logger.Printf(
-		"%s executed '%s' in '%s' namespace (%d bytes) [%s]",
-		msgID.ShortString(),
-		command,
-		namespace,
-		payload.Len(),
-		corrID,
-	)
-
-	return nil
+	return corrID, nil
 }
 
 func (i *invoker) ExecuteMulticast(
@@ -201,7 +160,7 @@ func (i *invoker) ExecuteMulticast(
 	namespace string,
 	command string,
 	payload *overpass.Payload,
-) error {
+) (string, error) {
 	msg := amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  executePriority,
@@ -211,19 +170,10 @@ func (i *invoker) ExecuteMulticast(
 	corrID := amqputil.PutCorrelationID(ctx, &msg)
 
 	if err := i.send(multicastExchange, namespace, msg); err != nil {
-		return err
+		return corrID, err
 	}
 
-	i.logger.Printf(
-		"%s executed '%s' in '%s' namespace on multiple peers (%d bytes) [%s]",
-		msgID.ShortString(),
-		command,
-		namespace,
-		payload.Len(),
-		corrID,
-	)
-
-	return nil
+	return corrID, nil
 }
 
 func (i *invoker) Done() <-chan struct{} {
@@ -408,11 +358,7 @@ func (i *invoker) dispatch(msg amqp.Delivery) {
 		}
 
 	case errorResponse:
-		message := string(msg.Body)
-		if message == "" {
-			message = "unknown error"
-		}
-		response.Error = errors.New(message)
+		response.Error = command.RemoteError(string(msg.Body))
 
 	default:
 		response.Error = fmt.Errorf(

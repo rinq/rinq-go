@@ -3,7 +3,6 @@ package notifyamqp
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 
@@ -20,7 +19,7 @@ type listener struct {
 	peerID    overpass.PeerID
 	sessions  localsession.Store
 	revisions revision.Store
-	logger    *log.Logger
+	logger    overpass.Logger
 
 	mutex    sync.RWMutex
 	channel  *amqp.Channel
@@ -36,7 +35,7 @@ func newListener(
 	sessions localsession.Store,
 	revisions revision.Store,
 	channel *amqp.Channel,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) (notify.Listener, error) {
 	l := &listener{
 		peerID:    peerID,
@@ -55,7 +54,7 @@ func newListener(
 	return l, nil
 }
 
-func (l *listener) Listen(id overpass.SessionID, handler overpass.NotificationHandler) error {
+func (l *listener) Listen(id overpass.SessionID, handler overpass.NotificationHandler) (bool, error) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
@@ -69,7 +68,7 @@ func (l *listener) Listen(id overpass.SessionID, handler overpass.NotificationHa
 			false, // noWait
 			nil,   // args
 		); err != nil {
-			return err
+			return false, err
 		}
 
 		if err := l.channel.QueueBind(
@@ -79,18 +78,21 @@ func (l *listener) Listen(id overpass.SessionID, handler overpass.NotificationHa
 			false, // noWait
 			nil,   // args
 		); err != nil {
-			return err
+			return false, err
 		}
 	}
 
+	_, exists := l.handlers[id]
 	l.handlers[id] = handler
-	return nil
+
+	return !exists, nil
 }
 
-func (l *listener) Unlisten(id overpass.SessionID) error {
+func (l *listener) Unlisten(id overpass.SessionID) (bool, error) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
+	_, exists := l.handlers[id]
 	delete(l.handlers, id)
 
 	if len(l.handlers) == 0 {
@@ -102,7 +104,7 @@ func (l *listener) Unlisten(id overpass.SessionID) error {
 			unicastExchange,
 			nil, // args
 		); err != nil {
-			return err
+			return false, err
 		}
 
 		if err := l.channel.QueueUnbind(
@@ -111,11 +113,11 @@ func (l *listener) Unlisten(id overpass.SessionID) error {
 			multicastExchange,
 			nil, // args
 		); err != nil {
-			return err
+			return false, err
 		}
 	}
 
-	return nil
+	return exists, nil
 }
 
 func (l *listener) Done() <-chan struct{} {
@@ -181,11 +183,13 @@ func (l *listener) consume(messages <-chan amqp.Delivery) {
 func (l *listener) dispatch(msg amqp.Delivery) {
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
-		l.logger.Printf(
-			"%s ignored AMQP message, '%s' is not a valid message ID",
-			l.peerID.ShortString(),
-			msg.MessageId,
-		)
+		if l.logger.IsDebug() {
+			l.logger.Log(
+				"%s ignored AMQP message, '%s' is not a valid message ID",
+				l.peerID.ShortString(),
+				msg.MessageId,
+			)
+		}
 		return
 	}
 
@@ -198,8 +202,8 @@ func (l *listener) dispatch(msg amqp.Delivery) {
 		err = fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
 	}
 
-	if err != nil {
-		l.logger.Printf(
+	if err != nil && l.logger.IsDebug() {
+		l.logger.Log(
 			"%s ignored AMQP message %s, %s",
 			l.peerID.ShortString(),
 			msgID.ShortString(),
@@ -284,8 +288,8 @@ func (l *listener) handleMulticast(msgID overpass.MessageID, msg amqp.Delivery) 
 			},
 		)
 
-		if err != nil {
-			l.logger.Printf(
+		if err != nil && l.logger.IsDebug() {
+			l.logger.Log(
 				"%s ignored notification %s for %s, %s",
 				l.peerID.ShortString(),
 				msgID.ShortString(),
@@ -315,22 +319,6 @@ func (l *listener) handle(
 	if handler == nil {
 		return nil
 	}
-
-	rev, err := sess.CurrentRevision()
-	if overpass.IsNotFound(err) {
-		return nil
-	} else if err != nil {
-		return err
-	}
-
-	l.logger.Printf(
-		"%s received '%s' notification from %s (%d bytes) [%s]",
-		rev.Ref().ShortString(),
-		n.Type,
-		n.Source.Ref().ShortString(),
-		n.Payload.Len(),
-		amqputil.GetCorrelationID(ctx),
-	)
 
 	handler(ctx, sess, n)
 

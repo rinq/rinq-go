@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 
@@ -22,7 +21,7 @@ type server struct {
 	revisions revision.Store
 	queues    *queueSet
 	channels  amqputil.ChannelPool
-	logger    *log.Logger
+	logger    overpass.Logger
 
 	mutex    sync.RWMutex
 	channel  *amqp.Channel
@@ -39,7 +38,7 @@ func newServer(
 	revisions revision.Store,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
-	logger *log.Logger,
+	logger overpass.Logger,
 ) (command.Server, error) {
 	s := &server{
 		peerID:    peerID,
@@ -154,11 +153,13 @@ func (s *server) dispatch(msg amqp.Delivery) {
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
 		msg.Reject(false)
-		s.logger.Printf(
-			"%s ignored AMQP message, '%s' is not a valid message ID",
-			s.peerID.ShortString(),
-			msg.MessageId,
-		)
+		if s.logger.IsDebug() {
+			s.logger.Log(
+				"%s ignored AMQP message, '%s' is not a valid message ID",
+				s.peerID.ShortString(),
+				msg.MessageId,
+			)
+		}
 		return
 	}
 
@@ -177,12 +178,15 @@ func (s *server) dispatch(msg amqp.Delivery) {
 
 	if err != nil {
 		msg.Reject(false)
-		s.logger.Printf(
-			"%s ignored AMQP message %s, %s",
-			s.peerID.ShortString(),
-			msgID.ShortString(),
-			err,
-		)
+
+		if s.logger.IsDebug() {
+			s.logger.Log(
+				"%s ignored AMQP message %s, %s",
+				s.peerID.ShortString(),
+				msgID.ShortString(),
+				err,
+			)
+		}
 	}
 }
 
@@ -194,7 +198,15 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 
 	if handler == nil {
 		msg.Reject(true)
-		// TODO: log - request was probably in network buffer before unlisten was called
+
+		if s.logger.IsDebug() {
+			s.logger.Log(
+				"%s re-queued command request %s, no longer listening to this namespace",
+				s.peerID.ShortString(),
+				msgID.ShortString(),
+			)
+		}
+
 		return nil
 	}
 
@@ -220,7 +232,6 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 		context:    ctx,
 		msgID:      msgID,
 		isRequired: msg.ReplyTo != "",
-		logger:     s.logger,
 	}
 
 	handler(ctx, cmd, res)
