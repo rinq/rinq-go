@@ -6,8 +6,31 @@ import (
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
-// responder wraps a parent responder to add logging
-type responder struct {
+func logStartedListening(
+	logger overpass.Logger,
+	peerID overpass.PeerID,
+	namespace string,
+) {
+	logger.Log(
+		"%s stopped listening for command requests in '%s' namespace",
+		peerID.ShortString(),
+		namespace,
+	)
+}
+
+func logStoppedListening(
+	logger overpass.Logger,
+	peerID overpass.PeerID,
+	namespace string,
+) {
+	logger.Log(
+		"%s stopped listening for command requests in '%s' namespace",
+		peerID.ShortString(),
+		namespace,
+	)
+}
+
+type loggingResponder struct {
 	parent    overpass.Responder
 	peerID    overpass.PeerID
 	corrID    string
@@ -16,14 +39,14 @@ type responder struct {
 	startedAt time.Time
 }
 
-func newResponder(
+func newLoggingResponder(
 	parent overpass.Responder,
 	peerID overpass.PeerID,
 	corrID string,
 	request overpass.Command,
 	logger overpass.Logger,
 ) overpass.Responder {
-	return &responder{
+	return &loggingResponder{
 		parent:    parent,
 		peerID:    peerID,
 		corrID:    corrID,
@@ -33,20 +56,20 @@ func newResponder(
 	}
 }
 
-func (r *responder) IsRequired() bool {
+func (r *loggingResponder) IsRequired() bool {
 	return r.parent.IsRequired()
 }
 
-func (r *responder) IsClosed() bool {
+func (r *loggingResponder) IsClosed() bool {
 	return r.parent.IsClosed()
 }
 
-func (r *responder) Done(payload *overpass.Payload) {
+func (r *loggingResponder) Done(payload *overpass.Payload) {
 	r.parent.Done(payload)
 	r.logSuccess(payload)
 }
 
-func (r *responder) Error(err error) {
+func (r *loggingResponder) Error(err error) {
 	r.parent.Error(err)
 
 	if failure, ok := err.(overpass.Failure); ok {
@@ -56,12 +79,12 @@ func (r *responder) Error(err error) {
 	}
 }
 
-func (r *responder) Fail(failureType, message string) {
+func (r *loggingResponder) Fail(failureType, message string) {
 	r.parent.Fail(failureType, message)
 	r.logFailure(failureType, nil)
 }
 
-func (r *responder) Close() {
+func (r *loggingResponder) Close() {
 	first := !r.IsClosed()
 	r.parent.Close()
 
@@ -70,7 +93,7 @@ func (r *responder) Close() {
 	}
 }
 
-func (r *responder) logSuccess(payload *overpass.Payload) {
+func (r *loggingResponder) logSuccess(payload *overpass.Payload) {
 	r.logger.Log(
 		"%s handled %s '%s' command from %s successfully (%dms %d/i %d/o) [%s]",
 		r.peerID.ShortString(),
@@ -83,7 +106,7 @@ func (r *responder) logSuccess(payload *overpass.Payload) {
 		r.corrID,
 	)
 }
-func (r *responder) logFailure(failureType string, payload *overpass.Payload) {
+func (r *loggingResponder) logFailure(failureType string, payload *overpass.Payload) {
 	r.logger.Log(
 		"%s handled %s '%s' command from %s: '%s' failure (%dms %d/i %d/o) [%s]",
 		r.peerID.ShortString(),
@@ -98,7 +121,7 @@ func (r *responder) logFailure(failureType string, payload *overpass.Payload) {
 	)
 }
 
-func (r *responder) logError(err error) {
+func (r *loggingResponder) logError(err error) {
 	r.logger.Log(
 		"%s handled %s '%s' command from %s: '%s' error (%dms %d/i 0/o) [%s]",
 		r.peerID.ShortString(),

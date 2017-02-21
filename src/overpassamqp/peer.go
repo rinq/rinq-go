@@ -93,7 +93,7 @@ func (p *peer) Listen(namespace string, handler overpass.CommandHandler) error {
 			handler(
 				ctx,
 				cmd,
-				newResponder(
+				newLoggingResponder(
 					res,
 					p.id,
 					amqputil.GetCorrelationID(ctx),
@@ -105,11 +105,7 @@ func (p *peer) Listen(namespace string, handler overpass.CommandHandler) error {
 	)
 
 	if added {
-		p.logger.Log(
-			"%s started listening for command requests in '%s' namespace",
-			p.id.ShortString(),
-			namespace,
-		)
+		logStartedListening(p.logger, p.id, namespace)
 	}
 
 	return err
@@ -123,11 +119,7 @@ func (p *peer) Unlisten(namespace string) error {
 	removed, err := p.server.Unlisten(namespace)
 
 	if removed {
-		p.logger.Log(
-			"%s stopped listening for command requests in '%s' namespace",
-			p.id.ShortString(),
-			namespace,
-		)
+		logStoppedListening(p.logger, p.id, namespace)
 	}
 
 	return err
