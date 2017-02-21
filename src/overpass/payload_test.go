@@ -165,4 +165,12 @@ var _ = Describe("Payload", func() {
 		})
 	})
 
+	Describe("Close", func() {
+		It("returns a JSON representation of the payload", func() {
+			p := overpass.NewPayload(map[interface{}]interface{}{"foo": "bar"})
+			defer p.Close()
+
+			Expect(p.String()).To(Equal(`{"foo":"bar"}`))
+		})
+	})
 })
