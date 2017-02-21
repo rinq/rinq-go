@@ -92,7 +92,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 
 	if err == context.DeadlineExceeded || err == context.Canceled {
 		s.logger.Log(
-			"%s called %s '%s' command: %s (%dms, %d/o -/i) [%s]",
+			"%s called '%s::%s' command: %s (%dms, %d/o -/i) [%s]",
 			msgID.ShortString(),
 			ns,
 			cmd,
@@ -105,7 +105,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 		switch e := err.(type) {
 		case nil:
 			s.logger.Log(
-				"%s called %s '%s' command successfully (%dms, %d/o %d/i) [%s]",
+				"%s called '%s::%s' command successfully (%dms, %d/o %d/i) [%s]",
 				msgID.ShortString(),
 				ns,
 				cmd,
@@ -116,7 +116,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 			)
 		case overpass.Failure:
 			s.logger.Log(
-				"%s called %s '%s' command: '%s' failure (%dms, %d/o %d/i) [%s]",
+				"%s called '%s::%s' command: '%s' failure (%dms, %d/o %d/i) [%s]",
 				msgID.ShortString(),
 				ns,
 				cmd,
@@ -128,7 +128,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 			)
 		case command.RemoteError:
 			s.logger.Log(
-				"%s called %s '%s' command: '%s' error (%dms, %d/o 0/i) [%s]",
+				"%s called '%s::%s' command: '%s' error (%dms, %d/o 0/i) [%s]",
 				msgID.ShortString(),
 				ns,
 				cmd,
@@ -155,7 +155,7 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Paylo
 
 	if err == nil {
 		s.logger.Log(
-			"%s executed %s '%s' command (%d/o) [%s]",
+			"%s executed '%s::%s' command (%d/o) [%s]",
 			msgID.ShortString(),
 			ns,
 			cmd,
@@ -179,7 +179,7 @@ func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *overpass.P
 
 	if err == nil {
 		s.logger.Log(
-			"%s executed %s '%s' command on multiple peers (%d/o) [%s]",
+			"%s executed '%s::%s' command on multiple peers (%d/o) [%s]",
 			msgID.ShortString(),
 			ns,
 			cmd,
