@@ -92,7 +92,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	remotesession.Listen(peerID, sessions, server)
 
 	config.Logger.Log(
-		"%s peer connected to '%s' as %s",
+		"%s connected to '%s' as %s",
 		peerID.ShortString(),
 		dsn,
 		peerID,

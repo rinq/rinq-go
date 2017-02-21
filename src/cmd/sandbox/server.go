@@ -31,8 +31,7 @@ func runServer(peer overpass.Peer) error {
 				return
 			}
 
-			fmt.Println("done")
-			res.Close()
+			res.Fail("invalid-widget", "it all went so wrong")
 
 			// attr, err := cmd.Source.Get(ctx, "counter")
 			// if err != nil {

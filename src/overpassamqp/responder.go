@@ -43,41 +43,22 @@ func (r *responder) IsClosed() bool {
 
 func (r *responder) Done(payload *overpass.Payload) {
 	r.parent.Done(payload)
-
-	r.logger.Log(
-		"%s handled '%s' in '%s' namespace (%d bytes), done after %dms (%d bytes) [%s]",
-		r.peerID.ShortString(),
-		r.request.Command,
-		r.request.Namespace,
-		r.request.Payload.Len(),
-		time.Now().Sub(r.startedAt)/time.Millisecond,
-		payload.Len(),
-		r.corrID,
-	)
+	r.logSuccess(payload)
 }
 
 func (r *responder) Error(err error) {
 	r.parent.Error(err)
 
 	if failure, ok := err.(overpass.Failure); ok {
-		r.logFailure(failure.Type, failure.Message)
+		r.logFailure(failure.Type, failure.Payload)
 	} else {
-		r.logger.Log(
-			"%s handled '%s' in '%s' namespace (%d bytes), errored after %dms (%s) [%s]",
-			r.peerID.ShortString(),
-			r.request.Command,
-			r.request.Namespace,
-			r.request.Payload.Len(),
-			time.Now().Sub(r.startedAt)/time.Millisecond,
-			err,
-			r.corrID,
-		)
+		r.logError(err)
 	}
 }
 
 func (r *responder) Fail(failureType, message string) {
 	r.parent.Fail(failureType, message)
-	r.logFailure(failureType, message)
+	r.logFailure(failureType, nil)
 }
 
 func (r *responder) Close() {
@@ -85,28 +66,48 @@ func (r *responder) Close() {
 	r.parent.Close()
 
 	if first {
-		r.logger.Log(
-			"%s handled '%s' in '%s' namespace (%d bytes), closed after %dms [%s]",
-			r.peerID.ShortString(),
-			r.request.Command,
-			r.request.Namespace,
-			r.request.Payload.Len(),
-			time.Now().Sub(r.startedAt)/time.Millisecond,
-			r.corrID,
-		)
+		r.logSuccess(nil)
 	}
 }
 
-func (r *responder) logFailure(failureType, message string) {
+func (r *responder) logSuccess(payload *overpass.Payload) {
 	r.logger.Log(
-		"%s handled '%s' in '%s' namespace (%d bytes), failed after %dms (%s: %s) [%s]",
+		"%s handled %s '%s' command from %s successfully (%dms %d/i %d/o) [%s]",
 		r.peerID.ShortString(),
-		r.request.Command,
 		r.request.Namespace,
-		r.request.Payload.Len(),
+		r.request.Command,
+		r.request.Source.Ref().ShortString(),
 		time.Now().Sub(r.startedAt)/time.Millisecond,
+		r.request.Payload.Len(),
+		payload.Len(),
+		r.corrID,
+	)
+}
+func (r *responder) logFailure(failureType string, payload *overpass.Payload) {
+	r.logger.Log(
+		"%s handled %s '%s' command from %s: '%s' failure (%dms %d/i %d/o) [%s]",
+		r.peerID.ShortString(),
+		r.request.Namespace,
+		r.request.Command,
+		r.request.Source.Ref().ShortString(),
 		failureType,
-		message,
+		time.Now().Sub(r.startedAt)/time.Millisecond,
+		r.request.Payload.Len(),
+		payload.Len(),
+		r.corrID,
+	)
+}
+
+func (r *responder) logError(err error) {
+	r.logger.Log(
+		"%s handled %s '%s' command from %s: '%s' error (%dms %d/i 0)/o [%s]",
+		r.peerID.ShortString(),
+		r.request.Namespace,
+		r.request.Command,
+		r.request.Source.Ref().ShortString(),
+		err,
+		time.Now().Sub(r.startedAt)/time.Millisecond,
+		r.request.Payload.Len(),
 		r.corrID,
 	)
 }
