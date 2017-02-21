@@ -198,7 +198,15 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 
 	if handler == nil {
 		msg.Reject(true)
-		// TODO: log - request was probably in network buffer before unlisten was called
+
+		if s.logger.IsDebug() {
+			s.logger.Log(
+				"%s re-queued command request %s, no longer listening to this namespace",
+				s.peerID.ShortString(),
+				msgID.ShortString(),
+			)
+		}
+
 		return nil
 	}
 
@@ -224,7 +232,6 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 		context:    ctx,
 		msgID:      msgID,
 		isRequired: msg.ReplyTo != "",
-		logger:     s.logger,
 	}
 
 	handler(ctx, cmd, res)

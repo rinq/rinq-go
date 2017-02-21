@@ -1,8 +1,10 @@
 package overpassamqp
 
 import (
+	"context"
 	"sync/atomic"
 
+	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/internals/notify"
@@ -81,7 +83,26 @@ func (p *peer) Listen(namespace string, handler overpass.CommandHandler) error {
 		return err
 	}
 
-	added, err := p.server.Listen(namespace, handler)
+	added, err := p.server.Listen(
+		namespace,
+		func(
+			ctx context.Context,
+			cmd overpass.Command,
+			res overpass.Responder,
+		) {
+			handler(
+				ctx,
+				cmd,
+				newResponder(
+					res,
+					p.id,
+					amqputil.GetCorrelationID(ctx),
+					cmd,
+					p.logger,
+				),
+			)
+		},
+	)
 
 	if added {
 		p.logger.Log(
