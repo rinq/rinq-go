@@ -334,7 +334,7 @@ func (s *session) Close() {
 
 	s.logger.Log(
 		"%s session destroyed {%s}",
-		ref,
+		ref.ShortString(),
 		buffer,
 	)
 }
