@@ -107,7 +107,6 @@ func logRequestEnd(
 			msgID.ShortString(),
 			amqputil.GetCorrelationID(ctx),
 			err,
-			payload,
 		)
 	}
 }
