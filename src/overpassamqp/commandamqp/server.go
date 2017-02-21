@@ -153,13 +153,11 @@ func (s *server) dispatch(msg amqp.Delivery) {
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
 		msg.Reject(false)
+
 		if s.logger.IsDebug() {
-			s.logger.Log(
-				"%s ignored AMQP message, '%s' is not a valid message ID",
-				s.peerID.ShortString(),
-				msg.MessageId,
-			)
+			logInvalidMessageID(s.logger, s.peerID, msg)
 		}
+
 		return
 	}
 
@@ -180,12 +178,7 @@ func (s *server) dispatch(msg amqp.Delivery) {
 		msg.Reject(false)
 
 		if s.logger.IsDebug() {
-			s.logger.Log(
-				"%s ignored AMQP message %s, %s",
-				s.peerID.ShortString(),
-				msgID.ShortString(),
-				err,
-			)
+			logIgnoredMessage(s.logger, s.peerID, msgID, err)
 		}
 	}
 }
@@ -200,12 +193,7 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 		msg.Reject(true)
 
 		if s.logger.IsDebug() {
-			s.logger.Log(
-				"%s re-queued command request %s, no longer listening to '%s' namespace",
-				s.peerID.ShortString(),
-				msgID.ShortString(),
-				namespace,
-			)
+			logNoLongerListening(s.logger, s.peerID, msgID, namespace)
 		}
 
 		return nil
@@ -222,29 +210,51 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 
 	cmd := overpass.Command{
 		Source:      source,
-		Namespace:   msg.RoutingKey,
+		Namespace:   namespace,
 		Command:     msg.Type,
 		Payload:     overpass.NewPayloadFromBytes(msg.Body),
 		IsMulticast: msg.Exchange == multicastExchange,
 	}
 
-	res := &responder{
+	var res overpass.Responder = &responder{
 		channels:   s.channels,
 		context:    ctx,
 		msgID:      msgID,
 		isRequired: msg.ReplyTo != "",
 	}
 
+	if s.logger.IsDebug() {
+		res = newCapturingResponder(res)
+		logRequestBegin(ctx, s.logger, s.peerID, msgID, cmd)
+	}
+
 	handler(ctx, cmd, res)
 
 	if res.IsClosed() {
 		msg.Ack(true)
+
+		if s.logger.IsDebug() {
+			cap := res.(*capturingResponder)
+			payload, err := cap.Response()
+			defer payload.Close()
+			logRequestEnd(ctx, s.logger, s.peerID, msgID, cmd, payload, err)
+		}
 	} else if msg.Exchange == balancedExchange {
-		// requeue in the hopes another peer can handle it properly
+		// TODO: check deadline
 		msg.Reject(true)
+
+		if s.logger.IsDebug() {
+			logRequestRequeued(ctx, s.logger, s.peerID, msgID, cmd)
+		}
 	} else {
-		msg.Reject(false) // TODO: panic?
+		msg.Reject(false)
+
+		if s.logger.IsDebug() {
+			logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd)
+		}
 	}
+
+	// TODO: invalidate responder
 
 	return nil
 }

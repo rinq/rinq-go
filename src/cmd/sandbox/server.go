@@ -42,6 +42,11 @@ func runServer(peer overpass.Peer) error {
 			}
 
 			res.Close()
+			// res.Error(overpass.Failure{
+			// 	Type:    "invalid-widget",
+			// 	Message: "it all went so wrong",
+			// 	Payload: overpass.NewPayload("OH SNAP"),
+			// })
 
 			go func() {
 				fmt.Println("sleeping")
@@ -66,8 +71,6 @@ func runServer(peer overpass.Peer) error {
 					return
 				}
 			}()
-
-			// res.Fail("invalid-widget", "it all went so wrong")
 		},
 	); err != nil {
 		panic(err)
