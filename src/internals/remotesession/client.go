@@ -101,7 +101,7 @@ func (c *client) Update(
 		return 0, err
 	}
 
-	return overpass.RevisionNumber(rsp), nil
+	return overpass.RevisionNumber(rsp.Rev), nil
 }
 
 func (c *client) Close(

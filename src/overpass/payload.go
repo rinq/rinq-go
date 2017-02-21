@@ -107,8 +107,8 @@ func (p *Payload) Bytes() []byte {
 	p.data.writeMutex.Lock()
 	defer p.data.writeMutex.Unlock()
 
-	encoder := encoders.Get().(*codec.Encoder)
-	defer encoders.Put(encoder)
+	encoder := cborEncoders.Get().(*codec.Encoder)
+	defer cborEncoders.Put(encoder)
 
 	buffer := bufferpool.Get()
 	encoder.Reset(buffer)
@@ -128,11 +128,11 @@ func (p *Payload) Len() int {
 func (p *Payload) Decode(value interface{}) error {
 	buf := p.Bytes()
 	if buf == nil {
-		buf = encodedNil
+		buf = cborNil
 	}
 
-	decoder := decoders.Get().(*codec.Decoder)
-	defer decoders.Put(decoder)
+	decoder := cborDecoders.Get().(*codec.Decoder)
+	defer cborDecoders.Put(decoder)
 
 	decoder.ResetBytes(buf)
 
@@ -155,8 +155,8 @@ func (p *Payload) Value() interface{} {
 	p.data.writeMutex.Lock()
 	defer p.data.writeMutex.Unlock()
 
-	decoder := decoders.Get().(*codec.Decoder)
-	defer decoders.Put(decoder)
+	decoder := cborDecoders.Get().(*codec.Decoder)
+	defer cborDecoders.Put(decoder)
 
 	decoder.ResetBytes(p.data.buffer.Bytes())
 	decoder.MustDecode(&p.data.value)
@@ -185,6 +185,19 @@ func (p *Payload) Close() {
 	}
 }
 
+// String returns a human-readable representation of the payload.
+// No guarantees are made about the format of the string.
+func (p *Payload) String() string {
+	buffer := bufferpool.Get()
+	defer bufferpool.Put(buffer)
+
+	encoder := jsonEncoders.Get().(*codec.Encoder)
+	encoder.Reset(buffer)
+	encoder.MustEncode(p.Value())
+
+	return buffer.String()
+}
+
 type payloadData struct {
 	readMutex  sync.Mutex
 	writeMutex sync.Mutex
@@ -205,27 +218,33 @@ type payloadData struct {
 	refCount uint
 }
 
-var encoders sync.Pool
-var decoders sync.Pool
-var encodedNil []byte
+var jsonEncoders sync.Pool
+var cborEncoders sync.Pool
+var cborDecoders sync.Pool
+var cborNil []byte
 
 func init() {
-	var codecHandle codec.CborHandle
+	var jsonHandle codec.JsonHandle
+	var cborHandle codec.CborHandle
 
-	encoders.New = func() interface{} {
-		return codec.NewEncoder(nil, &codecHandle)
+	jsonEncoders.New = func() interface{} {
+		return codec.NewEncoder(nil, &jsonHandle)
 	}
 
-	decoders.New = func() interface{} {
-		return codec.NewDecoder(nil, &codecHandle)
+	cborEncoders.New = func() interface{} {
+		return codec.NewEncoder(nil, &cborHandle)
 	}
 
-	encoder := encoders.Get().(*codec.Encoder)
-	defer encoders.Put(encoder)
+	cborDecoders.New = func() interface{} {
+		return codec.NewDecoder(nil, &cborHandle)
+	}
+
+	encoder := cborEncoders.Get().(*codec.Encoder)
+	defer cborEncoders.Put(encoder)
 
 	var buffer bytes.Buffer
 	encoder.Reset(&buffer)
 	encoder.MustEncode(nil)
 
-	encodedNil = buffer.Bytes()
+	cborNil = buffer.Bytes()
 }

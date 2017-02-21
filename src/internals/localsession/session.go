@@ -90,42 +90,54 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 	corrID, payload, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, p)
 	elapsed := time.Now().Sub(start) / time.Millisecond
 
-	switch e := err.(type) {
-	case nil:
+	if err == context.DeadlineExceeded || err == context.Canceled {
 		s.logger.Log(
-			"%s called '%s' in '%s' namespace (%d bytes), returned after %dms (%d bytes) [%s]",
+			"%s called '%s::%s' command: %s (%dms, %d/o -/i) [%s]",
 			msgID.ShortString(),
-			cmd,
 			ns,
-			p.Len(),
-			elapsed,
-			payload.Len(),
-			corrID,
-		)
-	case overpass.Failure:
-		s.logger.Log(
-			"%s called '%s' in '%s' namespace (%d bytes), '%s' failure after %dms (%s, %d bytes) [%s]",
-			msgID.ShortString(),
 			cmd,
-			ns,
-			p.Len(),
-			e.Type,
-			elapsed,
-			e.Message,
-			e.Payload.Len(),
-			corrID,
-		)
-	case command.RemoteError:
-		s.logger.Log(
-			"%s called '%s' in '%s' namespace (%d bytes), errored after %dms (%s) [%s]",
-			msgID.ShortString(),
-			cmd,
-			ns,
-			p.Len(),
-			elapsed,
 			err,
+			elapsed,
+			p.Len(),
 			corrID,
 		)
+	} else {
+		switch e := err.(type) {
+		case nil:
+			s.logger.Log(
+				"%s called '%s::%s' command successfully (%dms, %d/o %d/i) [%s]",
+				msgID.ShortString(),
+				ns,
+				cmd,
+				elapsed,
+				p.Len(),
+				payload.Len(),
+				corrID,
+			)
+		case overpass.Failure:
+			s.logger.Log(
+				"%s called '%s::%s' command: '%s' failure (%dms, %d/o %d/i) [%s]",
+				msgID.ShortString(),
+				ns,
+				cmd,
+				e.Type,
+				elapsed,
+				p.Len(),
+				payload.Len(),
+				corrID,
+			)
+		case command.RemoteError:
+			s.logger.Log(
+				"%s called '%s::%s' command: '%s' error (%dms, %d/o 0/i) [%s]",
+				msgID.ShortString(),
+				ns,
+				cmd,
+				e,
+				elapsed,
+				p.Len(),
+				corrID,
+			)
+		}
 	}
 
 	return payload, err
@@ -143,10 +155,10 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Paylo
 
 	if err == nil {
 		s.logger.Log(
-			"%s executed '%s' in '%s' namespace (%d bytes) [%s]",
+			"%s executed '%s::%s' command (%d/o) [%s]",
 			msgID.ShortString(),
-			cmd,
 			ns,
+			cmd,
 			p.Len(),
 			corrID,
 		)
@@ -167,10 +179,10 @@ func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *overpass.P
 
 	if err == nil {
 		s.logger.Log(
-			"%s executed '%s' in '%s' namespace on multiple peers (%d bytes) [%s]",
+			"%s executed '%s::%s' command on multiple peers (%d/o) [%s]",
 			msgID.ShortString(),
-			cmd,
 			ns,
+			cmd,
 			p.Len(),
 			corrID,
 		)
@@ -191,7 +203,7 @@ func (s *session) Notify(ctx context.Context, target overpass.SessionID, typ str
 
 	if err == nil {
 		s.logger.Log(
-			"%s sent '%s' notification to %s (%d bytes) [%s]",
+			"%s sent '%s' notification to %s (%d/o) [%s]",
 			msgID.ShortString(),
 			typ,
 			target.ShortString(),
@@ -215,7 +227,7 @@ func (s *session) NotifyMany(ctx context.Context, con overpass.Constraint, typ s
 
 	if err == nil {
 		s.logger.Log(
-			"%s sent '%s' notification to {%s} (%d bytes) [%s]",
+			"%s sent '%s' notification to sessions matching {%s} (%d/o) [%s]",
 			msgID.ShortString(),
 			typ,
 			con,
@@ -251,7 +263,7 @@ func (s *session) Listen(handler overpass.NotificationHandler) error {
 			rev := s.catalog.Head()
 
 			s.logger.Log(
-				"%s received '%s' notification from %s (%d bytes) [%s]",
+				"%s received '%s' notification from %s (%d/i) [%s]",
 				rev.Ref().ShortString(),
 				n.Type,
 				n.Source.Ref().ShortString(),

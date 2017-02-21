@@ -92,7 +92,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	remotesession.Listen(peerID, sessions, server)
 
 	config.Logger.Log(
-		"%s peer connected to '%s' as %s",
+		"%s connected to '%s' as %s",
 		peerID.ShortString(),
 		dsn,
 		peerID,
@@ -149,7 +149,7 @@ func (d *Dialer) establishIdentity(
 		default:
 			if logger.IsDebug() {
 				logger.Log(
-					"%s peer already registered, retrying",
+					"%s already registered, retrying with a different peer ID",
 					id.ShortString(),
 				)
 			}
