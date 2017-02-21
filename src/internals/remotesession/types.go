@@ -22,24 +22,26 @@ const (
 )
 
 type fetchRequest struct {
-	Seq  uint32
-	Keys []string
+	Seq  uint32   `json:"s"`
+	Keys []string `json:"k,omitempty"`
 }
 
 type fetchResponse struct {
-	Rev   overpass.RevisionNumber
-	Attrs []attrmeta.Attr
+	Rev   overpass.RevisionNumber `json:"r"`
+	Attrs []attrmeta.Attr         `json:"a,omitempty"`
 }
 
 type updateRequest struct {
-	Seq   uint32
-	Rev   overpass.RevisionNumber
-	Attrs []overpass.Attr
+	Seq   uint32                  `json:"s"`
+	Rev   overpass.RevisionNumber `json:"r"`
+	Attrs []overpass.Attr         `json:"a,omitempty"`
 }
 
-type updateResponse overpass.RevisionNumber
+type updateResponse struct {
+	Rev overpass.RevisionNumber `json:"r"`
+}
 
 type closeRequest struct {
-	Seq uint32
-	Rev overpass.RevisionNumber
+	Seq uint32                  `json:"s"`
+	Rev overpass.RevisionNumber `json:"r"`
 }

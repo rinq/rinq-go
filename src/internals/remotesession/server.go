@@ -122,7 +122,7 @@ func (s *server) update(
 		return
 	}
 
-	payload := overpass.NewPayload(updateResponse(rev.Ref().Rev))
+	payload := overpass.NewPayload(updateResponse{rev.Ref().Rev})
 	defer payload.Close()
 	res.Done(payload)
 }

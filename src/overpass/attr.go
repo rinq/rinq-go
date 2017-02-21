@@ -13,9 +13,9 @@ func Freeze(key, value string) Attr {
 // Attr holds attribute content and meta-data.
 // Keys and values are UTF-8 strings.
 type Attr struct {
-	Key      string
-	Value    string
-	IsFrozen bool
+	Key      string `json:"k"`
+	Value    string `json:"v,omitempty"`
+	IsFrozen bool   `json:"f,omitempty"`
 }
 
 // AttrTable maps attribute keys to attributes.
