@@ -142,6 +142,18 @@ var _ = Describe("Payload", func() {
 			Entry("created from bytes", overpass.NewPayloadFromBytes([]byte{24, 123}), 123),
 			Entry("created from value", overpass.NewPayload(123), 123),
 		)
+
+		It("can be called after Value() when created from bytes [regression]", func() {
+			payload := overpass.NewPayloadFromBytes([]byte{103, 60, 118, 97, 108, 117, 101, 62})
+			defer payload.Close()
+
+			Expect(payload.Value()).To(Equal("<value>"))
+
+			var value string
+			err := payload.Decode(&value)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(value).To(Equal("<value>"))
+		})
 	})
 
 	Describe("Close", func() {

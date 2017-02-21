@@ -158,7 +158,7 @@ func (p *Payload) Value() interface{} {
 	decoder := decoders.Get().(*codec.Decoder)
 	defer decoders.Put(decoder)
 
-	decoder.Reset(p.data.buffer)
+	decoder.ResetBytes(p.data.buffer.Bytes())
 	decoder.MustDecode(&p.data.value)
 	p.data.hasValue = true
 
