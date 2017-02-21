@@ -149,7 +149,7 @@ func (d *Dialer) establishIdentity(
 		default:
 			if logger.IsDebug() {
 				logger.Log(
-					"%s peer already registered, retrying",
+					"%s already registered, retrying with a different peer ID",
 					id.ShortString(),
 				)
 			}

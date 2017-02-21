@@ -100,7 +100,7 @@ func (r *responder) logFailure(failureType string, payload *overpass.Payload) {
 
 func (r *responder) logError(err error) {
 	r.logger.Log(
-		"%s handled %s '%s' command from %s: '%s' error (%dms %d/i 0)/o [%s]",
+		"%s handled %s '%s' command from %s: '%s' error (%dms %d/i 0/o) [%s]",
 		r.peerID.ShortString(),
 		r.request.Namespace,
 		r.request.Command,

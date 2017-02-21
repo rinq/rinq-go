@@ -201,9 +201,10 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 
 		if s.logger.IsDebug() {
 			s.logger.Log(
-				"%s re-queued command request %s, no longer listening to this namespace",
+				"%s re-queued command request %s, no longer listening to '%s' namespace",
 				s.peerID.ShortString(),
 				msgID.ShortString(),
+				namespace,
 			)
 		}
 

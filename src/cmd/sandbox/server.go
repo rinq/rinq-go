@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/over-pass/overpass-go/src/overpass"
 )
@@ -17,38 +18,56 @@ func runServer(peer overpass.Peer) error {
 		) {
 			defer cmd.Payload.Close()
 
-			rev, err := cmd.Source.Update(ctx, overpass.Set("product", "myapp"))
-			if err != nil {
-				fmt.Println("update error:", err)
-				res.Error(err)
-				return
+			rev := cmd.Source
+			var err error
+
+			for {
+				rev, err = rev.Update(
+					ctx,
+					overpass.Freeze("accountId", "7"),
+				)
+				if err != nil {
+					if overpass.ShouldRetry(err) {
+						rev, err = rev.Refresh(ctx)
+						if err == nil {
+							continue
+						}
+					}
+
+					res.Error(err)
+					return
+				}
+
+				break
 			}
 
-			err = rev.Close(ctx)
-			if err != nil {
-				fmt.Println("close error:", err)
-				res.Error(err)
-				return
-			}
+			res.Close()
 
-			res.Fail("invalid-widget", "it all went so wrong")
+			go func() {
+				fmt.Println("sleeping")
+				time.Sleep(10 * time.Second)
+				ctx := context.Background()
 
-			// attr, err := cmd.Source.Get(ctx, "counter")
-			// if err != nil {
-			// 	fmt.Println("get() error:", err)
-			// 	res.Error(err)
-			// } else {
-			// 	res.Close()
-			// }
-			//
-			// spew.Dump(attr)
-			// _, err := cmd.Source.Update(ctx, overpass.Set("foo", "bar"))
-			// if err != nil {
-			// 	res.Error(err)
-			// 	return
-			// }
+				for {
+					fmt.Println("closing")
 
-			// res.Fail("insufficient-funds", "account 7 is broke!")
+					if err := rev.Close(ctx); err != nil {
+						if overpass.ShouldRetry(err) {
+							fmt.Println("refreshing")
+							rev, err = rev.Refresh(ctx)
+							if err == nil {
+								continue
+							}
+						}
+
+						fmt.Println(err)
+					}
+
+					return
+				}
+			}()
+
+			// res.Fail("invalid-widget", "it all went so wrong")
 		},
 	); err != nil {
 		panic(err)
