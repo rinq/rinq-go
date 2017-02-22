@@ -84,30 +84,22 @@ func (r *responder) Error(err error) {
 	}
 }
 
-func (r *responder) Fail(failureType, message string) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	if r.isClosed {
-		panic("responder is already closed")
-	}
-
-	r.close(amqp.Publishing{
-		Type: failureResponse,
-		Headers: amqp.Table{
-			failureTypeHeader:    failureType,
-			failureMessageHeader: message,
-		},
-	})
+func (r *responder) Fail(failureType, message string) overpass.Failure {
+	err := overpass.Failure{Type: failureType, Message: message}
+	r.Error(err)
+	return err
 }
 
-func (r *responder) Close() {
+func (r *responder) Close() bool {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	if !r.isClosed {
 		r.close(amqp.Publishing{Type: successResponse})
+		return true
 	}
+
+	return false
 }
 
 func (r *responder) close(msg amqp.Publishing) {

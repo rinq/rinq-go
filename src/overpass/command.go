@@ -60,8 +60,8 @@ type Responder interface {
 	Error(error)
 
 	// Fail is a convenience method that creates a Failure and passes it to
-	// the responder's Error() method.
-	Fail(failureType, message string)
+	// the responder's Error() method. The created failure is returned.
+	Fail(failureType, message string) Failure
 
 	// Close marks the responder as closed.
 	//
@@ -69,8 +69,9 @@ type Responder interface {
 	// payload.
 	//
 	// The response instance can not be used after it is closed.
-	// It is not an error to close a responder multiple times.
-	Close()
+	// It is not an error to close a responder multiple times. The return value
+	// is true the first time Close() is called, and false on subsequence calls.
+	Close() bool
 }
 
 // ValidateNamespace returns an error if the given namespace is invalid.

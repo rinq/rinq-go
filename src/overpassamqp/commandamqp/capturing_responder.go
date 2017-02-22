@@ -41,14 +41,12 @@ func (r *capturingResponder) Error(err error) {
 	}
 }
 
-func (r *capturingResponder) Fail(failureType, message string) {
-	r.parent.Fail(failureType, message)
-	r.err = overpass.Failure{
-		Type:    failureType,
-		Message: message,
-	}
+func (r *capturingResponder) Fail(failureType, message string) overpass.Failure {
+	err := r.parent.Fail(failureType, message)
+	r.err = err
+	return err
 }
 
-func (r *capturingResponder) Close() {
-	r.parent.Close()
+func (r *capturingResponder) Close() bool {
+	return r.parent.Close()
 }
