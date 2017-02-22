@@ -2,62 +2,52 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp"
 )
 
-func runClient(peer overpass.Peer) error {
+func runClient() {
+	rand.Seed(time.Now().UnixNano())
+
+	peer, err := overpassamqp.Dial(
+		context.Background(),
+		"amqp://localhost",
+		overpass.Config{
+			Logger: overpass.NewLogger(true),
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+	defer peer.Stop()
+
 	sess := peer.Session()
 	defer sess.Close()
 
-	if err := sess.Listen(onNotify); err != nil {
-		return err
+	for {
+		func() {
+			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+			defer cancel()
+
+			result, err := sess.Call(
+				ctx,
+				"our-namespace",
+				"<whatever>",
+				nil,
+			)
+			defer result.Close()
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println(result.Value())
+			}
+		}()
 	}
 
-	rev, err := sess.CurrentRevision()
-	if err != nil {
-		return err
-	}
-
-	rev, err = rev.Update(
-		context.Background(),
-		overpass.Freeze("product", "myapp"),
-	)
-	if err != nil {
-		return err
-	}
-
-	response, err := sess.Call(
-		context.Background(),
-		"myapp.v1",
-		"authenticate",
-		nil,
-	)
-	defer response.Close()
-	if err != nil {
-		return err
-	}
-
-	if err = sess.NotifyMany(
-		context.Background(),
-		overpass.Constraint{
-			"product":   "myapp",
-			"accountId": "7",
-		},
-		"account-update",
-		nil,
-	); err != nil {
-		return err
-	}
-
-	<-sess.Done()
-	return nil
-}
-
-func onNotify(
-	ctx context.Context,
-	sess overpass.Session,
-	n overpass.Notification,
-) {
-	defer n.Payload.Close()
+	// fmt.Println(peer.Wait())
 }

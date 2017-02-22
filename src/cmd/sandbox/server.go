@@ -3,79 +3,47 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp"
 )
 
-func runServer(peer overpass.Peer) error {
-	if err := peer.Listen(
-		"myapp.v1",
-		func(
-			ctx context.Context,
-			cmd overpass.Command,
-			res overpass.Responder,
-		) {
-			defer cmd.Payload.Close()
+func runServer() {
+	rand.Seed(time.Now().UnixNano())
 
-			rev := cmd.Source
-			var err error
-
-			for {
-				rev, err = rev.Update(
-					ctx,
-					overpass.Freeze("accountId", "7"),
-				)
-				if err != nil {
-					if overpass.ShouldRetry(err) {
-						rev, err = rev.Refresh(ctx)
-						if err == nil {
-							continue
-						}
-					}
-
-					res.Error(err)
-					return
-				}
-
-				break
-			}
-
-			res.Close()
-			// res.Error(overpass.Failure{
-			// 	Type:    "invalid-widget",
-			// 	Message: "it all went so wrong",
-			// 	Payload: overpass.NewPayload("OH SNAP"),
-			// })
-
-			go func() {
-				fmt.Println("sleeping")
-				time.Sleep(10 * time.Second)
-				ctx := context.Background()
-
-				for {
-					fmt.Println("closing")
-
-					if err := rev.Close(ctx); err != nil {
-						if overpass.ShouldRetry(err) {
-							fmt.Println("refreshing")
-							rev, err = rev.Refresh(ctx)
-							if err == nil {
-								continue
-							}
-						}
-
-						fmt.Println(err)
-					}
-
-					return
-				}
-			}()
+	peer, err := overpassamqp.Dial(
+		context.Background(),
+		"amqp://localhost",
+		overpass.Config{
+			Logger: overpass.NewLogger(true),
 		},
-	); err != nil {
+	)
+	if err != nil {
 		panic(err)
 	}
+	defer peer.Stop()
+
+	peer.Listen("our-namespace", func(
+		ctx context.Context,
+		cmd overpass.Command,
+		res overpass.Responder,
+	) {
+		defer cmd.Payload.Close()
+
+		time.Sleep(250 * time.Millisecond)
+
+		fmt.Println(ctx.Deadline())
+
+		if !res.IsRequired() {
+			fmt.Println("NOT REQUIRED!")
+		}
+		res.Close()
+	})
 
 	<-peer.Done()
-	return peer.Err()
+	if err := peer.Err(); err != nil {
+		panic(err)
+	}
 }
