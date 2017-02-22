@@ -79,18 +79,19 @@ func (r *loggingResponder) Error(err error) {
 	}
 }
 
-func (r *loggingResponder) Fail(failureType, message string) {
-	r.parent.Fail(failureType, message)
+func (r *loggingResponder) Fail(failureType, message string) overpass.Failure {
+	err := r.parent.Fail(failureType, message)
 	r.logFailure(failureType, nil)
+	return err
 }
 
-func (r *loggingResponder) Close() {
-	first := !r.IsClosed()
-	r.parent.Close()
-
-	if first {
+func (r *loggingResponder) Close() bool {
+	if r.parent.Close() {
 		r.logSuccess(nil)
+		return true
 	}
+
+	return false
 }
 
 func (r *loggingResponder) logSuccess(payload *overpass.Payload) {
