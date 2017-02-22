@@ -277,7 +277,7 @@ func (s *server) initialize() error {
 		false, // autoDelete
 		true,  // exclusive,
 		false, // noWait
-		nil,   // args
+		amqp.Table{"x-max-priority": priorityCount},
 	); err != nil {
 		return err
 	}

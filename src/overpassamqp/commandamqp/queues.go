@@ -48,7 +48,7 @@ func (s *queueSet) Get(channel *amqp.Channel, namespace string) (string, error) 
 		false, // autoDelete
 		false, // exclusive,
 		false, // noWait
-		nil,   // args
+		amqp.Table{"x-max-priority": priorityCount},
 	); err != nil {
 		return "", err
 	}

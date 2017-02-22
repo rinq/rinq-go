@@ -74,7 +74,7 @@ func (i *invoker) CallUnicast(
 ) (string, *overpass.Payload, error) {
 	msg := amqp.Publishing{
 		MessageId: msgID.String(),
-		Priority:  callPriority,
+		Priority:  callUnicastPriority,
 		Type:      command,
 		Headers:   amqp.Table{namespaceHeader: namespace},
 		Body:      payload.Bytes(),
@@ -110,7 +110,7 @@ func (i *invoker) CallBalanced(
 ) (string, *overpass.Payload, error) {
 	msg := amqp.Publishing{
 		MessageId: msgID.String(),
-		Priority:  callPriority,
+		Priority:  callBalancedPriority,
 		Type:      command,
 		Body:      payload.Bytes(),
 	}
