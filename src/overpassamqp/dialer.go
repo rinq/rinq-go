@@ -102,7 +102,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 
 	return newPeer(
 		peerID,
-		broker,
+		amqputil.NewBrokerService(broker),
 		sessions,
 		invoker,
 		server,

@@ -10,25 +10,27 @@ import (
 	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/internals/service"
 	"github.com/over-pass/overpass-go/src/overpass"
-	"github.com/streadway/amqp"
 )
 
 // peer is an AMQP-based implementation of overpass.Peer.
 type peer struct {
-	id       overpass.PeerID
-	broker   service.Service
-	sessions localsession.Store
-	invoker  command.Invoker
-	server   command.Server
-	notifier notify.Notifier
-	listener notify.Listener
-	logger   overpass.Logger
-	seq      uint32
+	service.Service
+	closer *service.Closer
+
+	id         overpass.PeerID
+	connection service.Service
+	sessions   localsession.Store
+	invoker    command.Invoker
+	server     command.Server
+	notifier   notify.Notifier
+	listener   notify.Listener
+	logger     overpass.Logger
+	seq        uint32
 }
 
 func newPeer(
 	id overpass.PeerID,
-	broker *amqp.Connection,
+	connection service.Service,
 	sessions localsession.Store,
 	invoker command.Invoker,
 	server command.Server,
@@ -36,23 +38,23 @@ func newPeer(
 	listener notify.Listener,
 	logger overpass.Logger,
 ) *peer {
+	svc, closer := service.NewImpl()
+
 	p := &peer{
-		id:       id,
-		broker:   amqputil.NewBrokerService(broker),
-		sessions: sessions,
-		invoker:  invoker,
-		server:   server,
-		notifier: notifier,
-		listener: listener,
-		logger:   logger,
+		Service: svc,
+		closer:  closer,
+
+		id:         id,
+		connection: connection,
+		sessions:   sessions,
+		invoker:    invoker,
+		server:     server,
+		notifier:   notifier,
+		listener:   listener,
+		logger:     logger,
 	}
 
-	service.Link(
-		p.broker,
-		p.invoker,
-		p.server,
-		p.listener,
-	)
+	go p.monitor()
 
 	return p
 }
@@ -67,24 +69,20 @@ func (p *peer) Session() overpass.Session {
 		Seq:  atomic.AddUint32(&p.seq, 1),
 	}
 
-	catalog := localsession.NewCatalog(id, p.logger)
-	session := localsession.NewSession(
+	cat := localsession.NewCatalog(id, p.logger)
+	sess := localsession.NewSession(
 		id,
-		catalog,
+		cat,
 		p.invoker,
 		p.notifier,
 		p.listener,
 		p.logger,
 	)
 
-	p.sessions.Add(session, catalog)
+	p.sessions.Add(sess, cat)
+	go p.monitorSession(sess)
 
-	go func() {
-		<-session.Done()
-		p.sessions.Remove(id)
-	}()
-
-	return session
+	return sess
 }
 
 func (p *peer) Listen(namespace string, handler overpass.CommandHandler) error {
@@ -134,16 +132,34 @@ func (p *peer) Unlisten(namespace string) error {
 	return err
 }
 
-func (p *peer) Wait() error {
-	return service.Wait(
-		p.broker,
-		p.invoker,
-		p.server,
-		p.listener,
-	)
+func (p *peer) monitor() {
+	var err error
+
+	select {
+	case <-p.connection.Done():
+		err = p.connection.Err()
+	case <-p.invoker.Done():
+		err = p.invoker.Err()
+	case <-p.server.Done():
+		err = p.server.Err()
+	case <-p.listener.Done():
+		err = p.listener.Err()
+	case <-p.closer.Stop():
+	}
+
+	p.sessions.Each(func(sess overpass.Session, _ localsession.Catalog) {
+		sess.Close()
+	})
+
+	p.connection.Stop()
+	p.invoker.Stop()
+	p.server.Stop()
+	p.listener.Stop()
+
+	p.closer.Close(err)
 }
 
-func (p *peer) Close() {
-	p.broker.Stop()
-	p.Wait()
+func (p *peer) monitorSession(sess overpass.Session) {
+	<-sess.Done()
+	p.sessions.Remove(sess.ID())
 }

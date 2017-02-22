@@ -5,30 +5,29 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/deferutil"
+	"github.com/over-pass/overpass-go/src/internals/service"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
 
 // invoker is an AMQP-based implementation of command.Invoker
 type invoker struct {
+	service.Service
+	closer *service.Closer
+
 	peerID         overpass.PeerID
 	defaultTimeout time.Duration
 	queues         *queueSet
 	channels       amqputil.ChannelPool
+	channel        *amqp.Channel
 
 	mutex   sync.RWMutex
 	pending map[string]chan returnValue
-
-	channel *amqp.Channel
-	done    chan struct{}
-	stop    chan struct{}
-	err     atomic.Value
 }
 
 // newInvoker creates, initializes and returns a new invoker.
@@ -38,14 +37,17 @@ func newInvoker(
 	queues *queueSet,
 	channels amqputil.ChannelPool,
 ) (command.Invoker, error) {
+	svc, closer := service.NewImpl()
+
 	i := &invoker{
+		Service: svc,
+		closer:  closer,
+
 		peerID:         peerID,
 		defaultTimeout: defaultTimeout,
 		queues:         queues,
 		channels:       channels,
 		pending:        map[string]chan returnValue{},
-		done:           make(chan struct{}),
-		stop:           make(chan struct{}),
 	}
 
 	if err := i.initialize(); err != nil {
@@ -179,24 +181,6 @@ func (i *invoker) ExecuteMulticast(
 	return corrID, nil
 }
 
-func (i *invoker) Done() <-chan struct{} {
-	return i.done
-}
-
-func (i *invoker) Error() error {
-	err, _ := i.err.Load().(error)
-	return err
-}
-
-func (i *invoker) Stop() {
-	select {
-	case <-i.done:
-	default:
-		i.stop <- struct{}{}
-		<-i.done
-	}
-}
-
 func (i *invoker) call(
 	ctx *context.Context,
 	msg *amqp.Publishing,
@@ -321,16 +305,13 @@ func (i *invoker) consume(messages <-chan amqp.Delivery) {
 	for {
 		select {
 		case err := <-closed:
-			if err != nil {
-				i.err.Store(err)
-			}
-			close(i.done)
+			i.closer.Close(err)
 			// TODO: log
 			return
 
-		case <-i.stop:
+		case <-i.closer.Stop():
 			i.channel.Close()
-			close(i.done)
+			i.closer.Close(nil)
 			// TODO: log
 			return
 

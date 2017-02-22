@@ -2,10 +2,10 @@ package overpass
 
 import (
 	"bytes"
-	"reflect"
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/internals/bufferpool"
+	"github.com/over-pass/overpass-go/src/internals/reflectutil"
 	"github.com/ugorji/go/codec"
 )
 
@@ -27,21 +27,8 @@ type Payload struct {
 
 // NewPayload creates a new payload from an arbitrary value.
 func NewPayload(v interface{}) *Payload {
-	if v == nil {
+	if reflectutil.IsNil(v) {
 		return nil
-	}
-
-	r := reflect.ValueOf(v)
-	switch r.Kind() {
-	case reflect.Chan,
-		reflect.Func,
-		reflect.Map,
-		reflect.Ptr,
-		reflect.Interface,
-		reflect.Slice:
-		if r.IsNil() {
-			return nil
-		}
 	}
 
 	return &Payload{

@@ -5,17 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/revision"
+	"github.com/over-pass/overpass-go/src/internals/service"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
 
 type server struct {
+	service.Service
+	closer *service.Closer
+
 	peerID    overpass.PeerID
 	preFetch  int
 	revisions revision.Store
@@ -26,10 +29,6 @@ type server struct {
 	mutex    sync.RWMutex
 	channel  *amqp.Channel
 	handlers map[string]overpass.CommandHandler
-
-	done chan struct{}
-	stop chan struct{}
-	err  atomic.Value
 }
 
 // newServer creates, starts and returns a new server.
@@ -41,7 +40,12 @@ func newServer(
 	channels amqputil.ChannelPool,
 	logger overpass.Logger,
 ) (command.Server, error) {
+	svc, closer := service.NewImpl()
+
 	s := &server{
+		Service: svc,
+		closer:  closer,
+
 		peerID:    peerID,
 		preFetch:  preFetch,
 		revisions: revisions,
@@ -49,8 +53,6 @@ func newServer(
 		channels:  channels,
 		logger:    logger,
 		handlers:  map[string]overpass.CommandHandler{},
-		done:      make(chan struct{}),
-		stop:      make(chan struct{}),
 	}
 
 	if err := s.initialize(); err != nil {
@@ -131,24 +133,6 @@ func (s *server) Unlisten(namespace string) (bool, error) {
 	delete(s.handlers, namespace)
 
 	return true, nil
-}
-
-func (s *server) Done() <-chan struct{} {
-	return s.done
-}
-
-func (s *server) Error() error {
-	err, _ := s.err.Load().(error)
-	return err
-}
-
-func (s *server) Stop() {
-	select {
-	case <-s.done:
-	default:
-		s.stop <- struct{}{}
-		<-s.done
-	}
 }
 
 func (s *server) dispatchEach(messages <-chan amqp.Delivery) {
@@ -334,14 +318,11 @@ func (s *server) monitor() {
 
 	select {
 	case err := <-closed:
-		if err != nil {
-			s.err.Store(err)
-		}
-		close(s.done)
+		s.closer.Close(err)
 		// TODO: log
-	case <-s.stop:
+	case <-s.closer.Stop():
 		s.channel.Close()
-		close(s.done)
+		s.closer.Close(nil)
 		// TODO: log
 	}
 }

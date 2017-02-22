@@ -76,5 +76,6 @@ func runServer(peer overpass.Peer) error {
 		panic(err)
 	}
 
-	return peer.Wait()
+	<-peer.Done()
+	return peer.Err()
 }

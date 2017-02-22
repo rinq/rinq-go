@@ -23,7 +23,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer peer.Close()
+	defer peer.Stop()
 
 	peer.Listen("our-namespace", func(
 		ctx context.Context,
@@ -42,7 +42,8 @@ func main() {
 		res.Close()
 	})
 
-	if err := peer.Wait(); err != nil {
+	<-peer.Done()
+	if err := peer.Err(); err != nil {
 		panic(err)
 	}
 }
