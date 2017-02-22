@@ -14,7 +14,7 @@ func logInvalidMessageID(
 	msg amqp.Delivery,
 ) {
 	logger.Log(
-		"%s ignored AMQP message, '%s' is not a valid message ID",
+		"%s command server ignored AMQP message, '%s' is not a valid message ID",
 		peerID.ShortString(),
 		msg.MessageId,
 	)
@@ -27,7 +27,7 @@ func logIgnoredMessage(
 	err error,
 ) {
 	logger.Log(
-		"%s ignored AMQP message %s, %s",
+		"%s command server ignored AMQP message %s, %s",
 		peerID.ShortString(),
 		msgID.ShortString(),
 		err,

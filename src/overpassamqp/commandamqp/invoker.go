@@ -27,6 +27,7 @@ type invoker struct {
 
 	channel *amqp.Channel
 	done    chan struct{}
+	stop    chan struct{}
 	err     atomic.Value
 }
 
@@ -44,6 +45,7 @@ func newInvoker(
 		channels:       channels,
 		pending:        map[string]chan returnValue{},
 		done:           make(chan struct{}),
+		stop:           make(chan struct{}),
 	}
 
 	if err := i.initialize(); err != nil {
@@ -182,11 +184,17 @@ func (i *invoker) Done() <-chan struct{} {
 }
 
 func (i *invoker) Error() error {
-	if err, ok := i.err.Load().(error); ok {
-		return err
-	}
+	err, _ := i.err.Load().(error)
+	return err
+}
 
-	return nil
+func (i *invoker) Stop() {
+	select {
+	case <-i.done:
+	default:
+		i.stop <- struct{}{}
+		<-i.done
+	}
 }
 
 func (i *invoker) call(
@@ -308,18 +316,29 @@ func (i *invoker) send(exchange, key string, msg amqp.Publishing) error {
 }
 
 func (i *invoker) consume(messages <-chan amqp.Delivery) {
-	done := i.channel.NotifyClose(make(chan *amqp.Error))
+	closed := i.channel.NotifyClose(make(chan *amqp.Error))
 
-	for msg := range messages {
-		i.dispatch(msg)
-	}
+	for {
+		select {
+		case err := <-closed:
+			if err != nil {
+				i.err.Store(err)
+			}
+			close(i.done)
+			// TODO: log
+			return
 
-	if amqpErr := <-done; amqpErr != nil {
-		// we can't just return err when it's nil, because it will be a nil
-		// *amqp.Error, as opposed to a nil "error" interface.
-		i.close(amqpErr)
-	} else {
-		i.close(nil)
+		case <-i.stop:
+			i.channel.Close()
+			close(i.done)
+			// TODO: log
+			return
+
+		case msg, ok := <-messages:
+			if ok {
+				i.dispatch(msg)
+			}
+		}
 	}
 }
 
@@ -369,12 +388,4 @@ func (i *invoker) dispatch(msg amqp.Delivery) {
 	}
 
 	channel <- response
-}
-
-func (i *invoker) close(err error) {
-	if err != nil {
-		i.err.Store(err)
-	}
-	close(i.done)
-	i.channel.Close() // TODO lock mutes?
 }

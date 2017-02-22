@@ -16,7 +16,7 @@ import (
 // peer is an AMQP-based implementation of overpass.Peer.
 type peer struct {
 	id       overpass.PeerID
-	broker   *amqp.Connection
+	broker   service.Service
 	sessions localsession.Store
 	invoker  command.Invoker
 	server   command.Server
@@ -36,9 +36,9 @@ func newPeer(
 	listener notify.Listener,
 	logger overpass.Logger,
 ) *peer {
-	return &peer{
+	p := &peer{
 		id:       id,
-		broker:   broker,
+		broker:   amqputil.NewBrokerService(broker),
 		sessions: sessions,
 		invoker:  invoker,
 		server:   server,
@@ -46,6 +46,15 @@ func newPeer(
 		listener: listener,
 		logger:   logger,
 	}
+
+	service.Link(
+		p.broker,
+		p.invoker,
+		p.server,
+		p.listener,
+	)
+
+	return p
 }
 
 func (p *peer) ID() overpass.PeerID {
@@ -127,6 +136,7 @@ func (p *peer) Unlisten(namespace string) error {
 
 func (p *peer) Wait() error {
 	return service.Wait(
+		p.broker,
 		p.invoker,
 		p.server,
 		p.listener,
@@ -134,6 +144,6 @@ func (p *peer) Wait() error {
 }
 
 func (p *peer) Close() {
-	p.broker.Close()
+	p.broker.Stop()
 	p.Wait()
 }

@@ -2,6 +2,8 @@ package overpassamqp
 
 import (
 	"context"
+	"os"
+	"path"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
@@ -37,8 +39,8 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	amqpConfig := d.AMQPConfig
 	if amqpConfig.Properties == nil {
 		amqpConfig.Properties = amqp.Table{
-			"product": "overpass",
-			"version": "golang/2.0.0",
+			"product": path.Base(os.Args[0]),
+			"version": "overpass-go/0.0.0",
 		}
 	}
 

@@ -26,6 +26,7 @@ type listener struct {
 	handlers map[overpass.SessionID]overpass.NotificationHandler
 
 	done chan struct{}
+	stop chan struct{}
 	err  atomic.Value
 }
 
@@ -45,6 +46,7 @@ func newListener(
 		channel:   channel,
 		handlers:  map[overpass.SessionID]overpass.NotificationHandler{},
 		done:      make(chan struct{}),
+		stop:      make(chan struct{}),
 	}
 
 	if err := l.initialize(); err != nil {
@@ -125,11 +127,17 @@ func (l *listener) Done() <-chan struct{} {
 }
 
 func (l *listener) Error() error {
-	if err, ok := l.err.Load().(error); ok {
-		return err
-	}
+	err, _ := l.err.Load().(error)
+	return err
+}
 
-	return nil
+func (l *listener) Stop() {
+	select {
+	case <-l.done:
+	default:
+		l.stop <- struct{}{}
+		<-l.done
+	}
 }
 
 func (l *listener) initialize() error {
@@ -165,18 +173,29 @@ func (l *listener) initialize() error {
 }
 
 func (l *listener) consume(messages <-chan amqp.Delivery) {
-	done := l.channel.NotifyClose(make(chan *amqp.Error))
+	closed := l.channel.NotifyClose(make(chan *amqp.Error))
 
-	for msg := range messages {
-		l.dispatch(msg)
-	}
+	for {
+		select {
+		case err := <-closed:
+			if err != nil {
+				l.err.Store(err)
+			}
+			close(l.done)
+			// TODO: log
+			return
 
-	if amqpErr := <-done; amqpErr != nil {
-		// we can't just return err when it's nil, because it will be a nil
-		// *amqp.Error, as opposed to a nil "error" interface.
-		l.close(amqpErr)
-	} else {
-		l.close(nil)
+		case <-l.stop:
+			l.channel.Close()
+			close(l.done)
+			// TODO: log
+			return
+
+		case msg, ok := <-messages:
+			if ok {
+				l.dispatch(msg)
+			}
+		}
 	}
 }
 
@@ -185,7 +204,7 @@ func (l *listener) dispatch(msg amqp.Delivery) {
 	if err != nil {
 		if l.logger.IsDebug() {
 			l.logger.Log(
-				"%s ignored AMQP message, '%s' is not a valid message ID",
+				"%s notification listener ignored AMQP message, '%s' is not a valid message ID",
 				l.peerID.ShortString(),
 				msg.MessageId,
 			)
@@ -204,7 +223,7 @@ func (l *listener) dispatch(msg amqp.Delivery) {
 
 	if err != nil && l.logger.IsDebug() {
 		l.logger.Log(
-			"%s ignored AMQP message %s, %s",
+			"%s notification listener ignored AMQP message %s, %s",
 			l.peerID.ShortString(),
 			msgID.ShortString(),
 			err,
@@ -327,12 +346,4 @@ func (l *listener) handle(
 	n.Payload = nil
 
 	return nil
-}
-
-func (l *listener) close(err error) {
-	if err != nil {
-		l.err.Store(err)
-	}
-	close(l.done)
-	l.channel.Close() // TODO lock mutes
 }
