@@ -28,6 +28,7 @@ type server struct {
 	handlers map[string]overpass.CommandHandler
 
 	done chan struct{}
+	stop chan struct{}
 	err  atomic.Value
 }
 
@@ -49,6 +50,7 @@ func newServer(
 		logger:    logger,
 		handlers:  map[string]overpass.CommandHandler{},
 		done:      make(chan struct{}),
+		stop:      make(chan struct{}),
 	}
 
 	if err := s.initialize(); err != nil {
@@ -136,11 +138,17 @@ func (s *server) Done() <-chan struct{} {
 }
 
 func (s *server) Error() error {
-	if err, ok := s.err.Load().(error); ok {
-		return err
-	}
+	err, _ := s.err.Load().(error)
+	return err
+}
 
-	return nil
+func (s *server) Stop() {
+	select {
+	case <-s.done:
+	default:
+		s.stop <- struct{}{}
+		<-s.done
+	}
 }
 
 func (s *server) dispatchEach(messages <-chan amqp.Delivery) {
@@ -316,27 +324,24 @@ func (s *server) initialize() error {
 	s.channel = channel
 
 	go s.dispatchEach(messages)
-	go s.waitForChannel()
+	go s.monitor()
 
 	return nil
 }
 
-func (s *server) waitForChannel() {
-	done := s.channel.NotifyClose(make(chan *amqp.Error))
+func (s *server) monitor() {
+	closed := s.channel.NotifyClose(make(chan *amqp.Error))
 
-	if amqpErr := <-done; amqpErr != nil {
-		// we can't just return err when it's nil, because it will be a nil
-		// *amqp.Error, as opposed to a nil "error" interface.
-		s.close(amqpErr)
-	} else {
-		s.close(nil)
+	select {
+	case err := <-closed:
+		if err != nil {
+			s.err.Store(err)
+		}
+		close(s.done)
+		// TODO: log
+	case <-s.stop:
+		s.channel.Close()
+		close(s.done)
+		// TODO: log
 	}
-}
-
-func (s *server) close(err error) {
-	if err != nil {
-		s.err.Store(err)
-	}
-	close(s.done)
-	s.channel.Close() // TODO lock mutes?
 }

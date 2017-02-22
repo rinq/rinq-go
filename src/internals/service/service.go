@@ -8,5 +8,6 @@ type Service interface {
 	// Error returns the error that caused the Done() channel to close, if any.
 	Error() error
 
-	// TODO add KILL method
+	// Stop halts the service immediately.
+	Stop()
 }
