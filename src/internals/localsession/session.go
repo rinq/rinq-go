@@ -75,6 +75,10 @@ func (s *session) CurrentRevision() (overpass.Revision, error) {
 }
 
 func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload) (*overpass.Payload, error) {
+	if err := overpass.ValidateNamespace(ns); err != nil {
+		return nil, err
+	}
+
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -144,6 +148,10 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 }
 
 func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Payload) error {
+	if err := overpass.ValidateNamespace(ns); err != nil {
+		return err
+	}
+
 	select {
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
@@ -168,6 +176,10 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Paylo
 }
 
 func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *overpass.Payload) error {
+	if err := overpass.ValidateNamespace(ns); err != nil {
+		return err
+	}
+
 	select {
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
