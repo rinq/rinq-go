@@ -17,9 +17,12 @@ type Peer interface {
 	// Unlisten stops listening for command requests in the given namepsace.
 	Unlisten(namespace string) error
 
-	// Wait blocks until the peer is closed or an error occurs.
-	Wait() error
+	// Done returns a channel that is closed when the peer is closed.
+	Done() <-chan struct{}
 
-	// Close disconnects the peer from the network.
-	Close()
+	// Err returns the error that caused the Done() channel to close, if any.
+	Err() error
+
+	// Stop disconnects the peer from the network.
+	Stop() error
 }

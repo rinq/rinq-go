@@ -5,9 +5,9 @@ type Service interface {
 	// Done returns a channel that is closed when the session is closed.
 	Done() <-chan struct{}
 
-	// Error returns the error that caused the Done() channel to close, if any.
-	Error() error
+	// Err returns the error that caused the Done() channel to close, if any.
+	Err() error
 
 	// Stop halts the service immediately.
-	Stop()
+	Stop() error
 }

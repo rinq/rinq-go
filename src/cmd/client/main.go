@@ -23,7 +23,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer peer.Close()
+	defer peer.Stop()
 
 	sess := peer.Session()
 	defer sess.Close()

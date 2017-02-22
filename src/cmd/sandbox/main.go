@@ -24,7 +24,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer peer.Close()
+	defer peer.Stop()
 
 	if os.Getenv("OVERPASS_SERVER") != "" {
 		err = runServer(peer)

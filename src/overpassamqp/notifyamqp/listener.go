@@ -4,18 +4,21 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/internals/revision"
+	"github.com/over-pass/overpass-go/src/internals/service"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
 
 type listener struct {
+	service.Service
+	closer *service.Closer
+
 	peerID    overpass.PeerID
 	sessions  localsession.Store
 	revisions revision.Store
@@ -24,10 +27,6 @@ type listener struct {
 	mutex    sync.RWMutex
 	channel  *amqp.Channel
 	handlers map[overpass.SessionID]overpass.NotificationHandler
-
-	done chan struct{}
-	stop chan struct{}
-	err  atomic.Value
 }
 
 // newListener creates, starts and returns a new listener.
@@ -38,15 +37,18 @@ func newListener(
 	channel *amqp.Channel,
 	logger overpass.Logger,
 ) (notify.Listener, error) {
+	svc, closer := service.NewImpl()
+
 	l := &listener{
+		Service: svc,
+		closer:  closer,
+
 		peerID:    peerID,
 		sessions:  sessions,
 		revisions: revisions,
 		logger:    logger,
 		channel:   channel,
 		handlers:  map[overpass.SessionID]overpass.NotificationHandler{},
-		done:      make(chan struct{}),
-		stop:      make(chan struct{}),
 	}
 
 	if err := l.initialize(); err != nil {
@@ -122,24 +124,6 @@ func (l *listener) Unlisten(id overpass.SessionID) (bool, error) {
 	return exists, nil
 }
 
-func (l *listener) Done() <-chan struct{} {
-	return l.done
-}
-
-func (l *listener) Error() error {
-	err, _ := l.err.Load().(error)
-	return err
-}
-
-func (l *listener) Stop() {
-	select {
-	case <-l.done:
-	default:
-		l.stop <- struct{}{}
-		<-l.done
-	}
-}
-
 func (l *listener) initialize() error {
 	queue := notifyQueue(l.peerID)
 
@@ -178,16 +162,13 @@ func (l *listener) consume(messages <-chan amqp.Delivery) {
 	for {
 		select {
 		case err := <-closed:
-			if err != nil {
-				l.err.Store(err)
-			}
-			close(l.done)
+			l.closer.Close(err)
 			// TODO: log
 			return
 
-		case <-l.stop:
+		case <-l.closer.Stop():
 			l.channel.Close()
-			close(l.done)
+			l.closer.Close(nil)
 			// TODO: log
 			return
 
