@@ -38,6 +38,7 @@ func main() {
 	go auth(ctx, sess, "ABCD")
 	go auth(ctx, sess, "EF73")
 
+	fmt.Println(peer.Wait())
 	<-sess.Done()
 }
 

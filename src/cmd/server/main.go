@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -55,20 +56,23 @@ func authByTicket(
 
 retry:
 	customerID, err := rev.Get(ctx, "customerID")
+	fmt.Println(customerID, err)
 	if err != nil {
-		fmt.Printf("%s get: %s\n", rev.Ref().ShortString(), err)
+		ref := rev.Ref().ShortString()
+		fmt.Printf("%s get: %s\n", ref, err)
 
 		if overpass.ShouldRetry(err) {
 			rev, err = rev.Refresh(ctx)
 			if err == nil {
 				goto retry
 			}
+			fmt.Printf("%s refresh: %s\n", ref, err)
 		}
 
 		if overpass.IsNotFound(err) {
 			res.Close()
 		} else {
-			res.Error(err)
+			res.Error(errors.New("get failed"))
 		}
 
 		return
@@ -104,19 +108,21 @@ retry:
 		overpass.Set("customerID", strconv.FormatUint(ticketInt, 10)),
 	)
 	if err != nil {
-		fmt.Printf("%s update: %s\n", rev.Ref().ShortString(), err)
+		ref := rev.Ref().ShortString()
+		fmt.Printf("%s update: %s\n", ref, err)
 
 		if overpass.ShouldRetry(err) {
 			rev, err = rev.Refresh(ctx)
 			if err == nil {
 				goto retry
 			}
+			fmt.Printf("%s refresh: %s\n", ref, err)
 		}
 
 		if overpass.IsNotFound(err) {
 			res.Close()
 		} else {
-			res.Error(err)
+			res.Error(errors.New("update failed"))
 		}
 		return
 	}

@@ -231,7 +231,7 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 	handler(ctx, cmd, res)
 
 	if res.IsClosed() {
-		msg.Ack(true)
+		msg.Ack(false)
 
 		if s.logger.IsDebug() {
 			cap := res.(*capturingResponder)
