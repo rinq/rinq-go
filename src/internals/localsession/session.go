@@ -126,7 +126,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 				payload.Len(),
 				corrID,
 			)
-		case command.RemoteError:
+		case overpass.UnexpectedError:
 			s.logger.Log(
 				"%s called '%s::%s' command: '%s' error (%dms, %d/o 0/i) [%s]",
 				msgID.ShortString(),

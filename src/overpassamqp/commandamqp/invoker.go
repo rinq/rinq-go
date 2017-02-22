@@ -359,7 +359,7 @@ func (i *invoker) dispatch(msg amqp.Delivery) {
 		}
 
 	case errorResponse:
-		response.Error = command.RemoteError(string(msg.Body))
+		response.Error = overpass.UnexpectedError(msg.Body)
 
 	default:
 		response.Error = fmt.Errorf(
