@@ -27,6 +27,18 @@ func (err Failure) Error() string {
 	return fmt.Sprintf("%s: %s", err.Type, err.Message)
 }
 
+// UnexpectedError is an error (in contrast to a faliure) that occurred on the
+// remote peer when calling a command.
+type UnexpectedError string
+
+func (err UnexpectedError) Error() string {
+	if err == "" {
+		return "unexpected error"
+	}
+
+	return string(err)
+}
+
 // IsNotFound checks if the given error indicates that session could not be
 // found.
 func IsNotFound(err error) bool {
