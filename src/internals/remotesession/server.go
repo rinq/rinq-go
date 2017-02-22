@@ -122,7 +122,20 @@ func (s *server) update(
 		return
 	}
 
-	payload := overpass.NewPayload(updateResponse{rev.Ref().Rev})
+	rsp := updateResponse{
+		Rev:         rev.Ref().Rev,
+		CreatedRevs: make([]overpass.RevisionNumber, 0, len(req.Attrs)),
+	}
+	_, attrs := cat.Attrs()
+
+	for _, attr := range req.Attrs {
+		rsp.CreatedRevs = append(
+			rsp.CreatedRevs,
+			attrs[attr.Key].CreatedAt,
+		)
+	}
+
+	payload := overpass.NewPayload(rsp)
 	defer payload.Close()
 	res.Done(payload)
 }

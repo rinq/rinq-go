@@ -63,6 +63,7 @@ func (c *client) Update(
 	attrs []overpass.Attr,
 ) (
 	overpass.RevisionNumber,
+	[]attrmeta.Attr,
 	error,
 ) {
 	out := overpass.NewPayload(updateRequest{
@@ -91,17 +92,30 @@ func (c *client) Update(
 			err = overpass.FrozenAttributesError{Ref: ref}
 		}
 
-		return 0, err
+		return 0, nil, err
 	}
 
 	var rsp updateResponse
 	err = in.Decode(&rsp)
 
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
-	return overpass.RevisionNumber(rsp.Rev), nil
+	updatedAttrs := make([]attrmeta.Attr, 0, len(attrs))
+
+	for index, attr := range attrs {
+		updatedAttrs = append(
+			updatedAttrs,
+			attrmeta.Attr{
+				Attr:      attr,
+				CreatedAt: rsp.CreatedRevs[index],
+				UpdatedAt: rsp.Rev,
+			},
+		)
+	}
+
+	return rsp.Rev, updatedAttrs, nil
 }
 
 func (c *client) Close(
