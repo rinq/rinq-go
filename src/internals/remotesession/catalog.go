@@ -206,10 +206,7 @@ func (c *catalog) TryUpdate(
 
 	unlock()
 
-	updatedRev, err := c.client.Update(ctx, ref, updateAttrs)
-	if err != nil {
-		return nil, err
-	}
+	updatedRev, returnedAttrs, err := c.client.Update(ctx, ref, updateAttrs)
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -223,6 +220,17 @@ func (c *catalog) TryUpdate(
 
 	if updatedRev > c.highestRev {
 		c.highestRev = updatedRev
+	}
+
+	if c.cache == nil {
+		c.cache = map[string]cacheEntry{}
+	}
+
+	for _, attr := range returnedAttrs {
+		entry := c.cache[attr.Key]
+		if updatedRev > entry.FetchedAt {
+			c.cache[attr.Key] = cacheEntry{attr, updatedRev}
+		}
 	}
 
 	return &revision{

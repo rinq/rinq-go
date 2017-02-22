@@ -38,7 +38,8 @@ type updateRequest struct {
 }
 
 type updateResponse struct {
-	Rev overpass.RevisionNumber `json:"r"`
+	Rev         overpass.RevisionNumber   `json:"r"`
+	CreatedRevs []overpass.RevisionNumber `json:"cr"`
 }
 
 type closeRequest struct {
