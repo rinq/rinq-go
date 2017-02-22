@@ -6,6 +6,6 @@ import "github.com/over-pass/overpass-go/src/overpass"
 type Attr struct {
 	overpass.Attr
 
-	CreatedAt overpass.RevisionNumber
-	UpdatedAt overpass.RevisionNumber
+	CreatedAt overpass.RevisionNumber `json:"cr,omitempty"`
+	UpdatedAt overpass.RevisionNumber `json:"ur,omitempty"`
 }
