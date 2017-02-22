@@ -24,7 +24,7 @@ var _ = Describe("Context", func() {
 			Expect(result).To(Equal(del.MessageId))
 		})
 
-		It("does not set the correlation ID if it's the same as a the message ID", func() {
+		It("does not set the correlation ID if it's the same as the message ID", func() {
 			del := amqp.Delivery{MessageId: "<id>"}
 			ctx := amqputil.WithCorrelationID(context.Background(), del)
 
@@ -46,12 +46,14 @@ var _ = Describe("Context", func() {
 	})
 
 	Describe("PutExpiration", func() {
-		It("sets the timestamp and expiration", func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		It("sets the expiration", func() {
+			now := time.Now()
+			deadline := now.Add(10 * time.Second)
+
+			ctx, cancel := context.WithDeadline(context.Background(), deadline)
 			defer cancel()
 
 			msg := amqp.Publishing{}
-			calledAt := time.Now()
 			hasDeadline, err := amqputil.PutExpiration(ctx, &msg)
 
 			Expect(err).ShouldNot(HaveOccurred())
@@ -60,8 +62,8 @@ var _ = Describe("Context", func() {
 			expiration, err := strconv.ParseUint(msg.Expiration, 10, 64)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			Expect(expiration).Should(BeNumerically("~", (10*time.Second)/time.Millisecond, 100))
-			Expect(msg.Timestamp).Should(BeTemporally("~", calledAt, 10*time.Millisecond))
+			Expect(expiration).Should(BeNumerically("~", (10*time.Second)/time.Millisecond, 10))
+			Expect(msg.Headers["dl"].(int64)).To(Equal(deadline.UnixNano() / int64(time.Millisecond)))
 		})
 
 		It("returns an error if the deadline has already passed", func() {
@@ -88,10 +90,12 @@ var _ = Describe("Context", func() {
 	})
 
 	Describe("WithExpiration", func() {
-		It("adds the deadline from the message", func() {
+		It("returns a context with the deadline from the message", func() {
+			expected := time.Now()
+
 			msg := amqp.Delivery{
-				Timestamp:  time.Now(),
-				Expiration: "1000",
+				Headers:    amqp.Table{"dl": expected.UnixNano() / int64(time.Millisecond)},
+				Expiration: "0",
 			}
 
 			ctx, cancel := amqputil.WithExpiration(context.Background(), msg)
@@ -100,27 +104,12 @@ var _ = Describe("Context", func() {
 			deadline, ok := ctx.Deadline()
 
 			Expect(ok).To(BeTrue())
-			Expect(deadline).To(BeTemporally(
-				"==",
-				msg.Timestamp.Add(1000*time.Millisecond),
-			))
+			Expect(deadline).To(BeTemporally("~", expected, time.Millisecond)) // within one milli
 		})
 
-		It("does not add a deadline if there is no timestamp", func() {
-			msg := amqp.Delivery{}
-
-			ctx, cancel := amqputil.WithExpiration(context.Background(), msg)
-			defer cancel()
-
-			_, ok := ctx.Deadline()
-
-			Expect(ok).To(BeFalse())
-		})
-
-		It("does not add a deadline if there the expiration is not an integer", func() {
+		It("does not add a deadline if there is no deadline in the message", func() {
 			msg := amqp.Delivery{
-				Timestamp:  time.Now(),
-				Expiration: "<string>",
+				Expiration: "1000",
 			}
 
 			ctx, cancel := amqputil.WithExpiration(context.Background(), msg)

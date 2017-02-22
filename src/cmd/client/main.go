@@ -28,34 +28,26 @@ func main() {
 	sess := peer.Session()
 	defer sess.Close()
 
-	ctx := context.Background()
-	// ctx, cancel := context.WithTimeout(
-	// 	context.Background(),
-	// 	5000*time.Millisecond,
-	// )
-	// defer cancel()
+	for {
+		func() {
+			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+			defer cancel()
 
-	go auth(ctx, sess, "ABCD")
-	go auth(ctx, sess, "EF73")
-
-	fmt.Println(peer.Wait())
-	<-sess.Done()
-}
-
-func auth(ctx context.Context, sess overpass.Session, ticket string) {
-	payload := overpass.NewPayload(ticket)
-	defer payload.Close()
-
-	result, err := sess.Call(
-		ctx,
-		"auth.v1",
-		"authByTicket",
-		payload,
-	)
-	defer result.Close()
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		fmt.Println(result.Value())
+			result, err := sess.Call(
+				ctx,
+				"our-namespace",
+				"<whatever>",
+				nil,
+			)
+			defer result.Close()
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println(result.Value())
+			}
+		}()
 	}
+
+	// fmt.Println(peer.Wait())
 }

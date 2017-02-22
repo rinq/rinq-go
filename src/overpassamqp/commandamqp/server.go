@@ -222,6 +222,7 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 		msgID:      msgID,
 		isRequired: msg.ReplyTo != "",
 	}
+	// TODO: defer invalidate responder
 
 	if s.logger.IsDebug() {
 		res = newCapturingResponder(res)
@@ -239,22 +240,29 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 			defer payload.Close()
 			logRequestEnd(ctx, s.logger, s.peerID, msgID, cmd, payload, err)
 		}
-	} else if msg.Exchange == balancedExchange {
-		// TODO: check deadline
-		msg.Reject(true)
 
-		if s.logger.IsDebug() {
-			logRequestRequeued(ctx, s.logger, s.peerID, msgID, cmd)
-		}
-	} else {
-		msg.Reject(false)
+		return nil
+	}
 
-		if s.logger.IsDebug() {
-			logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd)
+	if msg.Exchange == balancedExchange {
+		select {
+		case <-ctx.Done():
+		default:
+			msg.Reject(true)
+
+			if s.logger.IsDebug() {
+				logRequestRequeued(ctx, s.logger, s.peerID, msgID, cmd)
+			}
+
+			return nil
 		}
 	}
 
-	// TODO: invalidate responder
+	msg.Reject(false)
+
+	if s.logger.IsDebug() {
+		logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd)
+	}
 
 	return nil
 }
