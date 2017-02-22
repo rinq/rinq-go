@@ -60,16 +60,25 @@ func PutExpiration(ctx context.Context, msg *amqp.Publishing) (bool, error) {
 		return false, nil
 	}
 
-	msg.Timestamp = time.Now()
+	if msg.Headers == nil {
+		msg.Headers = amqp.Table{}
+	}
+
+	// calculate the deadline and store it in a header
+	deadlineNanos := deadline.UnixNano()
+	deadlineMillis := deadlineNanos / int64(time.Millisecond)
+	msg.Headers[deadlineHeader] = deadlineMillis
+
+	// calculate the expiration based on current time
 	msg.Expiration = "0"
-	remaining := deadline.Sub(msg.Timestamp) / time.Millisecond
+	remainingMillis := deadline.Sub(time.Now()) / time.Millisecond
 
 	select {
 	case <-ctx.Done():
 		return true, ctx.Err()
 	default:
-		if remaining > 0 {
-			msg.Expiration = strconv.FormatInt(int64(remaining), 10)
+		if remainingMillis > 0 {
+			msg.Expiration = strconv.FormatInt(int64(remainingMillis), 10)
 		}
 		return true, nil
 	}
@@ -80,21 +89,19 @@ func PutExpiration(ctx context.Context, msg *amqp.Publishing) (bool, error) {
 //
 // The return values are the same as context.WithDeadline()
 func WithExpiration(parent context.Context, msg amqp.Delivery) (context.Context, func()) {
-	if msg.Timestamp.IsZero() {
+	deadlineMillis, ok := msg.Headers[deadlineHeader].(int64)
+	if !ok {
 		return context.WithCancel(parent)
 	}
 
-	ttl, err := strconv.ParseUint(msg.Expiration, 10, 64)
-	if err != nil {
-		return context.WithCancel(parent)
-	}
+	deadlineNanos := deadlineMillis * int64(time.Millisecond)
+	deadline := time.Unix(0, deadlineNanos)
 
-	return context.WithDeadline(
-		parent,
-		msg.Timestamp.Add(time.Duration(ttl)*time.Millisecond),
-	)
+	return context.WithDeadline(parent, deadline)
 }
 
 type contextKey string
 
 var correlationIDKey = contextKey("correlation-id")
+
+const deadlineHeader = "dl"

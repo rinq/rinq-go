@@ -15,6 +15,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// invoker is an AMQP-based implementation of command.Invoker
 type invoker struct {
 	peerID         overpass.PeerID
 	defaultTimeout time.Duration
