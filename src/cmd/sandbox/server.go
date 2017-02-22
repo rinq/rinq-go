@@ -17,7 +17,8 @@ func runServer() {
 		context.Background(),
 		"amqp://localhost",
 		overpass.Config{
-			Logger: overpass.NewLogger(true),
+			Logger:        overpass.NewLogger(true),
+			PruneInterval: 10 * time.Second,
 		},
 	)
 	if err != nil {

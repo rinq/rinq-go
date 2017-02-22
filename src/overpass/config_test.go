@@ -18,6 +18,7 @@ var _ = Describe("Config", func() {
 				DefaultTimeout: 5 * time.Second,
 				PreFetch:       runtime.GOMAXPROCS(0),
 				Logger:         overpass.NewLogger(false),
+				PruneInterval:  3 * time.Minute,
 			}))
 		})
 
@@ -26,6 +27,7 @@ var _ = Describe("Config", func() {
 				DefaultTimeout: 10 * time.Second,
 				PreFetch:       10,
 				Logger:         overpass.NewLogger(true),
+				PruneInterval:  20 * time.Second,
 			}
 
 			Expect(config.WithDefaults()).To(Equal(config))

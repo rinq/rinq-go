@@ -17,11 +17,11 @@ type catalog struct {
 
 	mutex      sync.RWMutex
 	highestRev overpass.RevisionNumber
-	cache      map[string]cacheEntry
+	cache      map[string]attrCacheEntry
 	isClosed   bool
 }
 
-type cacheEntry struct {
+type attrCacheEntry struct {
 	Attr      attrmeta.Attr
 	FetchedAt overpass.RevisionNumber
 }
@@ -128,14 +128,14 @@ func (c *catalog) Fetch(
 	isStaleFetch := false
 
 	if c.cache == nil {
-		c.cache = map[string]cacheEntry{}
+		c.cache = map[string]attrCacheEntry{}
 	}
 
 	for _, attr := range fetchedAttrs {
 		// Update the cache entry if the fetched revision is newer.
 		entry := c.cache[attr.Key]
 		if fetchedRev > entry.FetchedAt {
-			c.cache[attr.Key] = cacheEntry{attr, fetchedRev}
+			c.cache[attr.Key] = attrCacheEntry{attr, fetchedRev}
 		}
 
 		if isStaleFetch {
@@ -223,13 +223,13 @@ func (c *catalog) TryUpdate(
 	}
 
 	if c.cache == nil {
-		c.cache = map[string]cacheEntry{}
+		c.cache = map[string]attrCacheEntry{}
 	}
 
 	for _, attr := range returnedAttrs {
 		entry := c.cache[attr.Key]
 		if updatedRev > entry.FetchedAt {
-			c.cache[attr.Key] = cacheEntry{attr, updatedRev}
+			c.cache[attr.Key] = attrCacheEntry{attr, updatedRev}
 		}
 	}
 

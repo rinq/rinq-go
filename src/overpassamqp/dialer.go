@@ -72,26 +72,27 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 		return nil, err
 	}
 
-	sessions := localsession.NewStore()
-	revisions := &revision.AggregateStore{
+	localStore := localsession.NewStore()
+	aggregateStore := &revision.AggregateStore{
 		PeerID: peerID,
-		Local:  sessions,
+		Local:  localStore,
 		// Remote revision store depends on invoker, created below
 	}
 
-	invoker, server, err := commandamqp.New(peerID, config, revisions, channels)
+	invoker, server, err := commandamqp.New(peerID, config, aggregateStore, channels)
 	if err != nil {
 		return nil, err
 	}
 
-	notifier, listener, err := notifyamqp.New(peerID, config, sessions, revisions, channels)
+	notifier, listener, err := notifyamqp.New(peerID, config, localStore, aggregateStore, channels)
 	if err != nil {
 		return nil, err
 	}
 
-	revisions.Remote = remotesession.NewStore(peerID, invoker)
+	remoteStore := remotesession.NewStore(peerID, invoker, config.PruneInterval, config.Logger)
+	aggregateStore.Remote = remoteStore
 
-	remotesession.Listen(peerID, sessions, server)
+	remotesession.Listen(peerID, localStore, server)
 
 	config.Logger.Log(
 		"%s connected to '%s' as %s",
@@ -103,7 +104,8 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	return newPeer(
 		peerID,
 		amqputil.NewBrokerService(broker),
-		sessions,
+		localStore,
+		remoteStore,
 		invoker,
 		server,
 		notifier,
