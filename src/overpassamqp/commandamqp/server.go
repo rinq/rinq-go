@@ -8,7 +8,6 @@ import (
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/command"
-	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/revision"
 	"github.com/over-pass/overpass-go/src/internals/service"
 	"github.com/over-pass/overpass-go/src/overpass"
@@ -25,6 +24,9 @@ type server struct {
 	queues    *queueSet
 	channels  amqputil.ChannelPool
 	logger    overpass.Logger
+	parentCtx context.Context
+	cancelCtx func()
+	waiter    sync.WaitGroup
 
 	mutex    sync.RWMutex
 	channel  *amqp.Channel
@@ -54,6 +56,8 @@ func newServer(
 		logger:    logger,
 		handlers:  map[string]overpass.CommandHandler{},
 	}
+
+	s.parentCtx, s.cancelCtx = context.WithCancel(context.Background())
 
 	if err := s.initialize(); err != nil {
 		return nil, err
@@ -135,130 +139,6 @@ func (s *server) Unlisten(namespace string) (bool, error) {
 	return true, nil
 }
 
-func (s *server) dispatchEach(messages <-chan amqp.Delivery) {
-	for msg := range messages {
-		go s.dispatch(msg)
-	}
-}
-
-func (s *server) dispatch(msg amqp.Delivery) {
-	msgID, err := overpass.ParseMessageID(msg.MessageId)
-	if err != nil {
-		msg.Reject(false)
-
-		if s.logger.IsDebug() {
-			logInvalidMessageID(s.logger, s.peerID, msg)
-		}
-
-		return
-	}
-
-	switch msg.Exchange {
-	case balancedExchange, multicastExchange:
-		err = s.handle(msgID, msg.RoutingKey, msg)
-	case unicastExchange:
-		if namespace, ok := msg.Headers[namespaceHeader].(string); ok {
-			err = s.handle(msgID, namespace, msg)
-		} else {
-			err = errors.New("malformed request, namespace is not a string")
-		}
-	default:
-		err = fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
-	}
-
-	if err != nil {
-		msg.Reject(false)
-
-		if s.logger.IsDebug() {
-			logIgnoredMessage(s.logger, s.peerID, msgID, err)
-		}
-	}
-}
-
-func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Delivery) error {
-	var handler overpass.CommandHandler
-	deferutil.RWith(&s.mutex, func() {
-		handler = s.handlers[namespace]
-	})
-
-	if handler == nil {
-		msg.Reject(true)
-
-		if s.logger.IsDebug() {
-			logNoLongerListening(s.logger, s.peerID, msgID, namespace)
-		}
-
-		return nil
-	}
-
-	source, err := s.revisions.GetRevision(msgID.Session)
-	if err != nil {
-		return err
-	}
-
-	ctx := amqputil.WithCorrelationID(context.Background(), msg)
-	ctx, cancel := amqputil.WithExpiration(ctx, msg)
-	defer cancel()
-
-	cmd := overpass.Command{
-		Source:      source,
-		Namespace:   namespace,
-		Command:     msg.Type,
-		Payload:     overpass.NewPayloadFromBytes(msg.Body),
-		IsMulticast: msg.Exchange == multicastExchange,
-	}
-
-	var res overpass.Responder = &responder{
-		channels:   s.channels,
-		context:    ctx,
-		msgID:      msgID,
-		isRequired: msg.ReplyTo != "",
-	}
-	// TODO: defer invalidate responder
-
-	if s.logger.IsDebug() {
-		res = newCapturingResponder(res)
-		logRequestBegin(ctx, s.logger, s.peerID, msgID, cmd)
-	}
-
-	handler(ctx, cmd, res)
-
-	if res.IsClosed() {
-		msg.Ack(false)
-
-		if s.logger.IsDebug() {
-			cap := res.(*capturingResponder)
-			payload, err := cap.Response()
-			defer payload.Close()
-			logRequestEnd(ctx, s.logger, s.peerID, msgID, cmd, payload, err)
-		}
-
-		return nil
-	}
-
-	if msg.Exchange == balancedExchange {
-		select {
-		case <-ctx.Done():
-		default:
-			msg.Reject(true)
-
-			if s.logger.IsDebug() {
-				logRequestRequeued(ctx, s.logger, s.peerID, msgID, cmd)
-			}
-
-			return nil
-		}
-	}
-
-	msg.Reject(false)
-
-	if s.logger.IsDebug() {
-		logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd)
-	}
-
-	return nil
-}
-
 func (s *server) initialize() error {
 	channel, err := s.channels.Get() // do not return to pool, used for consume
 	if err != nil {
@@ -307,22 +187,136 @@ func (s *server) initialize() error {
 
 	s.channel = channel
 
-	go s.dispatchEach(messages)
 	go s.monitor()
+	go s.dispatchEach(messages)
 
 	return nil
 }
 
 func (s *server) monitor() {
-	closed := s.channel.NotifyClose(make(chan *amqp.Error))
+	logServerStart(s.logger, s.peerID, s.preFetch)
+
+	var err error
 
 	select {
-	case err := <-closed:
-		s.closer.Close(err)
-		// TODO: log
+	case err = <-s.channel.NotifyClose(make(chan *amqp.Error)):
 	case <-s.closer.Stop():
 		s.channel.Close()
-		s.closer.Close(nil)
-		// TODO: log
+		if s.closer.IsGraceful() {
+			logServerStopping(s.logger, s.peerID)
+			s.waiter.Wait()
+		}
 	}
+
+	s.cancelCtx()
+	s.closer.Close(err)
+
+	logServerStop(s.logger, s.peerID, err)
+}
+
+func (s *server) dispatchEach(messages <-chan amqp.Delivery) {
+	for msg := range messages {
+		s.waiter.Add(1)
+		go s.dispatch(msg)
+	}
+}
+
+func (s *server) dispatch(msg amqp.Delivery) {
+	defer s.waiter.Done()
+
+	msgID, err := overpass.ParseMessageID(msg.MessageId)
+	if err != nil {
+		msg.Reject(false)
+		logInvalidMessageID(s.logger, s.peerID, msg)
+		return
+	}
+
+	switch msg.Exchange {
+	case balancedExchange, multicastExchange:
+		err = s.handle(msgID, msg.RoutingKey, msg)
+	case unicastExchange:
+		if namespace, ok := msg.Headers[namespaceHeader].(string); ok {
+			err = s.handle(msgID, namespace, msg)
+		} else {
+			err = errors.New("malformed request, namespace is not a string")
+		}
+	default:
+		err = fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
+	}
+
+	if err != nil {
+		msg.Reject(false)
+		logIgnoredMessage(s.logger, s.peerID, msgID, err)
+	}
+}
+
+func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Delivery) error {
+	s.mutex.RLock()
+	handler := s.handlers[namespace]
+	s.mutex.RUnlock()
+
+	if handler == nil {
+		msg.Reject(true)
+		logNoLongerListening(s.logger, s.peerID, msgID, namespace)
+		return nil
+	}
+
+	source, err := s.revisions.GetRevision(msgID.Session)
+	if err != nil {
+		return err
+	}
+
+	ctx := amqputil.WithCorrelationID(s.parentCtx, msg)
+	ctx, cancel := amqputil.WithExpiration(ctx, msg)
+	defer cancel()
+
+	cmd := overpass.Command{
+		Source:      source,
+		Namespace:   namespace,
+		Command:     msg.Type,
+		Payload:     overpass.NewPayloadFromBytes(msg.Body),
+		IsMulticast: msg.Exchange == multicastExchange,
+	}
+
+	var res overpass.Responder = &responder{
+		channels:   s.channels,
+		context:    ctx,
+		msgID:      msgID,
+		isRequired: msg.ReplyTo != "",
+	}
+	// TODO: defer invalidate responder
+
+	if s.logger.IsDebug() {
+		res = newCapturingResponder(res)
+		logRequestBegin(ctx, s.logger, s.peerID, msgID, cmd)
+	}
+
+	handler(ctx, cmd, res)
+
+	if res.IsClosed() {
+		msg.Ack(false)
+
+		if s.logger.IsDebug() {
+			cap := res.(*capturingResponder)
+			payload, err := cap.Response()
+			defer payload.Close()
+			logRequestEnd(ctx, s.logger, s.peerID, msgID, cmd, payload, err)
+		}
+
+		return nil
+	}
+
+	if msg.Exchange == balancedExchange {
+		select {
+		case <-ctx.Done():
+		default:
+			msg.Reject(true)
+			logRequestRequeued(ctx, s.logger, s.peerID, msgID, cmd)
+			return nil
+		}
+	}
+
+	msg.Reject(false)
+	logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd)
+	return nil
 }

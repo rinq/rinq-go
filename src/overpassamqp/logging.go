@@ -12,7 +12,7 @@ func logStartedListening(
 	namespace string,
 ) {
 	logger.Log(
-		"%s stopped listening for command requests in '%s' namespace",
+		"%s started listening for command requests in '%s' namespace",
 		peerID.ShortString(),
 		namespace,
 	)

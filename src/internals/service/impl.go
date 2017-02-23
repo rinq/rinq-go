@@ -8,10 +8,11 @@ import (
 )
 
 type impl struct {
-	once sync.Once
-	done chan struct{}
-	stop chan struct{}
-	err  atomic.Value
+	once       sync.Once
+	done       chan struct{}
+	stop       chan struct{}
+	err        atomic.Value
+	isGraceful atomic.Value
 }
 
 // NewImpl returns a service implementation that can be embedded in a struct
@@ -38,7 +39,17 @@ func (s *impl) Err() error {
 
 // Stop halts the service immediately.
 func (s *impl) Stop() error {
+	return s.doStop(false)
+}
+
+// GracefulStop() halts the service once it has finished any pending work.
+func (s *impl) GracefulStop() error {
+	return s.doStop(true)
+}
+
+func (s *impl) doStop(isGraceful bool) error {
 	s.once.Do(func() {
+		s.isGraceful.Store(isGraceful)
 		close(s.stop)
 		<-s.done
 	})
@@ -52,9 +63,16 @@ type Closer struct {
 	impl *impl
 }
 
-// Stop returns a channel that is closed the first time service.Stop() is called.
+// Stop returns a channel that is closed the first time service.Stop() or
+// service.GracefulStop() is called.
 func (c *Closer) Stop() <-chan struct{} {
 	return c.impl.stop
+}
+
+// IsGraceful returns true if the service.GracefulStop() was called.
+func (c *Closer) IsGraceful() bool {
+	isGraceful, _ := c.impl.isGraceful.Load().(bool)
+	return isGraceful
 }
 
 // Close closes the done channel and sets the error, if any.

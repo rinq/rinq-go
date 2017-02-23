@@ -35,10 +35,8 @@ func (s *brokerService) monitor() {
 	select {
 	case err := <-closed:
 		s.closer.Close(err)
-		// TODO: log
 	case <-s.closer.Stop():
 		s.broker.Close()
 		s.closer.Close(nil)
-		// TODO: log
 	}
 }

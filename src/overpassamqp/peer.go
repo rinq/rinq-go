@@ -84,7 +84,10 @@ func (p *peer) Session() overpass.Session {
 	)
 
 	p.localStore.Add(sess, cat)
-	go p.monitorSession(sess)
+	go func() {
+		<-sess.Done()
+		p.localStore.Remove(sess.ID())
+	}()
 
 	return sess
 }
@@ -139,6 +142,7 @@ func (p *peer) Unlisten(namespace string) error {
 func (p *peer) monitor() {
 	var err error
 
+	// wait for ANY of the services to stop
 	select {
 	case <-p.connection.Done():
 		err = p.connection.Err()
@@ -153,20 +157,31 @@ func (p *peer) monitor() {
 	case <-p.closer.Stop():
 	}
 
+	services := []service.Service{
+		p.server,
+		p.invoker,
+		p.remoteStore,
+		p.listener,
+	}
+
+	// ask ALL services to stop
+	for _, svc := range services {
+		if p.closer.IsGraceful() {
+			go svc.GracefulStop()
+		} else {
+			go svc.Stop()
+		}
+	}
+
+	// wait for ALL services to stop
+	for _, svc := range services {
+		<-svc.Done()
+	}
+
 	p.localStore.Each(func(sess overpass.Session, _ localsession.Catalog) {
 		sess.Close()
 	})
 
 	p.connection.Stop()
-	p.remoteStore.Stop()
-	p.invoker.Stop()
-	p.server.Stop()
-	p.listener.Stop()
-
 	p.closer.Close(err)
-}
-
-func (p *peer) monitorSession(sess overpass.Session) {
-	<-sess.Done()
-	p.localStore.Remove(sess.ID())
 }

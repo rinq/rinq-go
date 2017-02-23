@@ -9,7 +9,6 @@ import (
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/internals/command"
-	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/service"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
@@ -26,6 +25,8 @@ type invoker struct {
 	queues         *queueSet
 	channels       amqputil.ChannelPool
 	channel        *amqp.Channel
+	logger         overpass.Logger
+	waiter         sync.WaitGroup
 
 	mutex   sync.RWMutex
 	pending map[string]chan returnValue
@@ -38,6 +39,7 @@ func newInvoker(
 	defaultTimeout time.Duration,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
+	logger overpass.Logger,
 ) (command.Invoker, error) {
 	svc, closer := service.NewImpl()
 
@@ -50,7 +52,9 @@ func newInvoker(
 		defaultTimeout: defaultTimeout,
 		queues:         queues,
 		channels:       channels,
-		pending:        map[string]chan returnValue{},
+		logger:         logger,
+
+		pending: map[string]chan returnValue{},
 	}
 
 	if err := i.initialize(); err != nil {
@@ -75,33 +79,20 @@ func (i *invoker) CallUnicast(
 	command string,
 	payload *overpass.Payload,
 ) (string, *overpass.Payload, error) {
-	msg := amqp.Publishing{
-		MessageId: msgID.String(),
-		Priority:  callUnicastPriority,
-		Type:      command,
-		Headers:   amqp.Table{namespaceHeader: namespace},
-		Body:      payload.Bytes(),
-	}
-
-	corrID, done, cancel, err := i.call(
-		&ctx,
-		&msg,
+	return i.call(
+		ctx,
+		&amqp.Publishing{
+			MessageId: msgID.String(),
+			Priority:  callUnicastPriority,
+			Type:      command,
+			Headers:   amqp.Table{namespaceHeader: namespace},
+			Body:      payload.Bytes(),
+		},
 		unicastExchange,
 		target.String(),
 		command,
 		payload,
 	)
-	if err != nil {
-		return corrID, nil, err
-	}
-	defer cancel()
-
-	select {
-	case <-ctx.Done():
-		return corrID, nil, ctx.Err()
-	case response := <-done:
-		return corrID, response.Payload, response.Error
-	}
 }
 
 func (i *invoker) CallBalanced(
@@ -111,32 +102,19 @@ func (i *invoker) CallBalanced(
 	command string,
 	payload *overpass.Payload,
 ) (string, *overpass.Payload, error) {
-	msg := amqp.Publishing{
-		MessageId: msgID.String(),
-		Priority:  callBalancedPriority,
-		Type:      command,
-		Body:      payload.Bytes(),
-	}
-
-	corrID, done, cancel, err := i.call(
-		&ctx,
-		&msg,
+	return i.call(
+		ctx,
+		&amqp.Publishing{
+			MessageId: msgID.String(),
+			Priority:  callBalancedPriority,
+			Type:      command,
+			Body:      payload.Bytes(),
+		},
 		balancedExchange,
 		namespace,
 		command,
 		payload,
 	)
-	if err != nil {
-		return corrID, nil, err
-	}
-	defer cancel()
-
-	select {
-	case <-ctx.Done():
-		return corrID, nil, ctx.Err()
-	case response := <-done:
-		return corrID, response.Payload, response.Error
-	}
 }
 
 func (i *invoker) ExecuteBalanced(
@@ -182,54 +160,6 @@ func (i *invoker) ExecuteMulticast(
 	}
 
 	return corrID, nil
-}
-
-func (i *invoker) call(
-	ctx *context.Context,
-	msg *amqp.Publishing,
-	exchange string,
-	key string,
-	command string,
-	payload *overpass.Payload,
-) (
-	string,
-	chan returnValue,
-	func(),
-	error,
-) {
-	cancel := deferutil.Set{}
-	defer cancel.Run()
-
-	if _, ok := (*ctx).Deadline(); !ok {
-		timeoutCtx, cancelTimeout := context.WithTimeout(*ctx, i.defaultTimeout)
-		*ctx = timeoutCtx
-		cancel.Add(cancelTimeout)
-	}
-
-	if _, err := amqputil.PutExpiration(*ctx, msg); err != nil {
-		return "", nil, nil, err
-	}
-
-	msg.ReplyTo = "Y"
-	corrID := amqputil.PutCorrelationID(*ctx, msg)
-
-	done := make(chan returnValue, 1)
-
-	deferutil.With(&i.mutex, func() {
-		i.pending[msg.MessageId] = done
-	})
-
-	cancel.Add(func() {
-		i.mutex.Lock()
-		defer i.mutex.Unlock()
-		delete(i.pending, msg.MessageId)
-	})
-
-	if err := i.send(exchange, key, *msg); err != nil {
-		return "", nil, nil, err
-	}
-
-	return corrID, done, cancel.Detach(), nil
 }
 
 func (i *invoker) initialize() error {
@@ -279,9 +209,144 @@ func (i *invoker) initialize() error {
 	}
 
 	i.channel = channel
-	go i.consume(messages)
+
+	go i.monitor()
+	go i.dispatchEach(messages)
 
 	return nil
+}
+
+func (i *invoker) monitor() {
+	logInvokerStart(i.logger, i.peerID, i.preFetch)
+
+	var err error
+
+	select {
+	case err = <-i.channel.NotifyClose(make(chan *amqp.Error)):
+	case <-i.closer.Stop():
+		if i.closer.IsGraceful() {
+			logInvokerStopping(i.logger, i.peerID)
+			i.waiter.Wait()
+		}
+		i.channel.Close()
+	}
+
+	i.closer.Close(err)
+
+	logInvokerStop(i.logger, i.peerID, err)
+}
+
+func (i *invoker) dispatchEach(messages <-chan amqp.Delivery) {
+	for msg := range messages {
+		msg.Ack(false)
+		i.dispatch(msg)
+	}
+}
+
+func (i *invoker) dispatch(msg amqp.Delivery) {
+	i.mutex.RLock()
+	channel := i.pending[msg.RoutingKey]
+	i.mutex.RUnlock()
+
+	if channel == nil {
+		return // call has already reached deadline or been cancelled
+	}
+
+	var response returnValue
+
+	switch msg.Type {
+	case successResponse:
+		response.Payload = overpass.NewPayloadFromBytes(msg.Body)
+
+	case failureResponse:
+		failureType, _ := msg.Headers[failureTypeHeader].(string)
+		message, _ := msg.Headers[failureMessageHeader].(string)
+
+		if failureType == "" {
+			response.Error = errors.New("malformed response, failure type is empty")
+		} else {
+			response.Payload = overpass.NewPayloadFromBytes(msg.Body)
+			response.Error = overpass.Failure{
+				Type:    failureType,
+				Message: message,
+				Payload: response.Payload,
+			}
+		}
+
+	case errorResponse:
+		response.Error = overpass.UnexpectedError(msg.Body)
+
+	default:
+		response.Error = fmt.Errorf(
+			"malformed response, message type '%s' is unexpected",
+			msg.Type,
+		)
+	}
+
+	channel <- response
+	close(channel)
+}
+
+func (i *invoker) call(
+	ctx context.Context,
+	msg *amqp.Publishing,
+	exchange string,
+	key string,
+	command string,
+	payload *overpass.Payload,
+) (
+	string,
+	*overpass.Payload,
+	error,
+) {
+	i.waiter.Add(1)
+	defer i.waiter.Done()
+
+	msg.ReplyTo = "Y"
+	corrID := amqputil.PutCorrelationID(ctx, msg)
+
+	var cancel func()
+	if _, ok := ctx.Deadline(); !ok {
+		ctx, cancel = context.WithTimeout(ctx, i.defaultTimeout)
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
+	}
+	defer cancel()
+
+	if _, err := amqputil.PutExpiration(ctx, msg); err != nil {
+		return corrID, nil, err
+	}
+
+	done := make(chan returnValue, 1)
+
+	i.mutex.Lock()
+	i.pending[msg.MessageId] = done
+	i.mutex.Unlock()
+
+	defer func() {
+		i.mutex.Lock()
+		delete(i.pending, msg.MessageId)
+		i.mutex.Unlock()
+	}()
+
+	if err := i.send(exchange, key, *msg); err != nil {
+		return corrID, nil, err
+	}
+
+	stop := i.closer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return corrID, nil, ctx.Err()
+		case <-stop:
+			stop = nil
+			if !i.closer.IsGraceful() {
+				cancel()
+			}
+		case response := <-done:
+			return corrID, response.Payload, response.Error
+		}
+	}
 }
 
 func (i *invoker) send(exchange, key string, msg amqp.Publishing) error {
@@ -304,79 +369,4 @@ func (i *invoker) send(exchange, key string, msg amqp.Publishing) error {
 		false, // immediate
 		msg,
 	)
-}
-
-func (i *invoker) consume(messages <-chan amqp.Delivery) {
-	closed := i.channel.NotifyClose(make(chan *amqp.Error))
-
-	for {
-		select {
-		case err := <-closed:
-			i.closer.Close(err)
-			// TODO: log
-			return
-
-		case <-i.closer.Stop():
-			i.channel.Close()
-			i.closer.Close(nil)
-			// TODO: log
-			return
-
-		case msg, ok := <-messages:
-			if ok {
-				msg.Ack(false)
-				i.dispatch(msg)
-			} else {
-				messages = nil
-			}
-		}
-	}
-}
-
-func (i *invoker) dispatch(msg amqp.Delivery) {
-	var channel chan returnValue
-	deferutil.RWith(&i.mutex, func() {
-		channel = i.pending[msg.RoutingKey]
-	})
-
-	if channel == nil {
-		return // call has already reached deadline or been cancelled
-	}
-
-	var response returnValue
-
-	switch msg.Type {
-	case successResponse:
-		response.Payload = overpass.NewPayloadFromBytes(msg.Body)
-
-	case failureResponse:
-		failureType, _ := msg.Headers[failureTypeHeader].(string)
-		message, _ := msg.Headers[failureMessageHeader].(string)
-
-		if failureType == "" {
-			response.Error = errors.New("malformed response, failure type is empty")
-		} else {
-			if message == "" {
-				message = "unknown error"
-			}
-
-			response.Payload = overpass.NewPayloadFromBytes(msg.Body)
-			response.Error = overpass.Failure{
-				Type:    failureType,
-				Message: message,
-				Payload: response.Payload,
-			}
-		}
-
-	case errorResponse:
-		response.Error = overpass.UnexpectedError(msg.Body)
-
-	default:
-		response.Error = fmt.Errorf(
-			"malformed response, message type '%s' is unexpected",
-			msg.Type,
-		)
-	}
-
-	channel <- response
 }

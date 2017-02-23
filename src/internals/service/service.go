@@ -10,4 +10,7 @@ type Service interface {
 
 	// Stop halts the service immediately.
 	Stop() error
+
+	// GracefulStop() halts the service once it has finished any pending work.
+	GracefulStop() error
 }
