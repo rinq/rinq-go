@@ -2,6 +2,17 @@ package overpass
 
 import "fmt"
 
+// IsServerError returns true if err is an error that occurred on the server
+// during a command call.
+func IsServerError(err error) bool {
+	switch err.(type) {
+	case Failure, UnexpectedError:
+		return true
+	default:
+		return false
+	}
+}
+
 // IsFailure returns true if err represents an application-defined command
 // failure response (as opposed to an unexpected failure).
 func IsFailure(err error) bool {

@@ -19,7 +19,7 @@ func (ref SessionRef) Validate() error {
 		return nil
 	}
 
-	return fmt.Errorf("Session reference %s is invalid.", ref)
+	return fmt.Errorf("session reference %s is invalid", ref)
 }
 
 // Before returns true if this ref's revision is before r.

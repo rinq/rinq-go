@@ -64,7 +64,7 @@ func (id MessageID) Validate() error {
 		return nil
 	}
 
-	return fmt.Errorf("Message ID %s is invalid.", id)
+	return fmt.Errorf("message ID %s is invalid", id)
 }
 
 // ShortString returns a string representation based on the session's short

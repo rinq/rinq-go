@@ -50,7 +50,7 @@ func (id SessionID) Validate() error {
 		return nil
 	}
 
-	return fmt.Errorf("Session ID %s is invalid.", id)
+	return fmt.Errorf("session ID %s is invalid", id)
 }
 
 // At creates a Ref from this ID.
