@@ -28,6 +28,7 @@ func New(
 
 	invoker, err := newInvoker(
 		peerID,
+		config.SessionPreFetch,
 		config.DefaultTimeout,
 		queues,
 		channels,
@@ -38,14 +39,14 @@ func New(
 
 	server, err := newServer(
 		peerID,
-		config.PreFetch,
+		config.CommandPreFetch,
 		revisions,
 		queues,
 		channels,
 		config.Logger,
 	)
 	if err != nil {
-		// TODO: invoker.Stop()
+		invoker.Stop()
 		return nil, nil, err
 	}
 

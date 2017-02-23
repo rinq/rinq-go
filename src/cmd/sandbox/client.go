@@ -28,26 +28,34 @@ func runClient() {
 	sess := peer.Session()
 	defer sess.Close()
 
-	for {
-		func() {
-			ctx := context.Background()
-			ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
-			defer cancel()
-
-			result, err := sess.Call(
-				ctx,
-				"our-namespace",
-				"<whatever>",
-				nil,
-			)
-			defer result.Close()
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				fmt.Println(result.Value())
-			}
-		}()
+	for i := 0; i < 15; i++ {
+		go send(sess)
 	}
 
-	// fmt.Println(peer.Wait())
+	<-sess.Done()
+}
+
+func send(sess overpass.Session) {
+	for {
+		select {
+		case <-sess.Done():
+		default:
+			func() {
+				ctx := context.Background()
+				ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+				defer cancel()
+
+				result, err := sess.Call(
+					ctx,
+					"our-namespace",
+					"<whatever>",
+					nil,
+				)
+				defer result.Close()
+				if err != nil {
+					fmt.Println(err)
+				}
+			}()
+		}
+	}
 }

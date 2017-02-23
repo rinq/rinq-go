@@ -21,6 +21,7 @@ type invoker struct {
 	closer *service.Closer
 
 	peerID         overpass.PeerID
+	preFetch       int
 	defaultTimeout time.Duration
 	queues         *queueSet
 	channels       amqputil.ChannelPool
@@ -33,6 +34,7 @@ type invoker struct {
 // newInvoker creates, initializes and returns a new invoker.
 func newInvoker(
 	peerID overpass.PeerID,
+	preFetch int,
 	defaultTimeout time.Duration,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
@@ -44,6 +46,7 @@ func newInvoker(
 		closer:  closer,
 
 		peerID:         peerID,
+		preFetch:       preFetch,
 		defaultTimeout: defaultTimeout,
 		queues:         queues,
 		channels:       channels,
@@ -235,6 +238,10 @@ func (i *invoker) initialize() error {
 		return err
 	}
 
+	if err = channel.Qos(i.preFetch, 0, true); err != nil {
+		return err
+	}
+
 	queue := responseQueue(i.peerID)
 
 	if _, err = channel.QueueDeclare(
@@ -261,7 +268,7 @@ func (i *invoker) initialize() error {
 	messages, err := channel.Consume(
 		queue,
 		queue, // use queue name as consumer tag
-		true,  // autoAck
+		false, // autoAck
 		true,  // exclusive
 		false, // noLocal
 		false, // noWait
@@ -317,7 +324,10 @@ func (i *invoker) consume(messages <-chan amqp.Delivery) {
 
 		case msg, ok := <-messages:
 			if ok {
+				msg.Ack(false)
 				i.dispatch(msg)
+			} else {
+				messages = nil
 			}
 		}
 	}
