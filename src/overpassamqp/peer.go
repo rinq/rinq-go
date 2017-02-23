@@ -8,6 +8,7 @@ import (
 	"github.com/over-pass/overpass-go/src/internals/command"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/internals/notify"
+	"github.com/over-pass/overpass-go/src/internals/remotesession"
 	"github.com/over-pass/overpass-go/src/internals/service"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
@@ -17,21 +18,23 @@ type peer struct {
 	service.Service
 	closer *service.Closer
 
-	id         overpass.PeerID
-	connection service.Service
-	sessions   localsession.Store
-	invoker    command.Invoker
-	server     command.Server
-	notifier   notify.Notifier
-	listener   notify.Listener
-	logger     overpass.Logger
-	seq        uint32
+	id          overpass.PeerID
+	connection  service.Service
+	localStore  localsession.Store
+	remoteStore remotesession.Store
+	invoker     command.Invoker
+	server      command.Server
+	notifier    notify.Notifier
+	listener    notify.Listener
+	logger      overpass.Logger
+	seq         uint32
 }
 
 func newPeer(
 	id overpass.PeerID,
 	connection service.Service,
-	sessions localsession.Store,
+	localStore localsession.Store,
+	remoteStore remotesession.Store,
 	invoker command.Invoker,
 	server command.Server,
 	notifier notify.Notifier,
@@ -44,14 +47,15 @@ func newPeer(
 		Service: svc,
 		closer:  closer,
 
-		id:         id,
-		connection: connection,
-		sessions:   sessions,
-		invoker:    invoker,
-		server:     server,
-		notifier:   notifier,
-		listener:   listener,
-		logger:     logger,
+		id:          id,
+		connection:  connection,
+		localStore:  localStore,
+		remoteStore: remoteStore,
+		invoker:     invoker,
+		server:      server,
+		notifier:    notifier,
+		listener:    listener,
+		logger:      logger,
 	}
 
 	go p.monitor()
@@ -79,7 +83,7 @@ func (p *peer) Session() overpass.Session {
 		p.logger,
 	)
 
-	p.sessions.Add(sess, cat)
+	p.localStore.Add(sess, cat)
 	go p.monitorSession(sess)
 
 	return sess
@@ -138,6 +142,8 @@ func (p *peer) monitor() {
 	select {
 	case <-p.connection.Done():
 		err = p.connection.Err()
+	case <-p.remoteStore.Done():
+		err = p.remoteStore.Err()
 	case <-p.invoker.Done():
 		err = p.invoker.Err()
 	case <-p.server.Done():
@@ -147,11 +153,12 @@ func (p *peer) monitor() {
 	case <-p.closer.Stop():
 	}
 
-	p.sessions.Each(func(sess overpass.Session, _ localsession.Catalog) {
+	p.localStore.Each(func(sess overpass.Session, _ localsession.Catalog) {
 		sess.Close()
 	})
 
 	p.connection.Stop()
+	p.remoteStore.Stop()
 	p.invoker.Stop()
 	p.server.Stop()
 	p.listener.Stop()
@@ -161,5 +168,5 @@ func (p *peer) monitor() {
 
 func (p *peer) monitorSession(sess overpass.Session) {
 	<-sess.Done()
-	p.sessions.Remove(sess.ID())
+	p.localStore.Remove(sess.ID())
 }

@@ -10,6 +10,7 @@ type Config struct {
 	DefaultTimeout time.Duration
 	PreFetch       int
 	Logger         Logger
+	PruneInterval  time.Duration
 }
 
 // WithDefaults returns a copy of this config with empty properties replaced
@@ -26,6 +27,10 @@ func (config Config) WithDefaults() Config {
 
 	if config.Logger == nil {
 		config.Logger = NewLogger(false)
+	}
+
+	if config.PruneInterval == 0 {
+		config.PruneInterval = 3 * time.Minute
 	}
 
 	return config
