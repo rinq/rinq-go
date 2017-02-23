@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -32,14 +31,13 @@ func runServer() {
 		res overpass.Responder,
 	) {
 		defer cmd.Payload.Close()
-
-		time.Sleep(250 * time.Millisecond)
-
-		fmt.Println(ctx.Deadline())
-
-		if !res.IsRequired() {
-			fmt.Println("NOT REQUIRED!")
-		}
+		// // time.Sleep(250 * time.Millisecond)
+		//
+		// fmt.Println(ctx.Deadline())
+		//
+		// if !res.IsRequired() {
+		// 	fmt.Println("NOT REQUIRED!")
+		// }
 		res.Close()
 	})
 

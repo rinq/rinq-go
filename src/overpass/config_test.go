@@ -15,19 +15,21 @@ var _ = Describe("Config", func() {
 			config := overpass.Config{}.WithDefaults()
 
 			Expect(config).To(Equal(overpass.Config{
-				DefaultTimeout: 5 * time.Second,
-				PreFetch:       runtime.GOMAXPROCS(0),
-				Logger:         overpass.NewLogger(false),
-				PruneInterval:  3 * time.Minute,
+				DefaultTimeout:  5 * time.Second,
+				CommandPreFetch: runtime.GOMAXPROCS(0),
+				SessionPreFetch: runtime.GOMAXPROCS(0) * 10,
+				Logger:          overpass.NewLogger(false),
+				PruneInterval:   3 * time.Minute,
 			}))
 		})
 
 		It("does not replace existing values", func() {
 			config := overpass.Config{
-				DefaultTimeout: 10 * time.Second,
-				PreFetch:       10,
-				Logger:         overpass.NewLogger(true),
-				PruneInterval:  20 * time.Second,
+				DefaultTimeout:  10 * time.Second,
+				CommandPreFetch: 10,
+				SessionPreFetch: 20,
+				Logger:          overpass.NewLogger(true),
+				PruneInterval:   20 * time.Second,
 			}
 
 			Expect(config.WithDefaults()).To(Equal(config))

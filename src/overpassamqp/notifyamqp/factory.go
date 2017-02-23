@@ -27,6 +27,7 @@ func New(
 
 	listener, err := newListener(
 		peerID,
+		config.SessionPreFetch,
 		sessions,
 		revisions,
 		channel,

@@ -20,6 +20,7 @@ type listener struct {
 	closer *service.Closer
 
 	peerID    overpass.PeerID
+	preFetch  int
 	sessions  localsession.Store
 	revisions revision.Store
 	logger    overpass.Logger
@@ -32,6 +33,7 @@ type listener struct {
 // newListener creates, starts and returns a new listener.
 func newListener(
 	peerID overpass.PeerID,
+	preFetch int,
 	sessions localsession.Store,
 	revisions revision.Store,
 	channel *amqp.Channel,
@@ -44,6 +46,7 @@ func newListener(
 		closer:  closer,
 
 		peerID:    peerID,
+		preFetch:  preFetch,
 		sessions:  sessions,
 		revisions: revisions,
 		logger:    logger,
@@ -127,6 +130,10 @@ func (l *listener) Unlisten(id overpass.SessionID) (bool, error) {
 func (l *listener) initialize() error {
 	queue := notifyQueue(l.peerID)
 
+	if err := l.channel.Qos(l.preFetch, 0, true); err != nil {
+		return err
+	}
+
 	if _, err := l.channel.QueueDeclare(
 		queue,
 		false, // durable
@@ -141,7 +148,7 @@ func (l *listener) initialize() error {
 	messages, err := l.channel.Consume(
 		queue,
 		queue, // use queue name as consumer tag
-		true,  // autoAck
+		false, // autoAck
 		true,  // exclusive
 		false, // noLocal
 		false, // noWait
@@ -174,7 +181,10 @@ func (l *listener) consume(messages <-chan amqp.Delivery) {
 
 		case msg, ok := <-messages:
 			if ok {
+				msg.Ack(false)
 				l.dispatch(msg)
+			} else {
+				messages = nil
 			}
 		}
 	}
