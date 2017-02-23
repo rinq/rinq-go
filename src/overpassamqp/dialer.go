@@ -46,8 +46,6 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 
 	config = config.WithDefaults()
 
-	// TODO: honour ctx deadline here, possibly by provided a custom Dial func
-	// in the AMQP config.
 	broker, err := amqp.DialConfig(dsn, amqpConfig)
 	if err != nil {
 		return nil, err

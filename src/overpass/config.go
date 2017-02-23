@@ -31,7 +31,6 @@ type Config struct {
 
 // WithDefaults returns a copy of this config with empty properties replaced
 // with their defaults.
-// TODO: move to internals package
 func (config Config) WithDefaults() Config {
 	if config.DefaultTimeout == 0 {
 		config.DefaultTimeout = 5 * time.Second

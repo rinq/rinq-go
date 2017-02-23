@@ -106,7 +106,7 @@ func (s *server) update(
 		return
 	}
 
-	rev, err := cat.TryUpdate(sessID.At(req.Rev), req.Attrs, nil) // TODO: diff
+	rev, err := cat.TryUpdate(sessID.At(req.Rev), req.Attrs, nil)
 	if err != nil {
 		switch err.(type) {
 		case overpass.NotFoundError:

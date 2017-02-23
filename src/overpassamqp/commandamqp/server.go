@@ -284,7 +284,6 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 		msgID:      msgID,
 		isRequired: msg.ReplyTo != "",
 	}
-	// TODO: defer invalidate responder
 
 	if s.logger.IsDebug() {
 		res = newCapturingResponder(res)
