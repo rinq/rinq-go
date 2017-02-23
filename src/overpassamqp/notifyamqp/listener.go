@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
-	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/localsession"
 	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/internals/revision"
@@ -24,6 +23,7 @@ type listener struct {
 	sessions  localsession.Store
 	revisions revision.Store
 	logger    overpass.Logger
+	waiter    sync.WaitGroup
 
 	mutex    sync.RWMutex
 	channel  *amqp.Channel
@@ -158,39 +158,42 @@ func (l *listener) initialize() error {
 		return err
 	}
 
-	go l.consume(messages)
+	go l.monitor()
+	go l.dispatchEach(messages)
 
 	return nil
 }
 
-func (l *listener) consume(messages <-chan amqp.Delivery) {
-	closed := l.channel.NotifyClose(make(chan *amqp.Error))
+func (l *listener) monitor() {
+	logListenerStart(l.logger, l.peerID, l.preFetch)
 
-	for {
-		select {
-		case err := <-closed:
-			l.closer.Close(err)
-			// TODO: log
-			return
+	var err error
 
-		case <-l.closer.Stop():
-			l.channel.Close()
-			l.closer.Close(nil)
-			// TODO: log
-			return
-
-		case msg, ok := <-messages:
-			if ok {
-				msg.Ack(false)
-				l.dispatch(msg)
-			} else {
-				messages = nil
-			}
+	select {
+	case err = <-l.channel.NotifyClose(make(chan *amqp.Error)):
+	case <-l.closer.Stop():
+		l.channel.Close()
+		if l.closer.IsGraceful() {
+			logListenerStopping(l.logger, l.peerID)
+			l.waiter.Wait()
 		}
+	}
+
+	l.closer.Close(err)
+
+	logListenerStop(l.logger, l.peerID, err)
+}
+
+func (l *listener) dispatchEach(messages <-chan amqp.Delivery) {
+	for msg := range messages {
+		l.waiter.Add(1)
+		go l.dispatch(msg)
 	}
 }
 
 func (l *listener) dispatch(msg amqp.Delivery) {
+	defer l.waiter.Done()
+
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
 		if l.logger.IsDebug() {
@@ -220,6 +223,8 @@ func (l *listener) dispatch(msg amqp.Delivery) {
 			err,
 		)
 	}
+
+	msg.Ack(false)
 }
 
 func (l *listener) handleUnicast(msgID overpass.MessageID, msg amqp.Delivery) error {
@@ -321,10 +326,9 @@ func (l *listener) handle(
 	// we want to close the payload if the handler is never called
 	defer n.Payload.Close()
 
-	var handler overpass.NotificationHandler
-	deferutil.RWith(&l.mutex, func() {
-		handler = l.handlers[sess.ID()]
-	})
+	l.mutex.RLock()
+	handler := l.handlers[sess.ID()]
+	l.mutex.RUnlock()
 
 	if handler == nil {
 		return nil

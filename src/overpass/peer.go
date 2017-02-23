@@ -25,4 +25,8 @@ type Peer interface {
 
 	// Stop disconnects the peer from the network.
 	Stop() error
+
+	// GracefulStop() disconnects the peer from the network after any pending
+	// calls have returned, and pending command requests have been handled.
+	GracefulStop() error
 }

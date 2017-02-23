@@ -22,17 +22,3 @@ func Lock(l sync.Locker) func() {
 func RLock(m *sync.RWMutex) func() {
 	return Lock(m.RLocker())
 }
-
-// With locks l for the duration of fn()
-func With(l sync.Locker, fn func()) {
-	l.Lock()
-	defer l.Unlock()
-	fn()
-}
-
-// RWith locks m for reading for the duration of fn()
-func RWith(m *sync.RWMutex, fn func()) {
-	m.RLock()
-	defer m.RUnlock()
-	fn()
-}

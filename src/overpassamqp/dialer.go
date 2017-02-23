@@ -72,6 +72,13 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 		return nil, err
 	}
 
+	config.Logger.Log(
+		"%s connected to '%s' as %s",
+		peerID.ShortString(),
+		dsn,
+		peerID,
+	)
+
 	localStore := localsession.NewStore()
 	aggregateStore := &revision.AggregateStore{
 		PeerID: peerID,
@@ -93,13 +100,6 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	aggregateStore.Remote = remoteStore
 
 	remotesession.Listen(peerID, localStore, server)
-
-	config.Logger.Log(
-		"%s connected to '%s' as %s",
-		peerID.ShortString(),
-		dsn,
-		peerID,
-	)
 
 	return newPeer(
 		peerID,

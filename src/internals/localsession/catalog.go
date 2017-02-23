@@ -3,11 +3,9 @@ package localsession
 import (
 	"bytes"
 	"errors"
-	"io"
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/internals/attrmeta"
-	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -221,40 +219,4 @@ func (c *catalog) Close() {
 
 func (c *catalog) Done() <-chan struct{} {
 	return c.done
-}
-
-func writeDiff(w io.Writer, attr attrmeta.Attr) (err error) {
-	defer deferutil.Recover(&err)
-
-	write := func(s string) {
-		if _, e := io.WriteString(w, s); e != nil {
-			panic(e)
-		}
-	}
-
-	if attr.Value == "" {
-		if attr.IsFrozen {
-			write("!")
-		} else {
-			write("-")
-		}
-
-		write(attr.Key)
-	} else {
-		if attr.CreatedAt == attr.UpdatedAt {
-			write("+")
-		}
-
-		write(attr.Key)
-
-		if attr.IsFrozen {
-			write("@")
-		} else {
-			write("=")
-		}
-
-		write(attr.Value)
-	}
-
-	return
 }
