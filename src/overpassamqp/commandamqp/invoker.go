@@ -299,54 +299,66 @@ func (i *invoker) call(
 	*overpass.Payload,
 	error,
 ) {
-	i.waiter.Add(1)
-	defer i.waiter.Done()
-
-	msg.ReplyTo = "Y"
 	corrID := amqputil.PutCorrelationID(ctx, msg)
 
 	var cancel func()
-	if _, ok := ctx.Deadline(); !ok {
-		ctx, cancel = context.WithTimeout(ctx, i.defaultTimeout)
-	} else {
+	if _, ok := ctx.Deadline(); ok {
 		ctx, cancel = context.WithCancel(ctx)
+	} else {
+		ctx, cancel = context.WithTimeout(ctx, i.defaultTimeout)
 	}
 	defer cancel()
 
+	msg.ReplyTo = "Y"
 	if _, err := amqputil.PutExpiration(ctx, msg); err != nil {
 		return corrID, nil, err
 	}
 
-	done := make(chan returnValue, 1)
+	reply := make(chan returnValue, 1)
 
-	i.mutex.Lock()
-	i.pending[msg.MessageId] = done
-	i.mutex.Unlock()
-
-	defer func() {
-		i.mutex.Lock()
-		delete(i.pending, msg.MessageId)
-		i.mutex.Unlock()
-	}()
+	if !i.track(msg, reply) {
+		return corrID, nil, context.Canceled
+	}
+	defer i.untrack(msg)
 
 	if err := i.send(exchange, key, *msg); err != nil {
 		return corrID, nil, err
 	}
 
-	stop := i.closer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return corrID, nil, ctx.Err()
-		case <-stop:
-			stop = nil
-			if !i.closer.IsGraceful() {
-				cancel()
-			}
-		case response := <-done:
+		case <-i.closer.Stop():
+			return corrID, nil, context.Canceled
+		case response := <-reply:
 			return corrID, response.Payload, response.Error
 		}
 	}
+}
+
+func (i *invoker) track(msg *amqp.Publishing, reply chan returnValue) bool {
+	unlock, ok := i.closer.Lock()
+	if !ok {
+		return false
+	}
+	defer unlock()
+
+	i.waiter.Add(1)
+
+	i.mutex.Lock()
+	i.pending[msg.MessageId] = reply
+	i.mutex.Unlock()
+
+	return true
+}
+
+func (i *invoker) untrack(msg *amqp.Publishing) {
+	i.mutex.Lock()
+	delete(i.pending, msg.MessageId)
+	i.mutex.Unlock()
+
+	i.waiter.Done()
 }
 
 func (i *invoker) send(exchange, key string, msg amqp.Publishing) error {
