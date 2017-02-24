@@ -6,10 +6,23 @@ import (
 	"strconv"
 )
 
-// SessionID holds a unique session ID.
+// SessionID uniquely identifies a session within a network.
+//
+// Session IDs contain a peer component, and a 32-but sequence component.
+// They are rendereds as a peer ID, followed by a period, then the sequence
+// component as a decimal, such as "58AEE146-191C.45".
+//
+// Because the peer ID is embedded, the same uniqueness guarantees apply to the
+// session ID as to the peer ID.
 type SessionID struct {
+	// Peer is the ID of the peer that owns the session.
 	Peer PeerID
-	Seq  uint32
+
+	// Seq is a monotonically increasing sequence allocated to each session in
+	// the order it is created by the owning peer. Application sessions begin
+	// with a sequence value of 1. The sequnce value zero is reserved for the
+	// "zero-session", which is used internally by Overpass.
+	Seq uint32
 }
 
 // ParseSessionID parses a string representation of a session ID.
@@ -44,7 +57,9 @@ func ParseSessionID(str string) (id SessionID, err error) {
 	return
 }
 
-// Validate returns nil if the ID is valid, it requires a non-zero seq.
+// Validate returns an error if the session ID is not valid.
+//
+// The session ID is valid if the embedded peer ID is valid.
 func (id SessionID) Validate() error {
 	if id.Peer.Validate() == nil {
 		return nil
@@ -53,17 +68,19 @@ func (id SessionID) Validate() error {
 	return fmt.Errorf("session ID %s is invalid", id)
 }
 
-// At creates a Ref from this ID.
+// At returns a SessionRef for this session ID.
 func (id SessionID) At(rev RevisionNumber) SessionRef {
 	return SessionRef{ID: id, Rev: rev}
 }
 
-// ShortString returns a string representation based on the peer's short string
-// representation.
+// ShortString returns a string representation of the session ID based on the
+// peer IDs short representation (e.g. "191C.45").
 func (id SessionID) ShortString() string {
 	return fmt.Sprintf("%s.%d", id.Peer.ShortString(), id.Seq)
 }
 
+// String returns a string representation of the session ID based on the full
+// peer ID (e.g. "58AEE146-191C.45").
 func (id SessionID) String() string {
 	return fmt.Sprintf("%s.%d", id.Peer, id.Seq)
 }

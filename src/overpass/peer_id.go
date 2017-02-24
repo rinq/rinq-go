@@ -9,8 +9,8 @@ import (
 
 // PeerID uniquely identifies a peer within a network.
 //
-// Peer IDs contain a clock-component and a random 16-bit integer component.
-// They are dispayed in hexadecimal encoding, with a hypen separating the two
+// Peer IDs contain a clock component and a random 16-bit integer component.
+// They are rendered in hexadecimal encoding, with a hypen separating the two
 // components, such as "58AEE146-191C".
 //
 // For a given network, the random component is guaranteed to be unique at any
@@ -41,7 +41,7 @@ func NewPeerID() PeerID {
 	}
 }
 
-// Validate returns an error if the peer is not valid.
+// Validate returns an error if the peer ID is not valid.
 //
 // Neither the Clock nor Rand component may be zero.
 func (id PeerID) Validate() error {
@@ -52,7 +52,8 @@ func (id PeerID) Validate() error {
 	return fmt.Errorf("peer ID %s is invalid", id)
 }
 
-// ShortString returns a string representation of the Rand component.
+// ShortString returns a string representation of the peer ID without the clock
+// component (e.g. "191C").
 func (id PeerID) ShortString() string {
 	return fmt.Sprintf(
 		"%04X",
@@ -61,7 +62,7 @@ func (id PeerID) ShortString() string {
 }
 
 // String returns a string representation including both the Clock and Rand
-// components.
+// components (e.g. "58AEE146-191C").
 func (id PeerID) String() string {
 	return fmt.Sprintf(
 		"%X-%04X",
