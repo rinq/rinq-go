@@ -2,7 +2,7 @@ package overpass
 
 import "context"
 
-// Session is an interface representing a "local" session, that is a session
+// Session is an interface representing a "local" session, that is, a session
 // created by a peer running in this process.
 //
 // Sessions are the "clients" on an Overpass network, able to issue command
