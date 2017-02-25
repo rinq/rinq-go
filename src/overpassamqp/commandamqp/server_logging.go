@@ -157,13 +157,15 @@ func logRequestRejected(
 	peerID overpass.PeerID,
 	msgID overpass.MessageID,
 	request overpass.Command,
+	reason string,
 ) {
 	logger.Log(
-		"%s did not write a response for '%s::%s' command request %s, request has been abandoned [%s]",
+		"%s did not write a response for '%s::%s' command request %s, request has been abandoned (%s) [%s]",
 		peerID.ShortString(),
 		request.Namespace,
 		request.Command,
 		msgID.ShortString(),
+		reason,
 		amqputil.GetCorrelationID(ctx),
 	)
 }

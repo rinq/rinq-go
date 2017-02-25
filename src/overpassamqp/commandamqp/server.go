@@ -24,18 +24,20 @@ type server struct {
 	queues    *queueSet
 	channels  amqputil.ChannelPool
 	logger    overpass.Logger
-	parentCtx context.Context
-	cancelCtx func()
+
+	parentCtx context.Context // parent of all contexts passed to handlers
+	cancelCtx func()          // cancels parentCtx when the server stops
 
 	mutex    sync.RWMutex
-	channel  *amqp.Channel
-	handlers map[string]overpass.CommandHandler
+	channel  *amqp.Channel                      // channel used for consuming
+	handlers map[string]overpass.CommandHandler // map of namespace to handler
 
-	deliveries  chan *amqp.Delivery
-	handlerDone chan struct{}
-	amqpClosed  chan *amqp.Error
+	deliveries chan amqp.Delivery // incoming command requests
+	handled    chan struct{}      // notifications requests have been handled
+	amqpClosed chan *amqp.Error
 
-	pending uint
+	// state-machine data
+	pending uint // number of active handlers
 }
 
 // newServer creates, starts and returns a new server.
@@ -57,19 +59,19 @@ func newServer(
 
 		handlers: map[string]overpass.CommandHandler{},
 
-		deliveries:  make(chan *amqp.Delivery),
-		handlerDone: make(chan struct{}),
-		amqpClosed:  make(chan *amqp.Error),
+		deliveries: make(chan amqp.Delivery, preFetch),
+		handled:    make(chan struct{}, preFetch),
+		amqpClosed: make(chan *amqp.Error, 1),
 	}
 
 	s.sm = service.NewStateMachine(s.run, s.finalize)
 	s.Service = s.sm
 
-	s.parentCtx, s.cancelCtx = context.WithCancel(context.Background())
-
 	if err := s.initialize(); err != nil {
 		return nil, err
 	}
+
+	go s.sm.Run()
 
 	return s, nil
 }
@@ -147,8 +149,9 @@ func (s *server) Unlisten(namespace string) (bool, error) {
 	return true, nil
 }
 
+// initialize prepares the AMQP channel
 func (s *server) initialize() error {
-	if channel, err := s.channels.Get(); err == nil { // do not return to pool, used for invoker
+	if channel, err := s.channels.Get(); err == nil { // do not return to pool, used for consume
 		s.channel = channel
 	} else {
 		return err
@@ -198,21 +201,22 @@ func (s *server) initialize() error {
 
 	go s.pipe(messages)
 
-	go s.sm.Run()
-
 	return nil
 }
 
+// run is the state entered when the service starts
 func (s *server) run() (service.State, error) {
 	logServerStart(s.logger, s.peerID, s.preFetch)
+
+	s.parentCtx, s.cancelCtx = context.WithCancel(context.Background())
 
 	for {
 		select {
 		case msg := <-s.deliveries:
 			s.pending++
-			go s.dispatch(msg)
+			go s.dispatch(&msg)
 
-		case <-s.handlerDone:
+		case <-s.handled:
 			s.pending--
 
 		case <-s.sm.Graceful:
@@ -227,6 +231,7 @@ func (s *server) run() (service.State, error) {
 	}
 }
 
+// graceful is the state entered when a graceful stop is requested
 func (s *server) graceful() (service.State, error) {
 	logServerStopping(s.logger, s.peerID, s.pending)
 
@@ -236,7 +241,7 @@ func (s *server) graceful() (service.State, error) {
 
 	for s.pending > 0 {
 		select {
-		case <-s.handlerDone:
+		case <-s.handled:
 			s.pending--
 
 		case <-s.sm.Forceful:
@@ -247,10 +252,13 @@ func (s *server) graceful() (service.State, error) {
 	return nil, nil
 }
 
+// forceful is the state entered when a stop is requested
 func (s *server) forceful() (service.State, error) {
 	return nil, s.channel.Close()
 }
 
+// finalize is the state-machine finalizer, it is called immediately before the
+// Done() channel is closed.
 func (s *server) finalize(err error) error {
 	s.cancelCtx()
 	logServerStop(s.logger, s.peerID, err)
@@ -258,7 +266,17 @@ func (s *server) finalize(err error) error {
 
 }
 
+// dispatch validates an incoming command request and dispatches it the
+// appropriate handler. it is intended to run it in its own goroutine.
 func (s *server) dispatch(msg *amqp.Delivery) {
+	defer func() {
+		select {
+		case s.handled <- struct{}{}:
+		case <-s.sm.Forceful:
+		}
+	}()
+
+	// validate message ID
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
 		msg.Reject(false)
@@ -266,43 +284,43 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 		return
 	}
 
-	switch msg.Exchange {
-	case balancedExchange, multicastExchange:
-		err = s.handle(msgID, msg.RoutingKey, msg)
-	case unicastExchange:
-		if namespace, ok := msg.Headers[namespaceHeader].(string); ok {
-			err = s.handle(msgID, namespace, msg)
-		} else {
-			err = errors.New("malformed request, namespace is not a string")
-		}
-	default:
-		err = fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
-	}
-
+	// determine command namespace
+	namespace, err := s.unpackNamespace(msg)
 	if err != nil {
 		msg.Reject(false)
 		logIgnoredMessage(s.logger, s.peerID, msgID, err)
+		return
 	}
 
-	s.handlerDone <- struct{}{}
-}
-
-func (s *server) handle(msgID overpass.MessageID, namespace string, msg *amqp.Delivery) error {
+	// find the handler for this namespace
 	s.mutex.RLock()
-	handler := s.handlers[namespace]
+	handler, ok := s.handlers[namespace]
 	s.mutex.RUnlock()
-
-	if handler == nil {
-		msg.Reject(true)
+	if !ok {
+		msg.Reject(msg.Exchange == balancedExchange) // requeue if "balanced"
 		logNoLongerListening(s.logger, s.peerID, msgID, namespace)
-		return nil
+		return
 	}
 
+	// find the source session revision
 	source, err := s.revisions.GetRevision(msgID.Session)
 	if err != nil {
-		return err
+		msg.Reject(false)
+		logIgnoredMessage(s.logger, s.peerID, msgID, err)
+		return
 	}
 
+	s.handle(msgID, msg, namespace, source, handler)
+}
+
+// handle invokes the command handler for request.
+func (s *server) handle(
+	msgID overpass.MessageID,
+	msg *amqp.Delivery,
+	namespace string,
+	source overpass.Revision,
+	handler overpass.CommandHandler,
+) {
 	ctx := amqputil.WithCorrelationID(s.parentCtx, msg)
 	ctx, cancel := amqputil.WithExpiration(ctx, msg)
 	defer cancel()
@@ -330,7 +348,7 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg *amqp.De
 	handler(ctx, cmd, res)
 
 	if res.IsClosed() {
-		msg.Ack(false)
+		msg.Ack(false) // false = single message
 
 		if s.logger.IsDebug() {
 			cap := res.(*capturingResponder)
@@ -338,27 +356,45 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg *amqp.De
 			defer payload.Close()
 			logRequestEnd(ctx, s.logger, s.peerID, msgID, cmd, payload, err)
 		}
-
-		return nil
-	}
-
-	if msg.Exchange == balancedExchange {
+	} else if msg.Exchange == balancedExchange {
 		select {
 		case <-ctx.Done():
+			msg.Reject(false) // false = don't requeue
+			logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd, ctx.Err().Error())
 		default:
-			msg.Reject(true)
+			msg.Reject(true) // true = requeue
 			logRequestRequeued(ctx, s.logger, s.peerID, msgID, cmd)
-			return nil
 		}
+	} else {
+		msg.Reject(false) // false = don't requeue
+		logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd, ctx.Err().Error())
 	}
-
-	msg.Reject(false)
-	logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd)
-	return nil
 }
 
+// unpackNamespace extracts and validates the namespace in a command request.
+func (s *server) unpackNamespace(msg *amqp.Delivery) (string, error) {
+	switch msg.Exchange {
+	case balancedExchange, multicastExchange:
+		return msg.RoutingKey, nil
+
+	case unicastExchange:
+		if namespace, ok := msg.Headers[namespaceHeader].(string); ok {
+			return namespace, nil
+		}
+
+		return "", errors.New("malformed request, namespace is not a string")
+
+	default:
+		return "", fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
+	}
+}
+
+// pipe aggregates AMQP messages from multiple consumers a single channel.
 func (s *server) pipe(messages <-chan amqp.Delivery) {
 	for msg := range messages {
-		s.deliveries <- &msg
+		select {
+		case s.deliveries <- msg:
+		case <-s.sm.Finalized:
+		}
 	}
 }
