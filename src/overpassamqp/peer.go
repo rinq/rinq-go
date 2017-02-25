@@ -56,7 +56,7 @@ func newPeer(
 		listener:    listener,
 		logger:      logger,
 
-		amqpClosed: make(chan *amqp.Error),
+		amqpClosed: make(chan *amqp.Error, 1),
 	}
 
 	p.sm = service.NewStateMachine(p.run, p.finalize)
