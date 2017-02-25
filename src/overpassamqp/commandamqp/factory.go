@@ -14,11 +14,10 @@ func New(
 	revisions revision.Store,
 	channels amqputil.ChannelPool,
 ) (command.Invoker, command.Server, error) {
-	channel, err := channels.Get()
+	channel, err := channels.Get() // do not return to pool, used for invoker
 	if err != nil {
 		return nil, nil, err
 	}
-	defer channels.Put(channel)
 
 	if err = declareExchanges(channel); err != nil {
 		return nil, nil, err
@@ -31,7 +30,7 @@ func New(
 		config.SessionPreFetch,
 		config.DefaultTimeout,
 		queues,
-		channels,
+		channel,
 		config.Logger,
 	)
 	if err != nil {

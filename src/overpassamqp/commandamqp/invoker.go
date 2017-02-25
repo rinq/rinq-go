@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
@@ -17,19 +16,32 @@ import (
 // invoker is an AMQP-based implementation of command.Invoker
 type invoker struct {
 	service.Service
-	closer *service.Closer
+	sm *service.StateMachine
 
 	peerID         overpass.PeerID
 	preFetch       int
 	defaultTimeout time.Duration
 	queues         *queueSet
-	channels       amqputil.ChannelPool
 	channel        *amqp.Channel
 	logger         overpass.Logger
-	waiter         sync.WaitGroup
 
-	mutex   sync.RWMutex
-	pending map[string]chan returnValue
+	publishings   chan *publishing
+	cancellations chan string // message ID
+	deliveries    <-chan amqp.Delivery
+	amqpClosed    chan *amqp.Error
+
+	pending map[string]*publishing
+}
+
+// publishing encapsulates an AMQP message, the information required to publish it,
+// and the channels used to respond to it.
+type publishing struct {
+	Exchange string
+	Key      string
+	Message  *amqp.Publishing
+
+	Reply chan *amqp.Delivery
+	Err   chan error
 }
 
 // newInvoker creates, initializes and returns a new invoker.
@@ -38,23 +50,27 @@ func newInvoker(
 	preFetch int,
 	defaultTimeout time.Duration,
 	queues *queueSet,
-	channels amqputil.ChannelPool,
+	channel *amqp.Channel,
 	logger overpass.Logger,
 ) (command.Invoker, error) {
-	svc, closer := service.NewImpl()
+	sm := service.NewStateMachine()
 
 	i := &invoker{
-		Service: svc,
-		closer:  closer,
+		Service: sm,
+		sm:      sm,
 
 		peerID:         peerID,
 		preFetch:       preFetch,
 		defaultTimeout: defaultTimeout,
 		queues:         queues,
-		channels:       channels,
+		channel:        channel,
 		logger:         logger,
 
-		pending: map[string]chan returnValue{},
+		publishings:   make(chan *publishing),
+		cancellations: make(chan string),
+		amqpClosed:    make(chan *amqp.Error),
+
+		pending: map[string]*publishing{},
 	}
 
 	if err := i.initialize(); err != nil {
@@ -62,13 +78,6 @@ func newInvoker(
 	}
 
 	return i, nil
-}
-
-// returnValue transports call response information across a pending call
-// channel.
-type returnValue struct {
-	Payload *overpass.Payload
-	Error   error
 }
 
 func (i *invoker) CallUnicast(
@@ -124,20 +133,17 @@ func (i *invoker) ExecuteBalanced(
 	command string,
 	payload *overpass.Payload,
 ) (string, error) {
-	msg := amqp.Publishing{
+	msg := &amqp.Publishing{
 		MessageId:    msgID.String(),
 		Priority:     executePriority,
 		Type:         command,
 		DeliveryMode: amqp.Persistent,
 		Body:         payload.Bytes(),
 	}
-	corrID := amqputil.PutCorrelationID(ctx, &msg)
+	corrID := amqputil.PutCorrelationID(ctx, msg)
 
-	if err := i.send(balancedExchange, namespace, msg); err != nil {
-		return corrID, err
-	}
-
-	return corrID, nil
+	_, err := i.send(ctx, balancedExchange, namespace, msg)
+	return corrID, err
 }
 
 func (i *invoker) ExecuteMulticast(
@@ -147,34 +153,29 @@ func (i *invoker) ExecuteMulticast(
 	command string,
 	payload *overpass.Payload,
 ) (string, error) {
-	msg := amqp.Publishing{
+	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  executePriority,
 		Type:      command,
 		Body:      payload.Bytes(),
 	}
-	corrID := amqputil.PutCorrelationID(ctx, &msg)
+	corrID := amqputil.PutCorrelationID(ctx, msg)
 
-	if err := i.send(multicastExchange, namespace, msg); err != nil {
-		return corrID, err
-	}
-
-	return corrID, nil
+	_, err := i.send(ctx, balancedExchange, namespace, msg)
+	return corrID, err
 }
 
+// initialize prepares the AMQP channel and starts the state machine
 func (i *invoker) initialize() error {
-	channel, err := i.channels.Get() // do not return to pool, used for consume
-	if err != nil {
-		return err
-	}
+	i.channel.NotifyClose(i.amqpClosed)
 
-	if err = channel.Qos(i.preFetch, 0, true); err != nil {
+	if err := i.channel.Qos(i.preFetch, 0, true); err != nil {
 		return err
 	}
 
 	queue := responseQueue(i.peerID)
 
-	if _, err = channel.QueueDeclare(
+	if _, err := i.channel.QueueDeclare(
 		queue,
 		false, // durable
 		false, // autoDelete
@@ -185,7 +186,7 @@ func (i *invoker) initialize() error {
 		return err
 	}
 
-	if err = channel.QueueBind(
+	if err := i.channel.QueueBind(
 		queue,
 		i.peerID.String()+".*",
 		responseExchange,
@@ -195,7 +196,8 @@ func (i *invoker) initialize() error {
 		return err
 	}
 
-	messages, err := channel.Consume(
+	var err error
+	i.deliveries, err = i.channel.Consume(
 		queue,
 		queue, // use queue name as consumer tag
 		false, // autoAck
@@ -208,85 +210,106 @@ func (i *invoker) initialize() error {
 		return err
 	}
 
-	i.channel = channel
-
-	go i.monitor()
-	go i.dispatchEach(messages)
+	go func() {
+		logInvokerStart(i.logger, i.peerID, i.preFetch)
+		err := i.sm.Run(i.run)
+		logInvokerStop(i.logger, i.peerID, err)
+	}()
 
 	return nil
 }
 
-func (i *invoker) monitor() {
-	logInvokerStart(i.logger, i.peerID, i.preFetch)
+// run is the state entered when the service starts
+func (i *invoker) run() (service.State, error) {
+	for {
+		select {
+		case pub := <-i.publishings:
+			i.publish(pub)
 
-	var err error
+		case id := <-i.cancellations:
+			delete(i.pending, id)
 
-	select {
-	case err = <-i.channel.NotifyClose(make(chan *amqp.Error)):
-	case <-i.closer.Stop():
-		if i.closer.IsGraceful() {
-			logInvokerStopping(i.logger, i.peerID)
-			i.waiter.Wait()
-		}
-		i.channel.Close()
-	}
-
-	i.closer.Close(err)
-
-	logInvokerStop(i.logger, i.peerID, err)
-}
-
-func (i *invoker) dispatchEach(messages <-chan amqp.Delivery) {
-	for msg := range messages {
-		msg.Ack(false)
-		i.dispatch(msg)
-	}
-}
-
-func (i *invoker) dispatch(msg amqp.Delivery) {
-	i.mutex.RLock()
-	channel := i.pending[msg.RoutingKey]
-	i.mutex.RUnlock()
-
-	if channel == nil {
-		return // call has already reached deadline or been cancelled
-	}
-
-	var response returnValue
-
-	switch msg.Type {
-	case successResponse:
-		response.Payload = overpass.NewPayloadFromBytes(msg.Body)
-
-	case failureResponse:
-		failureType, _ := msg.Headers[failureTypeHeader].(string)
-		message, _ := msg.Headers[failureMessageHeader].(string)
-
-		if failureType == "" {
-			response.Error = errors.New("malformed response, failure type is empty")
-		} else {
-			response.Payload = overpass.NewPayloadFromBytes(msg.Body)
-			response.Error = overpass.Failure{
-				Type:    failureType,
-				Message: message,
-				Payload: response.Payload,
+		case msg, ok := <-i.deliveries:
+			if !ok {
+				// sometimes the consumer channel is closed before the AMQP channel
+				return nil, <-i.amqpClosed
 			}
+			i.reply(&msg)
+
+		case <-i.sm.Graceful:
+			return i.graceful, nil
+
+		case <-i.sm.Forceful:
+			return i.forceful, nil
+
+		case err := <-i.amqpClosed:
+			return nil, err
 		}
-
-	case errorResponse:
-		response.Error = overpass.UnexpectedError(msg.Body)
-
-	default:
-		response.Error = fmt.Errorf(
-			"malformed response, message type '%s' is unexpected",
-			msg.Type,
-		)
 	}
-
-	channel <- response
-	close(channel)
 }
 
+// graceful is the state entered after a graceful stop is requested
+func (i *invoker) graceful() (service.State, error) {
+	logInvokerStopping(i.logger, i.peerID, len(i.pending))
+
+	for len(i.pending) > 0 {
+		select {
+		case id := <-i.cancellations:
+			delete(i.pending, id)
+
+		case msg, ok := <-i.deliveries:
+			if !ok {
+				// sometimes the consumer channel is closed before the AMQP channel
+				return nil, <-i.amqpClosed
+			}
+			i.reply(&msg)
+
+		case <-i.sm.Forceful:
+			return i.forceful, nil
+
+		case err := <-i.amqpClosed:
+			return nil, err
+		}
+	}
+
+	return i.forceful, nil
+}
+
+// forceful is the state entered after a stop is requested
+func (i *invoker) forceful() (service.State, error) {
+	return nil, i.channel.Close()
+}
+
+// publish sends an AMQP message for a command request
+func (i *invoker) publish(pub *publishing) {
+	if pub.Exchange == balancedExchange {
+		if _, err := i.queues.Get(i.channel, pub.Key); err != nil {
+			pub.Err <- err
+			return
+		}
+	}
+
+	if err := i.channel.Publish(
+		pub.Exchange,
+		pub.Key,
+		false, // mandatory
+		false, // immediate
+		*pub.Message,
+	); err != nil {
+		pub.Err <- err
+		return
+	}
+
+	if pub.Reply == nil {
+		close(pub.Err)
+	} else {
+		i.pending[pub.Message.MessageId] = pub
+	}
+
+}
+
+// call prepares an AMQP message for use as a "call-type" command request, and
+// sends it using send().
 func (i *invoker) call(
 	ctx context.Context,
 	msg *amqp.Publishing,
@@ -301,84 +324,100 @@ func (i *invoker) call(
 ) {
 	corrID := amqputil.PutCorrelationID(ctx, msg)
 
-	var cancel func()
-	if _, ok := ctx.Deadline(); ok {
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel func()
 		ctx, cancel = context.WithCancel(ctx)
-	} else {
-		ctx, cancel = context.WithTimeout(ctx, i.defaultTimeout)
+		defer cancel()
 	}
-	defer cancel()
 
 	msg.ReplyTo = "Y"
 	if _, err := amqputil.PutExpiration(ctx, msg); err != nil {
 		return corrID, nil, err
 	}
 
-	reply := make(chan returnValue, 1)
+	payload, err := i.send(ctx, exchange, key, msg)
+	return corrID, payload, err
+}
 
-	if !i.track(msg, reply) {
-		return corrID, nil, context.Canceled
+// send queues an AMQP message for publication and waits for the reply (be it
+// simple conformation of publication, or a full command response for
+// "call-type" requests).
+func (i *invoker) send(
+	ctx context.Context,
+	exchange string,
+	key string,
+	msg *amqp.Publishing,
+) (*overpass.Payload, error) {
+	pub := &publishing{
+		Exchange: exchange,
+		Key:      key,
+		Message:  msg,
+		Err:      make(chan error, 1),
 	}
-	defer i.untrack(msg)
 
-	if err := i.send(exchange, key, *msg); err != nil {
-		return corrID, nil, err
+	if msg.ReplyTo == "Y" {
+		pub.Reply = make(chan *amqp.Delivery, 1)
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return corrID, nil, ctx.Err()
-		case <-i.closer.Stop():
-			return corrID, nil, context.Canceled
-		case response := <-reply:
-			return corrID, response.Payload, response.Error
+	select {
+	case i.publishings <- pub:
+		// wait for response
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-i.sm.Graceful:
+		return nil, context.Canceled
+	case <-i.sm.Forceful:
+		return nil, context.Canceled
+	}
+
+	select {
+	case msg := <-pub.Reply:
+		return i.unpack(msg)
+	case err := <-pub.Err:
+		return nil, err
+	case <-ctx.Done():
+		i.cancellations <- msg.MessageId
+		return nil, ctx.Err()
+	case <-i.sm.Forceful:
+		return nil, context.Canceled
+	}
+}
+
+// reply sends a command response to a waiting sender.
+func (i *invoker) reply(msg *amqp.Delivery) {
+	pub := i.pending[msg.RoutingKey]
+	if pub != nil {
+		delete(i.pending, msg.RoutingKey)
+		pub.Reply <- msg
+		msg.Ack(false)
+	} else {
+		msg.Reject(false)
+	}
+}
+
+// unpack extracts the payload and error information from an AMQP message.
+func (i *invoker) unpack(msg *amqp.Delivery) (*overpass.Payload, error) {
+	switch msg.Type {
+	case successResponse:
+		return overpass.NewPayloadFromBytes(msg.Body), nil
+
+	case failureResponse:
+		failureType, _ := msg.Headers[failureTypeHeader].(string)
+		if failureType == "" {
+			return nil, errors.New("malformed response, failure type must be a non-empty string")
 		}
-	}
-}
 
-func (i *invoker) track(msg *amqp.Publishing, reply chan returnValue) bool {
-	unlock, ok := i.closer.Lock()
-	if !ok {
-		return false
-	}
-	defer unlock()
-
-	i.waiter.Add(1)
-
-	i.mutex.Lock()
-	i.pending[msg.MessageId] = reply
-	i.mutex.Unlock()
-
-	return true
-}
-
-func (i *invoker) untrack(msg *amqp.Publishing) {
-	i.mutex.Lock()
-	delete(i.pending, msg.MessageId)
-	i.mutex.Unlock()
-
-	i.waiter.Done()
-}
-
-func (i *invoker) send(exchange, key string, msg amqp.Publishing) error {
-	channel, err := i.channels.Get()
-	if err != nil {
-		return err
-	}
-	defer i.channels.Put(channel)
-
-	if exchange == balancedExchange {
-		if _, err := i.queues.Get(channel, key); err != nil {
-			return err
+		payload := overpass.NewPayloadFromBytes(msg.Body)
+		return payload, overpass.Failure{
+			Type:    failureType,
+			Message: msg.Headers[failureMessageHeader].(string),
+			Payload: payload,
 		}
-	}
 
-	return channel.Publish(
-		exchange,
-		key,
-		false, // mandatory
-		false, // immediate
-		msg,
-	)
+	case errorResponse:
+		return nil, overpass.UnexpectedError(msg.Body)
+
+	default:
+		return nil, fmt.Errorf("malformed response, message type '%s' is unexpected", msg.Type)
+	}
 }

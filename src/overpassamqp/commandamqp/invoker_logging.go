@@ -12,7 +12,7 @@ func logInvokerStart(
 	}
 
 	logger.Log(
-		"%s command invoker started with pre-fetch of %d message(s)",
+		"%s invoker started (pre-fetch: %d)",
 		peerID.ShortString(),
 		preFetch,
 	)
@@ -21,14 +21,16 @@ func logInvokerStart(
 func logInvokerStopping(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
+	pending int,
 ) {
 	if !logger.IsDebug() {
 		return
 	}
 
 	logger.Log(
-		"%s command invoker is stopping gracefully",
+		"%s invoker stopping gracefully (pending: %d)",
 		peerID.ShortString(),
+		pending,
 	)
 }
 
@@ -43,12 +45,12 @@ func logInvokerStop(
 
 	if err == nil {
 		logger.Log(
-			"%s command invoker stopped",
+			"%s invoker stopped",
 			peerID.ShortString(),
 		)
 	} else {
 		logger.Log(
-			"%s command invoker stopped with error: %s",
+			"%s invoker stopped: %s",
 			peerID.ShortString(),
 			err,
 		)
