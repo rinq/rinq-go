@@ -300,9 +300,9 @@ func (i *invoker) call(
 	case <-ctx.Done():
 		return corrID, nil, ctx.Err()
 	case <-i.sm.Graceful:
-		return corrID, nil, overpass.PeerStopped
+		return corrID, nil, context.Canceled
 	case <-i.sm.Forceful:
-		return corrID, nil, overpass.PeerStopped
+		return corrID, nil, context.Canceled
 	}
 
 	// notify the state machine that we're bailing if it hasn't already sent
@@ -330,7 +330,7 @@ func (i *invoker) call(
 	case <-ctx.Done():
 		return corrID, nil, ctx.Err()
 	case <-i.sm.Forceful:
-		return corrID, nil, overpass.PeerStopped
+		return corrID, nil, context.Canceled
 	}
 }
 
@@ -349,9 +349,9 @@ func (i *invoker) execute(
 	case <-ctx.Done():
 		return corrID, ctx.Err()
 	case <-i.sm.Graceful:
-		return corrID, overpass.PeerStopped
+		return corrID, context.Canceled
 	case <-i.sm.Forceful:
-		return corrID, overpass.PeerStopped
+		return corrID, context.Canceled
 	}
 }
 
