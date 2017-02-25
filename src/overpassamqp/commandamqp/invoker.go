@@ -240,7 +240,7 @@ func (i *invoker) run() (service.State, error) {
 			return i.graceful, nil
 
 		case <-i.sm.Forceful:
-			return nil, i.channel.Close()
+			return i.forceful, nil
 
 		case err := <-i.amqpClosed:
 			return nil, err
