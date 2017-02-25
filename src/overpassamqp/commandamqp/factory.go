@@ -47,6 +47,7 @@ func New(
 	)
 	if err != nil {
 		invoker.Stop()
+		<-invoker.Done()
 		return nil, nil, err
 	}
 

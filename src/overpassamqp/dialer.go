@@ -101,7 +101,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 
 	return newPeer(
 		peerID,
-		amqputil.NewBrokerService(broker),
+		broker,
 		localStore,
 		remoteStore,
 		invoker,

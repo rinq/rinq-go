@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/internals/reflectutil"
-	"github.com/over-pass/overpass-go/src/internals/syncutil"
 )
 
 type impl struct {
@@ -50,21 +49,21 @@ func (s *impl) Err() error {
 }
 
 // Stop halts the service immediately.
-func (s *impl) Stop() error {
-	return s.doStop(false)
+func (s *impl) Stop() {
+	s.doStop(false)
 }
 
 // GracefulStop() halts the service once it has finished any pending work.
-func (s *impl) GracefulStop() error {
-	return s.doStop(true)
+func (s *impl) GracefulStop() {
+	s.doStop(true)
 }
 
-func (s *impl) doStop(isGraceful bool) error {
-	unlock := syncutil.Lock(&s.mutex)
-	defer unlock()
+func (s *impl) doStop(isGraceful bool) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	if s.isStopped {
-		return s.err
+		return
 	}
 
 	if !s.isStopping {
@@ -73,12 +72,6 @@ func (s *impl) doStop(isGraceful bool) error {
 		s.isGraceful = isGraceful
 		close(s.stop)
 	}
-
-	unlock()
-
-	<-s.done
-
-	return s.Err()
 }
 
 // Closer is used to wait for a stop signal and close a service.

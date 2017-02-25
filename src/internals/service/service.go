@@ -9,8 +9,8 @@ type Service interface {
 	Err() error
 
 	// Stop halts the service immediately.
-	Stop() error
+	Stop()
 
 	// GracefulStop() halts the service once it has finished any pending work.
-	GracefulStop() error
+	GracefulStop()
 }

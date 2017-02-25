@@ -53,15 +53,19 @@ type Peer interface {
 	// GracefulStop() has been called.
 	Err() error
 
-	// Stop disconnects the peer from the network immediately.
-	Stop() error
-
-	// GracefulStop() waits for pending operations to complete, then disconnects
-	// the peer from the network.
+	// Stop instructs the peer to disconnect from the network immediately.
 	//
-	// Pending operations include:
-	// - command calls which are waiting for a response (see Session.Call())
-	// - incoming command requests for which the handler has not yet returned
-	// - incoming session notifications for which the handler has not yet returned
-	GracefulStop() error
+	// Stop does NOT block until the peer is disconnected. Use the Done()
+	// channel to wait for the peer to disconnect.
+	Stop()
+
+	// GracefulStop() instructs the peer to disconnect from the network once
+	// all pending operations have completed.
+	//
+	// Any calls to Session.Call(), command handlers or notification handlers
+	// must return before the peer has stopped.
+	//
+	// GracefulStop does NOT block until the peer is disconnected. Use the
+	// Done() channel to wait for the peer to disconnect.
+	GracefulStop()
 }

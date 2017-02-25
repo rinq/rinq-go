@@ -1,11 +1,6 @@
 package service
 
-import (
-	"sync"
-
-	"github.com/over-pass/overpass-go/src/internals/reflectutil"
-	"github.com/over-pass/overpass-go/src/internals/syncutil"
-)
+import "sync"
 
 // State is a handler for a particular application state.
 //
@@ -17,36 +12,52 @@ import (
 // Otherwise, next is called and the process is repeated.
 type State func() (next State, err error)
 
+// Finalizer is called when the state machine stops.
+type Finalizer func(error) error
+
 // StateMachine is a state-machine based implementation of the Service interface.
 type StateMachine struct {
 	Forceful  chan struct{}
 	Graceful  chan struct{}
 	Finalized chan struct{}
 
+	state     State
+	finalizer Finalizer
+
 	mutex sync.RWMutex
 	err   error
 }
 
 // NewStateMachine returns a new service trait.
-func NewStateMachine() *StateMachine {
+func NewStateMachine(
+	s State,
+	f Finalizer,
+) *StateMachine {
 	return &StateMachine{
 		Forceful:  make(chan struct{}),
 		Graceful:  make(chan struct{}),
 		Finalized: make(chan struct{}),
+
+		state:     s,
+		finalizer: f,
 	}
 }
 
 // Run enters the initial state and runs until the service stops.
-func (s *StateMachine) Run(st State) error {
+func (s *StateMachine) Run() {
 	var err error
 
-	for st != nil && err == nil {
-		st, err = st()
+	for s.state != nil && err == nil {
+		s.state, err = s.state()
 	}
 
-	s.finalize(err)
+	err = s.finalizer(err)
 
-	return err
+	s.mutex.Lock()
+	s.err = err
+	s.mutex.Unlock()
+
+	s.close()
 }
 
 // Done returns a channel that is closed when the session is closed.
@@ -62,48 +73,7 @@ func (s *StateMachine) Err() error {
 }
 
 // Stop halts the service immediately.
-func (s *StateMachine) Stop() error {
-	unlock := syncutil.Lock(&s.mutex)
-	defer unlock()
-
-	select {
-	case <-s.Finalized:
-		return s.err
-	default:
-		close(s.Forceful)
-	}
-
-	unlock()
-
-	<-s.Finalized
-
-	return s.Err()
-}
-
-// GracefulStop halts the service once it has finished any pending work.
-func (s *StateMachine) GracefulStop() error {
-	unlock := syncutil.Lock(&s.mutex)
-	defer unlock()
-
-	select {
-	case <-s.Forceful:
-		return s.err
-	case <-s.Graceful:
-		return s.err
-	default:
-		close(s.Graceful)
-	}
-
-	unlock()
-
-	<-s.Finalized
-
-	return s.Err()
-}
-
-// finalize should be called after the service is stopped, regardless of whether
-// the stop was requested by [Graceful]Stop().
-func (s *StateMachine) finalize(err error) {
+func (s *StateMachine) Stop() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -111,10 +81,33 @@ func (s *StateMachine) finalize(err error) {
 	case <-s.Finalized:
 		return
 	default:
+		close(s.Forceful)
 	}
+}
 
-	if !reflectutil.IsNil(err) {
-		s.err = err
+// GracefulStop halts the service once it has finished any pending work.
+func (s *StateMachine) GracefulStop() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	select {
+	case <-s.Forceful:
+		return
+	case <-s.Graceful:
+		return
+	default:
+		close(s.Graceful)
+	}
+}
+
+func (s *StateMachine) close() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	select {
+	case <-s.Finalized:
+		return
+	default:
 	}
 
 	close(s.Finalized)

@@ -53,12 +53,7 @@ func newInvoker(
 	channel *amqp.Channel,
 	logger overpass.Logger,
 ) (command.Invoker, error) {
-	sm := service.NewStateMachine()
-
 	i := &invoker{
-		Service: sm,
-		sm:      sm,
-
 		peerID:         peerID,
 		preFetch:       preFetch,
 		defaultTimeout: defaultTimeout,
@@ -72,6 +67,9 @@ func newInvoker(
 
 		pending: map[string]*publishing{},
 	}
+
+	i.sm = service.NewStateMachine(i.run, i.finalize)
+	i.Service = i.sm
 
 	if err := i.initialize(); err != nil {
 		return nil, err
@@ -210,17 +208,15 @@ func (i *invoker) initialize() error {
 		return err
 	}
 
-	go func() {
-		logInvokerStart(i.logger, i.peerID, i.preFetch)
-		err := i.sm.Run(i.run)
-		logInvokerStop(i.logger, i.peerID, err)
-	}()
+	go i.sm.Run()
 
 	return nil
 }
 
 // run is the state entered when the service starts
 func (i *invoker) run() (service.State, error) {
+	logInvokerStart(i.logger, i.peerID, i.preFetch)
+
 	for {
 		select {
 		case pub := <-i.publishings:
@@ -278,6 +274,11 @@ func (i *invoker) graceful() (service.State, error) {
 // forceful is the state entered after a stop is requested
 func (i *invoker) forceful() (service.State, error) {
 	return nil, i.channel.Close()
+}
+
+func (i *invoker) finalize(err error) error {
+	logInvokerStop(i.logger, i.peerID, err)
+	return err
 }
 
 // publish sends an AMQP message for a command request
@@ -365,9 +366,9 @@ func (i *invoker) send(
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-i.sm.Graceful:
-		return nil, context.Canceled
+		return nil, overpass.PeerStopped
 	case <-i.sm.Forceful:
-		return nil, context.Canceled
+		return nil, overpass.PeerStopped
 	}
 
 	select {
@@ -379,7 +380,7 @@ func (i *invoker) send(
 		i.cancellations <- msg.MessageId
 		return nil, ctx.Err()
 	case <-i.sm.Forceful:
-		return nil, context.Canceled
+		return nil, overpass.PeerStopped
 	}
 }
 
