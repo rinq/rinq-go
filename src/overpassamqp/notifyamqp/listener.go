@@ -23,18 +23,20 @@ type listener struct {
 	sessions  localsession.Store
 	revisions revision.Store
 	logger    overpass.Logger
-	parentCtx context.Context
-	cancelCtx func()
+
+	parentCtx context.Context // parent of all contexts passed to handlers
+	cancelCtx func()          // cancels parentCtx when the server stops
 
 	mutex    sync.RWMutex
-	channel  *amqp.Channel
+	channel  *amqp.Channel // channel used for consuming
 	handlers map[overpass.SessionID]overpass.NotificationHandler
 
-	deliveries  <-chan amqp.Delivery
-	handlerDone chan struct{}
-	amqpClosed  chan *amqp.Error
+	deliveries <-chan amqp.Delivery // incoming notifications
+	handled    chan struct{}        // signals a notification has been handled
+	amqpClosed chan *amqp.Error
 
-	pending uint
+	// state-machine data
+	pending uint // number of notifications currently being handled
 }
 
 // newListener creates, starts and returns a new listener.
@@ -56,18 +58,18 @@ func newListener(
 
 		handlers: map[overpass.SessionID]overpass.NotificationHandler{},
 
-		handlerDone: make(chan struct{}),
-		amqpClosed:  make(chan *amqp.Error),
+		handled:    make(chan struct{}, preFetch),
+		amqpClosed: make(chan *amqp.Error, 1),
 	}
 
 	l.sm = service.NewStateMachine(l.run, l.finalize)
 	l.Service = l.sm
 
-	l.parentCtx, l.cancelCtx = context.WithCancel(context.Background())
-
 	if err := l.initialize(); err != nil {
 		return nil, err
 	}
+
+	go l.sm.Run()
 
 	return l, nil
 }
@@ -138,6 +140,7 @@ func (l *listener) Unlisten(id overpass.SessionID) (bool, error) {
 	return exists, nil
 }
 
+// initialize prepares the AMQP channel
 func (l *listener) initialize() error {
 	l.channel.NotifyClose(l.amqpClosed)
 
@@ -172,13 +175,14 @@ func (l *listener) initialize() error {
 		return err
 	}
 
-	go l.sm.Run()
-
 	return nil
 }
 
+// run is the state entered when the service starts
 func (l *listener) run() (service.State, error) {
 	logListenerStart(l.logger, l.peerID, l.preFetch)
+
+	l.parentCtx, l.cancelCtx = context.WithCancel(context.Background())
 
 	for {
 		select {
@@ -190,7 +194,7 @@ func (l *listener) run() (service.State, error) {
 			l.pending++
 			go l.dispatch(&msg)
 
-		case <-l.handlerDone:
+		case <-l.handled:
 			l.pending--
 
 		case <-l.sm.Graceful:
@@ -205,6 +209,7 @@ func (l *listener) run() (service.State, error) {
 	}
 }
 
+// graceful is the state entered when a graceful stop is requested
 func (l *listener) graceful() (service.State, error) {
 	logListenerStopping(l.logger, l.peerID, l.pending)
 
@@ -214,7 +219,7 @@ func (l *listener) graceful() (service.State, error) {
 
 	for l.pending > 0 {
 		select {
-		case <-l.handlerDone:
+		case <-l.handled:
 			l.pending--
 
 		case <-l.sm.Forceful:
@@ -225,28 +230,49 @@ func (l *listener) graceful() (service.State, error) {
 	return nil, nil
 }
 
+// forceful is the state entered when a stop is requested
 func (l *listener) forceful() (service.State, error) {
 	return nil, l.channel.Close()
 }
 
+// finalize is the state-machine finalizer, it is called immediately before the
+// Done() channel is closed.
 func (l *listener) finalize(err error) error {
 	l.cancelCtx()
 	logListenerStop(l.logger, l.peerID, err)
 	return err
 }
 
+// dispatch validates an incoming notification and dispatches it the
+// appropriate handler.
 func (l *listener) dispatch(msg *amqp.Delivery) {
+	defer func() {
+		select {
+		case l.handled <- struct{}{}:
+		case <-l.sm.Forceful:
+		}
+	}()
+
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
+		msg.Reject(false)
 		logInvalidMessageID(l.logger, l.peerID, msg.MessageId)
+		return
+	}
+
+	// find the source session revision
+	source, err := l.revisions.GetRevision(msgID.Session)
+	if err != nil {
+		msg.Reject(false)
+		logIgnoredMessage(l.logger, l.peerID, msgID, err)
 		return
 	}
 
 	switch msg.Exchange {
 	case unicastExchange:
-		err = l.handleUnicast(msgID, msg)
+		err = l.handleUnicast(msgID, msg, source)
 	case multicastExchange:
-		err = l.handleMulticast(msgID, msg)
+		err = l.handleMulticast(msgID, msg, source)
 	default:
 		err = fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
 	}
@@ -257,11 +283,15 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 		msg.Reject(false)
 		logIgnoredMessage(l.logger, l.peerID, msgID, err)
 	}
-
-	l.handlerDone <- struct{}{}
 }
 
-func (l *listener) handleUnicast(msgID overpass.MessageID, msg *amqp.Delivery) error {
+// handleUnicast finds the target session for a unicast notification and
+// invokes the handler.
+func (l *listener) handleUnicast(
+	msgID overpass.MessageID,
+	msg *amqp.Delivery,
+	source overpass.Revision,
+) error {
 	sessID, err := overpass.ParseSessionID(msg.RoutingKey)
 	if err != nil {
 		return err
@@ -271,11 +301,6 @@ func (l *listener) handleUnicast(msgID overpass.MessageID, msg *amqp.Delivery) e
 	if !ok {
 		return nil
 	} else if err != nil {
-		return err
-	}
-
-	source, err := l.revisions.GetRevision(msgID.Session)
-	if err != nil {
 		return err
 	}
 
@@ -293,7 +318,13 @@ func (l *listener) handleUnicast(msgID overpass.MessageID, msg *amqp.Delivery) e
 	return nil
 }
 
-func (l *listener) handleMulticast(msgID overpass.MessageID, msg *amqp.Delivery) error {
+// handleUnicast finds the target sessions for a multicast notification and
+// invokes the handlers.
+func (l *listener) handleMulticast(
+	msgID overpass.MessageID,
+	msg *amqp.Delivery,
+	source overpass.Revision,
+) error {
 	constraint := overpass.Constraint{}
 	for key, value := range msg.Headers {
 		if v, ok := value.(string); ok {
@@ -314,11 +345,6 @@ func (l *listener) handleMulticast(msgID overpass.MessageID, msg *amqp.Delivery)
 
 	if len(sessions) == 0 {
 		return nil
-	}
-
-	source, err := l.revisions.GetRevision(msgID.Session)
-	if err != nil {
-		return err
 	}
 
 	ctx := amqputil.WithCorrelationID(l.parentCtx, msg)
@@ -343,6 +369,8 @@ func (l *listener) handleMulticast(msgID overpass.MessageID, msg *amqp.Delivery)
 	return nil
 }
 
+// handle invokes the notification handler for a specific session, if one is
+// present.
 func (l *listener) handle(
 	ctx context.Context,
 	msgID overpass.MessageID,

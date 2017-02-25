@@ -33,11 +33,11 @@ type server struct {
 	handlers map[string]overpass.CommandHandler // map of namespace to handler
 
 	deliveries chan amqp.Delivery // incoming command requests
-	handled    chan struct{}      // notifications requests have been handled
+	handled    chan struct{}      // signals requests have been handled
 	amqpClosed chan *amqp.Error
 
 	// state-machine data
-	pending uint // number of active handlers
+	pending uint // number of requests currently being handled
 }
 
 // newServer creates, starts and returns a new server.
@@ -267,7 +267,7 @@ func (s *server) finalize(err error) error {
 }
 
 // dispatch validates an incoming command request and dispatches it the
-// appropriate handler. it is intended to run it in its own goroutine.
+// appropriate handler.
 func (s *server) dispatch(msg *amqp.Delivery) {
 	defer func() {
 		select {

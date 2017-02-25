@@ -33,6 +33,8 @@ func main() {
 		go runServer(peer)
 	case "notifier":
 		go runNotifier(peer)
+	case "listener":
+		go runListener(peer)
 	default:
 		go runClient(peer)
 	}

@@ -20,9 +20,9 @@ func runNotifier(peer overpass.Peer) {
 func notify(sess overpass.Session) {
 	for {
 		time.Sleep(1 * time.Second)
-		err := sess.Notify(
+		err := sess.NotifyMany(
 			context.Background(),
-			sess.ID(),
+			nil,
 			"<whatever>",
 			nil,
 		)

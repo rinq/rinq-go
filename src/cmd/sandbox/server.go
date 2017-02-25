@@ -14,7 +14,7 @@ func runServer(peer overpass.Peer) {
 		res overpass.Responder,
 	) {
 		defer cmd.Payload.Close()
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 		res.Close()
 	})
 

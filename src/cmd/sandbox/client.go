@@ -12,13 +12,11 @@ func runClient(peer overpass.Peer) {
 	sess := peer.Session()
 	defer sess.Close()
 
-	// for i := 0; i < 4; i++ {
-	// 	go call(sess)
-	// }
-	//
-	call(sess)
+	for i := 0; i < 4; i++ {
+		go call(sess)
+	}
 
-	sess.Listen(handle)
+	// call(sess)
 
 	<-sess.Done()
 }
@@ -43,16 +41,4 @@ func call(sess overpass.Session) {
 	}
 
 	sess.Close()
-}
-
-func handle(
-	ctx context.Context,
-	target overpass.Session,
-	n overpass.Notification,
-) {
-	defer n.Payload.Close()
-
-	fmt.Println("begin")
-	time.Sleep(5 * time.Second)
-	fmt.Println("end")
 }
