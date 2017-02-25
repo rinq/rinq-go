@@ -3,8 +3,8 @@ package service
 import (
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/reflectutil"
+	"github.com/over-pass/overpass-go/src/internals/syncutil"
 )
 
 type impl struct {
@@ -60,7 +60,7 @@ func (s *impl) GracefulStop() error {
 }
 
 func (s *impl) doStop(isGraceful bool) error {
-	unlock := deferutil.Lock(&s.mutex)
+	unlock := syncutil.Lock(&s.mutex)
 	defer unlock()
 
 	if s.isStopped {

@@ -9,8 +9,8 @@ import (
 	"github.com/over-pass/overpass-go/src/internals/attrmeta"
 	"github.com/over-pass/overpass-go/src/internals/bufferpool"
 	"github.com/over-pass/overpass-go/src/internals/command"
-	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/notify"
+	"github.com/over-pass/overpass-go/src/internals/syncutil"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -324,7 +324,7 @@ func (s *session) Unlisten() error {
 }
 
 func (s *session) Close() {
-	unlock := deferutil.Lock(&s.mutex)
+	unlock := syncutil.Lock(&s.mutex)
 	defer unlock()
 
 	select {

@@ -1,4 +1,4 @@
-package deferutil
+package syncutil
 
 import "sync"
 

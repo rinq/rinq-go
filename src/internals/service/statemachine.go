@@ -3,8 +3,8 @@ package service
 import (
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	"github.com/over-pass/overpass-go/src/internals/reflectutil"
+	"github.com/over-pass/overpass-go/src/internals/syncutil"
 )
 
 // State is a handler for a particular application state.
@@ -63,7 +63,7 @@ func (s *StateMachine) Err() error {
 
 // Stop halts the service immediately.
 func (s *StateMachine) Stop() error {
-	unlock := deferutil.Lock(&s.mutex)
+	unlock := syncutil.Lock(&s.mutex)
 	defer unlock()
 
 	select {
@@ -82,7 +82,7 @@ func (s *StateMachine) Stop() error {
 
 // GracefulStop halts the service once it has finished any pending work.
 func (s *StateMachine) GracefulStop() error {
-	unlock := deferutil.Lock(&s.mutex)
+	unlock := syncutil.Lock(&s.mutex)
 	defer unlock()
 
 	select {

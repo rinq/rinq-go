@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/internals/attrmeta"
-	"github.com/over-pass/overpass-go/src/internals/deferutil"
 	revisionpkg "github.com/over-pass/overpass-go/src/internals/revision"
+	"github.com/over-pass/overpass-go/src/internals/syncutil"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -27,7 +27,7 @@ type attrCacheEntry struct {
 }
 
 func (c *catalog) Head(ctx context.Context) (overpass.Revision, error) {
-	unlock := deferutil.RLock(&c.mutex)
+	unlock := syncutil.RLock(&c.mutex)
 	defer unlock()
 
 	if c.isClosed {
@@ -83,7 +83,7 @@ func (c *catalog) Fetch(
 	rev overpass.RevisionNumber,
 	keys ...string,
 ) ([]overpass.Attr, error) {
-	unlock := deferutil.RLock(&c.mutex)
+	unlock := syncutil.RLock(&c.mutex)
 	defer unlock()
 
 	solvedAttrs, unsolvedKeys, err := c.fetchLocal(rev, keys)
@@ -171,7 +171,7 @@ func (c *catalog) TryUpdate(
 	rev overpass.RevisionNumber,
 	attrs []overpass.Attr,
 ) (overpass.Revision, error) {
-	unlock := deferutil.RLock(&c.mutex)
+	unlock := syncutil.RLock(&c.mutex)
 	defer unlock()
 
 	if c.isClosed {
@@ -243,7 +243,7 @@ func (c *catalog) TryClose(
 	ctx context.Context,
 	rev overpass.RevisionNumber,
 ) error {
-	unlock := deferutil.RLock(&c.mutex)
+	unlock := syncutil.RLock(&c.mutex)
 	defer unlock()
 
 	if c.isClosed {
