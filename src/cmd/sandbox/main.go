@@ -37,15 +37,26 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
-	select {
-	case sig := <-signals:
-		fmt.Println("received signal: ", sig)
-		peer.GracefulStop()
-		<-peer.Done()
-	case <-peer.Done():
-	}
+	stopping := false
 
-	if err := peer.Err(); err != nil {
-		panic(err)
+	for {
+		select {
+		case sig := <-signals:
+			if stopping {
+				// TODO: reimplement everything using service.StateMachine
+				fmt.Println(" -- forceful stop:", sig)
+				go peer.Stop()
+			} else {
+				stopping = true
+				fmt.Println(" -- graceful stop:", sig)
+				go peer.GracefulStop()
+			}
+		case <-peer.Done():
+			if err := peer.Err(); err != nil {
+				panic(err)
+			}
+
+			return
+		}
 	}
 }
