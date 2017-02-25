@@ -18,12 +18,12 @@ type Store interface {
 
 type store struct {
 	service.Service
-	closer *service.Closer
+	sm *service.StateMachine
 
-	peerID overpass.PeerID
-	client *client
-	ticker *time.Ticker
-	logger overpass.Logger
+	peerID   overpass.PeerID
+	client   *client
+	interval time.Duration
+	logger   overpass.Logger
 
 	mutex sync.Mutex
 	cache map[overpass.SessionID]*catalogCacheEntry
@@ -36,23 +36,21 @@ func NewStore(
 	pruneInterval time.Duration,
 	logger overpass.Logger,
 ) Store {
-	svc, closer := service.NewImpl()
-
 	s := &store{
-		Service: svc,
-		closer:  closer,
-
 		peerID: peerID,
 		client: &client{
 			peerID:  peerID,
 			invoker: invoker,
 		},
-		ticker: time.NewTicker(pruneInterval),
-		logger: logger,
-		cache:  map[overpass.SessionID]*catalogCacheEntry{},
+		interval: pruneInterval,
+		logger:   logger,
+		cache:    map[overpass.SessionID]*catalogCacheEntry{},
 	}
 
-	go s.monitor()
+	s.sm = service.NewStateMachine(s.run, nil)
+	s.Service = s.sm
+
+	go s.sm.Run()
 
 	return s
 }
@@ -76,24 +74,24 @@ func (s *store) getCatalog(id overpass.SessionID) *catalog {
 		return entry.Catalog
 	}
 
-	if len(s.cache) == 0 && s.logger.IsDebug() {
-		logCacheAdd(s.logger, s.peerID, id)
-	}
-
 	cat := &catalog{id: id, client: s.client}
 	s.cache[id] = &catalogCacheEntry{cat, false}
+	logCacheAdd(s.logger, s.peerID, id)
 
 	return cat
 }
 
-func (s *store) monitor() {
+func (s *store) run() (service.State, error) {
 	for {
 		select {
-		case <-s.ticker.C:
+		case <-time.After(s.interval):
 			s.prune()
-		case <-s.closer.Stop():
-			s.ticker.Stop()
-			s.closer.Close(nil)
+
+		case <-s.sm.Graceful:
+			return nil, nil
+
+		case <-s.sm.Forceful:
+			return nil, nil
 		}
 	}
 }
@@ -105,16 +103,10 @@ func (s *store) prune() {
 	for id, entry := range s.cache {
 		if entry.Marked {
 			delete(s.cache, id)
-
-			if s.logger.IsDebug() {
-				logCacheRemove(s.logger, s.peerID, id)
-			}
+			logCacheRemove(s.logger, s.peerID, id)
 		} else {
 			entry.Marked = true
-
-			if s.logger.IsDebug() {
-				logCacheMark(s.logger, s.peerID, id)
-			}
+			logCacheMark(s.logger, s.peerID, id)
 		}
 	}
 }

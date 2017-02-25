@@ -10,16 +10,18 @@ import (
 	"github.com/over-pass/overpass-go/src/internals/notify"
 	"github.com/over-pass/overpass-go/src/internals/remotesession"
 	"github.com/over-pass/overpass-go/src/internals/service"
+	"github.com/over-pass/overpass-go/src/internals/syncutil"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/streadway/amqp"
 )
 
 // peer is an AMQP-based implementation of overpass.Peer.
 type peer struct {
 	service.Service
-	closer *service.Closer
+	sm *service.StateMachine
 
 	id          overpass.PeerID
-	connection  service.Service
+	broker      *amqp.Connection
 	localStore  localsession.Store
 	remoteStore remotesession.Store
 	invoker     command.Invoker
@@ -28,11 +30,13 @@ type peer struct {
 	listener    notify.Listener
 	logger      overpass.Logger
 	seq         uint32
+
+	amqpClosed chan *amqp.Error
 }
 
 func newPeer(
 	id overpass.PeerID,
-	connection service.Service,
+	broker *amqp.Connection,
 	localStore localsession.Store,
 	remoteStore remotesession.Store,
 	invoker command.Invoker,
@@ -41,14 +45,9 @@ func newPeer(
 	listener notify.Listener,
 	logger overpass.Logger,
 ) *peer {
-	svc, closer := service.NewImpl()
-
 	p := &peer{
-		Service: svc,
-		closer:  closer,
-
 		id:          id,
-		connection:  connection,
+		broker:      broker,
 		localStore:  localStore,
 		remoteStore: remoteStore,
 		invoker:     invoker,
@@ -56,9 +55,16 @@ func newPeer(
 		notifier:    notifier,
 		listener:    listener,
 		logger:      logger,
+
+		amqpClosed: make(chan *amqp.Error, 1),
 	}
 
-	go p.monitor()
+	p.sm = service.NewStateMachine(p.run, p.finalize)
+	p.Service = p.sm
+
+	broker.NotifyClose(p.amqpClosed)
+
+	go p.sm.Run()
 
 	return p
 }
@@ -139,49 +145,79 @@ func (p *peer) Unlisten(namespace string) error {
 	return err
 }
 
-func (p *peer) monitor() {
-	var err error
-
-	// wait for ANY of the services to stop
+func (p *peer) run() (service.State, error) {
 	select {
-	case <-p.connection.Done():
-		err = p.connection.Err()
 	case <-p.remoteStore.Done():
-		err = p.remoteStore.Err()
+		return nil, p.remoteStore.Err()
+
 	case <-p.invoker.Done():
-		err = p.invoker.Err()
+		return nil, p.invoker.Err()
+
 	case <-p.server.Done():
-		err = p.server.Err()
+		return nil, p.server.Err()
+
 	case <-p.listener.Done():
-		err = p.listener.Err()
-	case <-p.closer.Stop():
-	}
+		return nil, p.listener.Err()
 
-	services := []service.Service{
-		p.server,
-		p.invoker,
-		p.remoteStore,
-		p.listener,
-	}
+	case <-p.sm.Graceful:
+		return p.graceful, nil
 
-	// ask ALL services to stop
-	for _, svc := range services {
-		if p.closer.IsGraceful() {
-			go svc.GracefulStop()
-		} else {
-			go svc.Stop()
-		}
-	}
+	case <-p.sm.Forceful:
+		return nil, nil
 
-	// wait for ALL services to stop
-	for _, svc := range services {
-		<-svc.Done()
+	case err := <-p.amqpClosed:
+		return nil, err
 	}
+}
+
+func (p *peer) graceful() (service.State, error) {
+	p.server.GracefulStop()
+	p.invoker.GracefulStop()
+	p.remoteStore.GracefulStop()
+	p.listener.GracefulStop()
+
+	done := syncutil.Group(
+		p.remoteStore.Done(),
+		p.invoker.Done(),
+		p.server.Done(),
+		p.listener.Done(),
+	)
+
+	select {
+	case <-done:
+		return nil, nil
+
+	case <-p.sm.Forceful:
+		return nil, nil
+
+	case err := <-p.amqpClosed:
+		return nil, err
+	}
+}
+
+func (p *peer) finalize(err error) error {
+	p.server.Stop()
+	p.invoker.Stop()
+	p.remoteStore.Stop()
+	p.listener.Stop()
 
 	p.localStore.Each(func(sess overpass.Session, _ localsession.Catalog) {
 		sess.Close()
 	})
 
-	p.connection.Stop()
-	p.closer.Close(err)
+	<-syncutil.Group(
+		p.remoteStore.Done(),
+		p.invoker.Done(),
+		p.server.Done(),
+		p.listener.Done(),
+	)
+
+	closeErr := p.broker.Close()
+
+	// only return the close err if there's no causal error.
+	if err == nil {
+		return closeErr
+	}
+
+	return err
 }

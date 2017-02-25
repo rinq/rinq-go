@@ -16,18 +16,27 @@ import (
 
 type listener struct {
 	service.Service
-	closer *service.Closer
+	sm *service.StateMachine
 
 	peerID    overpass.PeerID
 	preFetch  int
 	sessions  localsession.Store
 	revisions revision.Store
 	logger    overpass.Logger
-	waiter    sync.WaitGroup
+
+	parentCtx context.Context // parent of all contexts passed to handlers
+	cancelCtx func()          // cancels parentCtx when the server stops
 
 	mutex    sync.RWMutex
-	channel  *amqp.Channel
+	channel  *amqp.Channel // channel used for consuming
 	handlers map[overpass.SessionID]overpass.NotificationHandler
+
+	deliveries <-chan amqp.Delivery // incoming notifications
+	handled    chan struct{}        // signals a notification has been handled
+	amqpClosed chan *amqp.Error
+
+	// state-machine data
+	pending uint // number of notifications currently being handled
 }
 
 // newListener creates, starts and returns a new listener.
@@ -39,24 +48,28 @@ func newListener(
 	channel *amqp.Channel,
 	logger overpass.Logger,
 ) (notify.Listener, error) {
-	svc, closer := service.NewImpl()
-
 	l := &listener{
-		Service: svc,
-		closer:  closer,
-
 		peerID:    peerID,
 		preFetch:  preFetch,
 		sessions:  sessions,
 		revisions: revisions,
 		logger:    logger,
 		channel:   channel,
-		handlers:  map[overpass.SessionID]overpass.NotificationHandler{},
+
+		handlers: map[overpass.SessionID]overpass.NotificationHandler{},
+
+		handled:    make(chan struct{}, preFetch),
+		amqpClosed: make(chan *amqp.Error, 1),
 	}
+
+	l.sm = service.NewStateMachine(l.run, l.finalize)
+	l.Service = l.sm
 
 	if err := l.initialize(); err != nil {
 		return nil, err
 	}
+
+	go l.sm.Run()
 
 	return l, nil
 }
@@ -127,12 +140,15 @@ func (l *listener) Unlisten(id overpass.SessionID) (bool, error) {
 	return exists, nil
 }
 
+// initialize prepares the AMQP channel
 func (l *listener) initialize() error {
-	queue := notifyQueue(l.peerID)
+	l.channel.NotifyClose(l.amqpClosed)
 
 	if err := l.channel.Qos(l.preFetch, 0, true); err != nil {
 		return err
 	}
+
+	queue := notifyQueue(l.peerID)
 
 	if _, err := l.channel.QueueDeclare(
 		queue,
@@ -145,7 +161,8 @@ func (l *listener) initialize() error {
 		return err
 	}
 
-	messages, err := l.channel.Consume(
+	var err error
+	l.deliveries, err = l.channel.Consume(
 		queue,
 		queue, // use queue name as consumer tag
 		false, // autoAck
@@ -158,76 +175,123 @@ func (l *listener) initialize() error {
 		return err
 	}
 
-	go l.monitor()
-	go l.dispatchEach(messages)
-
 	return nil
 }
 
-func (l *listener) monitor() {
+// run is the state entered when the service starts
+func (l *listener) run() (service.State, error) {
 	logListenerStart(l.logger, l.peerID, l.preFetch)
 
-	var err error
+	l.parentCtx, l.cancelCtx = context.WithCancel(context.Background())
 
-	select {
-	case err = <-l.channel.NotifyClose(make(chan *amqp.Error)):
-	case <-l.closer.Stop():
-		l.channel.Close()
-		if l.closer.IsGraceful() {
-			logListenerStopping(l.logger, l.peerID)
-			l.waiter.Wait()
+	for {
+		select {
+		case msg, ok := <-l.deliveries:
+			if !ok {
+				// sometimes the consumer channel is closed before the AMQP channel
+				return nil, <-l.amqpClosed
+			}
+			l.pending++
+			go l.dispatch(&msg)
+
+		case <-l.handled:
+			l.pending--
+
+		case <-l.sm.Graceful:
+			return l.graceful, nil
+
+		case <-l.sm.Forceful:
+			return l.forceful, nil
+
+		case err := <-l.amqpClosed:
+			return nil, err
+		}
+	}
+}
+
+// graceful is the state entered when a graceful stop is requested
+func (l *listener) graceful() (service.State, error) {
+	logListenerStopping(l.logger, l.peerID, l.pending)
+
+	if err := l.channel.Close(); err != nil {
+		return nil, err
+	}
+
+	for l.pending > 0 {
+		select {
+		case <-l.handled:
+			l.pending--
+
+		case <-l.sm.Forceful:
+			return nil, nil
 		}
 	}
 
-	l.closer.Close(err)
+	return nil, nil
+}
 
+// forceful is the state entered when a stop is requested
+func (l *listener) forceful() (service.State, error) {
+	return nil, l.channel.Close()
+}
+
+// finalize is the state-machine finalizer, it is called immediately before the
+// Done() channel is closed.
+func (l *listener) finalize(err error) error {
+	l.cancelCtx()
 	logListenerStop(l.logger, l.peerID, err)
+	return err
 }
 
-func (l *listener) dispatchEach(messages <-chan amqp.Delivery) {
-	for msg := range messages {
-		l.waiter.Add(1)
-		go l.dispatch(msg)
-	}
-}
-
-func (l *listener) dispatch(msg amqp.Delivery) {
-	defer l.waiter.Done()
+// dispatch validates an incoming notification and dispatches it the
+// appropriate handler.
+func (l *listener) dispatch(msg *amqp.Delivery) {
+	defer func() {
+		select {
+		case l.handled <- struct{}{}:
+		case <-l.sm.Forceful:
+		}
+	}()
 
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
-		if l.logger.IsDebug() {
-			l.logger.Log(
-				"%s notification listener ignored AMQP message, '%s' is not a valid message ID",
-				l.peerID.ShortString(),
-				msg.MessageId,
-			)
-		}
+		msg.Reject(false)
+		logInvalidMessageID(l.logger, l.peerID, msg.MessageId)
+		return
+	}
+
+	// find the source session revision
+	source, err := l.revisions.GetRevision(msgID.Session)
+	if err != nil {
+		msg.Reject(false)
+		logIgnoredMessage(l.logger, l.peerID, msgID, err)
 		return
 	}
 
 	switch msg.Exchange {
 	case unicastExchange:
-		err = l.handleUnicast(msgID, msg)
+		err = l.handleUnicast(msgID, msg, source)
 	case multicastExchange:
-		err = l.handleMulticast(msgID, msg)
+		err = l.handleMulticast(msgID, msg, source)
 	default:
 		err = fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
 	}
 
-	if err != nil && l.logger.IsDebug() {
-		l.logger.Log(
-			"%s notification listener ignored AMQP message %s, %s",
-			l.peerID.ShortString(),
-			msgID.ShortString(),
-			err,
-		)
+	if err == nil {
+		msg.Ack(false)
+	} else {
+		msg.Reject(false)
+		logIgnoredMessage(l.logger, l.peerID, msgID, err)
 	}
-
-	msg.Ack(false)
 }
 
-func (l *listener) handleUnicast(msgID overpass.MessageID, msg amqp.Delivery) error {
+// handleUnicast finds the target session for a unicast notification and
+// invokes the handler.
+func (l *listener) handleUnicast(
+	msgID overpass.MessageID,
+	msg *amqp.Delivery,
+	source overpass.Revision,
+) error {
 	sessID, err := overpass.ParseSessionID(msg.RoutingKey)
 	if err != nil {
 		return err
@@ -240,13 +304,8 @@ func (l *listener) handleUnicast(msgID overpass.MessageID, msg amqp.Delivery) er
 		return err
 	}
 
-	source, err := l.revisions.GetRevision(msgID.Session)
-	if err != nil {
-		return err
-	}
-
-	return l.handle(
-		amqputil.WithCorrelationID(context.Background(), &msg),
+	l.handle(
+		amqputil.WithCorrelationID(l.parentCtx, msg),
 		msgID,
 		sess,
 		overpass.Notification{
@@ -255,9 +314,17 @@ func (l *listener) handleUnicast(msgID overpass.MessageID, msg amqp.Delivery) er
 			Payload: overpass.NewPayloadFromBytes(msg.Body),
 		},
 	)
+
+	return nil
 }
 
-func (l *listener) handleMulticast(msgID overpass.MessageID, msg amqp.Delivery) error {
+// handleUnicast finds the target sessions for a multicast notification and
+// invokes the handlers.
+func (l *listener) handleMulticast(
+	msgID overpass.MessageID,
+	msg *amqp.Delivery,
+	source overpass.Revision,
+) error {
 	constraint := overpass.Constraint{}
 	for key, value := range msg.Headers {
 		if v, ok := value.(string); ok {
@@ -280,17 +347,12 @@ func (l *listener) handleMulticast(msgID overpass.MessageID, msg amqp.Delivery) 
 		return nil
 	}
 
-	source, err := l.revisions.GetRevision(msgID.Session)
-	if err != nil {
-		return err
-	}
-
-	ctx := amqputil.WithCorrelationID(context.Background(), &msg)
+	ctx := amqputil.WithCorrelationID(l.parentCtx, msg)
 	payload := overpass.NewPayloadFromBytes(msg.Body)
 	defer payload.Close()
 
 	for _, sess := range sessions {
-		err = l.handle(
+		l.handle(
 			ctx,
 			msgID,
 			sess,
@@ -302,43 +364,26 @@ func (l *listener) handleMulticast(msgID overpass.MessageID, msg amqp.Delivery) 
 				Constraint:  constraint,
 			},
 		)
-
-		if err != nil && l.logger.IsDebug() {
-			l.logger.Log(
-				"%s ignored notification %s for %s, %s",
-				l.peerID.ShortString(),
-				msgID.ShortString(),
-				sess.ID().ShortString(),
-				err,
-			)
-		}
 	}
 
 	return nil
 }
 
+// handle invokes the notification handler for a specific session, if one is
+// present.
 func (l *listener) handle(
 	ctx context.Context,
 	msgID overpass.MessageID,
 	sess overpass.Session,
 	n overpass.Notification,
-) error {
-	// we want to close the payload if the handler is never called
-	defer n.Payload.Close()
-
+) {
 	l.mutex.RLock()
 	handler := l.handlers[sess.ID()]
 	l.mutex.RUnlock()
 
 	if handler == nil {
-		return nil
+		n.Payload.Close()
+	} else {
+		handler(ctx, sess, n)
 	}
-
-	handler(ctx, sess, n)
-
-	// set the payload pointer to null now that it's the handler's
-	// responsibility. calling close on a nil payload pointer is safe.
-	n.Payload = nil
-
-	return nil
 }

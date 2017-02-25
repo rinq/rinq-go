@@ -2,6 +2,40 @@ package notifyamqp
 
 import "github.com/over-pass/overpass-go/src/overpass"
 
+func logInvalidMessageID(
+	logger overpass.Logger,
+	peerID overpass.PeerID,
+	msgID string,
+) {
+	if !logger.IsDebug() {
+		return
+	}
+
+	logger.Log(
+		"%s listener ignored AMQP message, '%s' is not a valid message ID",
+		peerID.ShortString(),
+		msgID,
+	)
+}
+
+func logIgnoredMessage(
+	logger overpass.Logger,
+	peerID overpass.PeerID,
+	msgID overpass.MessageID,
+	err error,
+) {
+	if !logger.IsDebug() {
+		return
+	}
+
+	logger.Log(
+		"%s listener ignored AMQP message %s, %s",
+		peerID.ShortString(),
+		msgID.ShortString(),
+		err,
+	)
+}
+
 func logListenerStart(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
@@ -12,7 +46,7 @@ func logListenerStart(
 	}
 
 	logger.Log(
-		"%s notification listener started with pre-fetch of %d message(s)",
+		"%s listener started (pre-fetch: %d)",
 		peerID.ShortString(),
 		preFetch,
 	)
@@ -21,14 +55,16 @@ func logListenerStart(
 func logListenerStopping(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
+	pending uint,
 ) {
 	if !logger.IsDebug() {
 		return
 	}
 
 	logger.Log(
-		"%s notification listener is stopping gracefully",
+		"%s listener stopping gracefully (pending: %d)",
 		peerID.ShortString(),
+		pending,
 	)
 }
 
@@ -43,12 +79,12 @@ func logListenerStop(
 
 	if err == nil {
 		logger.Log(
-			"%s notification listener stopped",
+			"%s listener stopped",
 			peerID.ShortString(),
 		)
 	} else {
 		logger.Log(
-			"%s notification listener stopped with error: %s",
+			"%s listener stopped: %s",
 			peerID.ShortString(),
 			err,
 		)
