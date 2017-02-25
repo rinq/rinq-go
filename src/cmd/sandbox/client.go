@@ -16,7 +16,7 @@ func runClient(peer overpass.Peer) {
 	// 	go call(sess)
 	// }
 	//
-	// call(sess)
+	call(sess)
 
 	sess.Listen(handle)
 

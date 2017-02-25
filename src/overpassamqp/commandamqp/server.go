@@ -16,7 +16,7 @@ import (
 
 type server struct {
 	service.Service
-	closer *service.Closer
+	sm *service.StateMachine
 
 	peerID    overpass.PeerID
 	preFetch  int
@@ -26,11 +26,16 @@ type server struct {
 	logger    overpass.Logger
 	parentCtx context.Context
 	cancelCtx func()
-	waiter    sync.WaitGroup
 
 	mutex    sync.RWMutex
 	channel  *amqp.Channel
 	handlers map[string]overpass.CommandHandler
+
+	deliveries  chan *amqp.Delivery
+	handlerDone chan struct{}
+	amqpClosed  chan *amqp.Error
+
+	pending uint
 }
 
 // newServer creates, starts and returns a new server.
@@ -42,20 +47,23 @@ func newServer(
 	channels amqputil.ChannelPool,
 	logger overpass.Logger,
 ) (command.Server, error) {
-	svc, closer := service.NewImpl()
-
 	s := &server{
-		Service: svc,
-		closer:  closer,
-
 		peerID:    peerID,
 		preFetch:  preFetch,
 		revisions: revisions,
 		queues:    queues,
 		channels:  channels,
 		logger:    logger,
-		handlers:  map[string]overpass.CommandHandler{},
+
+		handlers: map[string]overpass.CommandHandler{},
+
+		deliveries:  make(chan *amqp.Delivery),
+		handlerDone: make(chan struct{}),
+		amqpClosed:  make(chan *amqp.Error),
 	}
+
+	s.sm = service.NewStateMachine(s.run, s.finalize)
+	s.Service = s.sm
 
 	s.parentCtx, s.cancelCtx = context.WithCancel(context.Background())
 
@@ -105,7 +113,7 @@ func (s *server) Listen(namespace string, handler overpass.CommandHandler) (bool
 	}
 
 	s.handlers[namespace] = handler
-	go s.dispatchEach(messages)
+	go s.pipe(messages)
 
 	return true, nil
 }
@@ -140,18 +148,21 @@ func (s *server) Unlisten(namespace string) (bool, error) {
 }
 
 func (s *server) initialize() error {
-	channel, err := s.channels.Get() // do not return to pool, used for consume
-	if err != nil {
+	if channel, err := s.channels.Get(); err == nil { // do not return to pool, used for invoker
+		s.channel = channel
+	} else {
 		return err
 	}
 
-	if err = channel.Qos(s.preFetch, 0, true); err != nil {
+	s.channel.NotifyClose(s.amqpClosed)
+
+	if err := s.channel.Qos(s.preFetch, 0, true); err != nil {
 		return err
 	}
 
 	queue := requestQueue(s.peerID)
 
-	if _, err = channel.QueueDeclare(
+	if _, err := s.channel.QueueDeclare(
 		queue,
 		false, // durable
 		false, // autoDelete
@@ -162,7 +173,7 @@ func (s *server) initialize() error {
 		return err
 	}
 
-	if err = channel.QueueBind(
+	if err := s.channel.QueueBind(
 		queue,
 		s.peerID.String(),
 		unicastExchange,
@@ -172,7 +183,7 @@ func (s *server) initialize() error {
 		return err
 	}
 
-	messages, err := channel.Consume(
+	messages, err := s.channel.Consume(
 		queue,
 		queue, // use queue name as consumer tag
 		false, // autoAck
@@ -185,49 +196,73 @@ func (s *server) initialize() error {
 		return err
 	}
 
-	s.channel = channel
+	go s.pipe(messages)
 
-	go s.monitor()
-	go s.dispatchEach(messages)
+	go s.sm.Run()
 
 	return nil
 }
 
-func (s *server) monitor() {
+func (s *server) run() (service.State, error) {
 	logServerStart(s.logger, s.peerID, s.preFetch)
 
-	var err error
+	for {
+		select {
+		case msg := <-s.deliveries:
+			s.pending++
+			go s.dispatch(msg)
 
-	select {
-	case err = <-s.channel.NotifyClose(make(chan *amqp.Error)):
-	case <-s.closer.Stop():
-		s.channel.Close()
-		if s.closer.IsGraceful() {
-			logServerStopping(s.logger, s.peerID)
-			s.waiter.Wait()
+		case <-s.handlerDone:
+			s.pending--
+
+		case <-s.sm.Graceful:
+			return s.graceful, nil
+
+		case <-s.sm.Forceful:
+			return s.forceful, nil
+
+		case err := <-s.amqpClosed:
+			return nil, err
+		}
+	}
+}
+
+func (s *server) graceful() (service.State, error) {
+	logServerStopping(s.logger, s.peerID, s.pending)
+
+	if err := s.channel.Close(); err != nil {
+		return nil, err
+	}
+
+	for s.pending > 0 {
+		select {
+		case <-s.handlerDone:
+			s.pending--
+
+		case <-s.sm.Forceful:
+			return nil, nil
 		}
 	}
 
-	s.cancelCtx()
-	s.closer.Close(err)
+	return nil, nil
+}
 
+func (s *server) forceful() (service.State, error) {
+	return nil, s.channel.Close()
+}
+
+func (s *server) finalize(err error) error {
+	l.cancelCtx()
 	logServerStop(s.logger, s.peerID, err)
+	return err
+
 }
 
-func (s *server) dispatchEach(messages <-chan amqp.Delivery) {
-	for msg := range messages {
-		s.waiter.Add(1)
-		go s.dispatch(msg)
-	}
-}
-
-func (s *server) dispatch(msg amqp.Delivery) {
-	defer s.waiter.Done()
-
+func (s *server) dispatch(msg *amqp.Delivery) {
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
 		msg.Reject(false)
-		logInvalidMessageID(s.logger, s.peerID, msg)
+		logInvalidMessageID(s.logger, s.peerID, msg.MessageId)
 		return
 	}
 
@@ -248,9 +283,11 @@ func (s *server) dispatch(msg amqp.Delivery) {
 		msg.Reject(false)
 		logIgnoredMessage(s.logger, s.peerID, msgID, err)
 	}
+
+	s.handlerDone <- struct{}{}
 }
 
-func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Delivery) error {
+func (s *server) handle(msgID overpass.MessageID, namespace string, msg *amqp.Delivery) error {
 	s.mutex.RLock()
 	handler := s.handlers[namespace]
 	s.mutex.RUnlock()
@@ -266,8 +303,8 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 		return err
 	}
 
-	ctx := amqputil.WithCorrelationID(s.parentCtx, &msg)
-	ctx, cancel := amqputil.WithExpiration(ctx, &msg)
+	ctx := amqputil.WithCorrelationID(s.parentCtx, msg)
+	ctx, cancel := amqputil.WithExpiration(ctx, msg)
 	defer cancel()
 
 	cmd := overpass.Command{
@@ -318,4 +355,10 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 	msg.Reject(false)
 	logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd)
 	return nil
+}
+
+func (s *server) pipe(messages <-chan amqp.Delivery) {
+	for msg := range messages {
+		s.deliveries <- &msg
+	}
 }

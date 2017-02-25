@@ -5,22 +5,21 @@ import (
 
 	"github.com/over-pass/overpass-go/src/internals/amqputil"
 	"github.com/over-pass/overpass-go/src/overpass"
-	"github.com/streadway/amqp"
 )
 
 func logInvalidMessageID(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
-	msg amqp.Delivery,
+	msgID string,
 ) {
 	if !logger.IsDebug() {
 		return
 	}
 
 	logger.Log(
-		"%s command server ignored AMQP message, '%s' is not a valid message ID",
+		"%s server ignored AMQP message, '%s' is not a valid message ID",
 		peerID.ShortString(),
-		msg.MessageId,
+		msgID,
 	)
 }
 
@@ -35,7 +34,7 @@ func logIgnoredMessage(
 	}
 
 	logger.Log(
-		"%s command server ignored AMQP message %s, %s",
+		"%s server ignored AMQP message %s, %s",
 		peerID.ShortString(),
 		msgID.ShortString(),
 		err,
@@ -179,7 +178,7 @@ func logServerStart(
 	}
 
 	logger.Log(
-		"%s command server started with pre-fetch of %d message(s)",
+		"%s server started with (pre-fetch: %d)",
 		peerID.ShortString(),
 		preFetch,
 	)
@@ -188,14 +187,16 @@ func logServerStart(
 func logServerStopping(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
+	pending uint,
 ) {
 	if !logger.IsDebug() {
 		return
 	}
 
 	logger.Log(
-		"%s command server is stopping gracefully",
+		"%s server is stopping gracefully (pending: %d)",
 		peerID.ShortString(),
+		pending,
 	)
 }
 
@@ -210,12 +211,12 @@ func logServerStop(
 
 	if err == nil {
 		logger.Log(
-			"%s command server stopped",
+			"%s server stopped",
 			peerID.ShortString(),
 		)
 	} else {
 		logger.Log(
-			"%s command server stopped with error: %s",
+			"%s server stopped: %s",
 			peerID.ShortString(),
 			err,
 		)
