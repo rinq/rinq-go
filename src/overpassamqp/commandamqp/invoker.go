@@ -22,26 +22,24 @@ type invoker struct {
 	preFetch       int
 	defaultTimeout time.Duration
 	queues         *queueSet
-	channel        *amqp.Channel
+	channels       amqputil.ChannelPool
+	channel        *amqp.Channel // channel used for consuming
 	logger         overpass.Logger
 
-	publishings   chan *publishing
-	cancellations chan string // message ID
-	deliveries    <-chan amqp.Delivery
-	amqpClosed    chan *amqp.Error
+	track      chan call            // add information about a call to pending
+	cancel     chan call            // remove call information from pending
+	deliveries <-chan amqp.Delivery // incoming command responses
+	amqpClosed chan *amqp.Error
 
-	pending map[string]*publishing
+	// state-machine data
+	pending map[string]chan *amqp.Delivery // map of message ID to reply channel
 }
 
-// publishing encapsulates an AMQP message, the information required to publish it,
-// and the channels used to respond to it.
-type publishing struct {
-	Exchange string
-	Key      string
-	Message  *amqp.Publishing
-
+// call associates the message ID of a command request with the AMQP channel
+// used to deliver the response.
+type call struct {
+	ID    string
 	Reply chan *amqp.Delivery
-	Err   chan error
 }
 
 // newInvoker creates, initializes and returns a new invoker.
@@ -50,7 +48,7 @@ func newInvoker(
 	preFetch int,
 	defaultTimeout time.Duration,
 	queues *queueSet,
-	channel *amqp.Channel,
+	channels amqputil.ChannelPool,
 	logger overpass.Logger,
 ) (command.Invoker, error) {
 	i := &invoker{
@@ -58,14 +56,14 @@ func newInvoker(
 		preFetch:       preFetch,
 		defaultTimeout: defaultTimeout,
 		queues:         queues,
-		channel:        channel,
+		channels:       channels,
 		logger:         logger,
 
-		publishings:   make(chan *publishing),
-		cancellations: make(chan string),
-		amqpClosed:    make(chan *amqp.Error),
+		track:      make(chan call),
+		cancel:     make(chan call),
+		amqpClosed: make(chan *amqp.Error, 1),
 
-		pending: map[string]*publishing{},
+		pending: map[string]chan *amqp.Delivery{},
 	}
 
 	i.sm = service.NewStateMachine(i.run, i.finalize)
@@ -74,6 +72,8 @@ func newInvoker(
 	if err := i.initialize(); err != nil {
 		return nil, err
 	}
+
+	go i.sm.Run()
 
 	return i, nil
 }
@@ -86,20 +86,13 @@ func (i *invoker) CallUnicast(
 	command string,
 	payload *overpass.Payload,
 ) (string, *overpass.Payload, error) {
-	return i.call(
-		ctx,
-		&amqp.Publishing{
-			MessageId: msgID.String(),
-			Priority:  callUnicastPriority,
-			Type:      command,
-			Headers:   amqp.Table{namespaceHeader: namespace},
-			Body:      payload.Bytes(),
-		},
-		unicastExchange,
-		target.String(),
-		command,
-		payload,
-	)
+	return i.call(ctx, unicastExchange, target.String(), &amqp.Publishing{
+		MessageId: msgID.String(),
+		Priority:  callUnicastPriority,
+		Type:      command,
+		Headers:   amqp.Table{namespaceHeader: namespace},
+		Body:      payload.Bytes(),
+	})
 }
 
 func (i *invoker) CallBalanced(
@@ -109,19 +102,12 @@ func (i *invoker) CallBalanced(
 	command string,
 	payload *overpass.Payload,
 ) (string, *overpass.Payload, error) {
-	return i.call(
-		ctx,
-		&amqp.Publishing{
-			MessageId: msgID.String(),
-			Priority:  callBalancedPriority,
-			Type:      command,
-			Body:      payload.Bytes(),
-		},
-		balancedExchange,
-		namespace,
-		command,
-		payload,
-	)
+	return i.call(ctx, balancedExchange, namespace, &amqp.Publishing{
+		MessageId: msgID.String(),
+		Priority:  callBalancedPriority,
+		Type:      command,
+		Body:      payload.Bytes(),
+	})
 }
 
 func (i *invoker) ExecuteBalanced(
@@ -131,17 +117,13 @@ func (i *invoker) ExecuteBalanced(
 	command string,
 	payload *overpass.Payload,
 ) (string, error) {
-	msg := &amqp.Publishing{
+	return i.execute(ctx, balancedExchange, namespace, &amqp.Publishing{
 		MessageId:    msgID.String(),
 		Priority:     executePriority,
 		Type:         command,
 		DeliveryMode: amqp.Persistent,
 		Body:         payload.Bytes(),
-	}
-	corrID := amqputil.PutCorrelationID(ctx, msg)
-
-	_, err := i.send(ctx, balancedExchange, namespace, msg)
-	return corrID, err
+	})
 }
 
 func (i *invoker) ExecuteMulticast(
@@ -151,20 +133,22 @@ func (i *invoker) ExecuteMulticast(
 	command string,
 	payload *overpass.Payload,
 ) (string, error) {
-	msg := &amqp.Publishing{
+	return i.execute(ctx, multicastExchange, namespace, &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  executePriority,
 		Type:      command,
 		Body:      payload.Bytes(),
-	}
-	corrID := amqputil.PutCorrelationID(ctx, msg)
-
-	_, err := i.send(ctx, balancedExchange, namespace, msg)
-	return corrID, err
+	})
 }
 
 // initialize prepares the AMQP channel and starts the state machine
 func (i *invoker) initialize() error {
+	if channel, err := i.channels.Get(); err == nil { // do not return to pool, used for consume
+		i.channel = channel
+	} else {
+		return err
+	}
+
 	i.channel.NotifyClose(i.amqpClosed)
 
 	if err := i.channel.Qos(i.preFetch, 0, true); err != nil {
@@ -208,8 +192,6 @@ func (i *invoker) initialize() error {
 		return err
 	}
 
-	go i.sm.Run()
-
 	return nil
 }
 
@@ -219,11 +201,11 @@ func (i *invoker) run() (service.State, error) {
 
 	for {
 		select {
-		case pub := <-i.publishings:
-			i.publish(pub)
+		case c := <-i.track:
+			i.pending[c.ID] = c.Reply
 
-		case id := <-i.cancellations:
-			delete(i.pending, id)
+		case c := <-i.cancel:
+			delete(i.pending, c.ID)
 
 		case msg, ok := <-i.deliveries:
 			if !ok {
@@ -244,14 +226,14 @@ func (i *invoker) run() (service.State, error) {
 	}
 }
 
-// graceful is the state entered after a graceful stop is requested
+// graceful is the state entered when a graceful stop is requested
 func (i *invoker) graceful() (service.State, error) {
 	logInvokerStopping(i.logger, i.peerID, len(i.pending))
 
 	for len(i.pending) > 0 {
 		select {
-		case id := <-i.cancellations:
-			delete(i.pending, id)
+		case c := <-i.cancel:
+			delete(i.pending, c.ID)
 
 		case msg, ok := <-i.deliveries:
 			if !ok {
@@ -271,53 +253,24 @@ func (i *invoker) graceful() (service.State, error) {
 	return i.forceful, nil
 }
 
-// forceful is the state entered after a stop is requested
+// forceful is the state entered when a stop is requested
 func (i *invoker) forceful() (service.State, error) {
 	return nil, i.channel.Close()
 }
 
+// finalize is the state-machine finalizer, it is called immediately before the
+// Done() channel is closed.
 func (i *invoker) finalize(err error) error {
 	logInvokerStop(i.logger, i.peerID, err)
 	return err
 }
 
-// publish sends an AMQP message for a command request
-func (i *invoker) publish(pub *publishing) {
-	if pub.Exchange == balancedExchange {
-		if _, err := i.queues.Get(i.channel, pub.Key); err != nil {
-			pub.Err <- err
-			return
-		}
-	}
-
-	if err := i.channel.Publish(
-		pub.Exchange,
-		pub.Key,
-		false, // mandatory
-		false, // immediate
-		*pub.Message,
-	); err != nil {
-		pub.Err <- err
-		return
-	}
-
-	if pub.Reply == nil {
-		close(pub.Err)
-	} else {
-		i.pending[pub.Message.MessageId] = pub
-	}
-
-}
-
-// call prepares an AMQP message for use as a "call-type" command request, and
-// sends it using send().
+// call publishes a message for an "call-type" invocation and awaits the response
 func (i *invoker) call(
 	ctx context.Context,
-	msg *amqp.Publishing,
 	exchange string,
 	key string,
-	command string,
-	payload *overpass.Payload,
+	msg *amqp.Publishing,
 ) (
 	string,
 	*overpass.Payload,
@@ -336,64 +289,112 @@ func (i *invoker) call(
 		return corrID, nil, err
 	}
 
-	payload, err := i.send(ctx, exchange, key, msg)
-	return corrID, payload, err
+	c := call{
+		msg.MessageId,
+		make(chan *amqp.Delivery, 1),
+	}
+
+	select {
+	case i.track <- c:
+		// ready to publish
+	case <-ctx.Done():
+		return corrID, nil, ctx.Err()
+	case <-i.sm.Graceful:
+		return corrID, nil, overpass.PeerStopped
+	case <-i.sm.Forceful:
+		return corrID, nil, overpass.PeerStopped
+	}
+
+	// notify the state machine that we're bailing if it hasn't already sent
+	// us our reply
+	defer func() {
+		select {
+		case <-c.Reply:
+		default:
+			select {
+			case i.cancel <- c:
+			case <-i.sm.Forceful:
+			}
+		}
+	}()
+
+	err := i.publish(exchange, key, msg)
+	if err != nil {
+		return corrID, nil, err
+	}
+
+	select {
+	case msg := <-c.Reply:
+		payload, err := i.unpack(msg)
+		return corrID, payload, err
+	case <-ctx.Done():
+		return corrID, nil, ctx.Err()
+	case <-i.sm.Forceful:
+		return corrID, nil, overpass.PeerStopped
+	}
 }
 
-// send queues an AMQP message for publication and waits for the reply (be it
-// simple conformation of publication, or a full command response for
-// "call-type" requests).
-func (i *invoker) send(
+// execute publishes a message for an "execute-type" invocation
+func (i *invoker) execute(
 	ctx context.Context,
 	exchange string,
 	key string,
 	msg *amqp.Publishing,
-) (*overpass.Payload, error) {
-	pub := &publishing{
-		Exchange: exchange,
-		Key:      key,
-		Message:  msg,
-		Err:      make(chan error, 1),
-	}
-
-	if msg.ReplyTo == "Y" {
-		pub.Reply = make(chan *amqp.Delivery, 1)
-	}
+) (string, error) {
+	corrID := amqputil.PutCorrelationID(ctx, msg)
 
 	select {
-	case i.publishings <- pub:
-		// wait for response
+	default:
+		return corrID, i.publish(exchange, key, msg)
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return corrID, ctx.Err()
 	case <-i.sm.Graceful:
-		return nil, overpass.PeerStopped
+		return corrID, overpass.PeerStopped
 	case <-i.sm.Forceful:
-		return nil, overpass.PeerStopped
+		return corrID, overpass.PeerStopped
+	}
+}
+
+// publish sends an command request to the broker
+func (i *invoker) publish(
+	exchange string,
+	key string,
+	msg *amqp.Publishing,
+) error {
+	channel, err := i.channels.Get()
+	if err != nil {
+		return err
+	}
+	defer i.channels.Put(channel)
+
+	if exchange == balancedExchange {
+		if _, err = i.queues.Get(channel, key); err != nil {
+			return err
+		}
 	}
 
-	select {
-	case msg := <-pub.Reply:
-		return i.unpack(msg)
-	case err := <-pub.Err:
-		return nil, err
-	case <-ctx.Done():
-		i.cancellations <- msg.MessageId
-		return nil, ctx.Err()
-	case <-i.sm.Forceful:
-		return nil, overpass.PeerStopped
-	}
+	return channel.Publish(
+		exchange,
+		key,
+		false, // mandatory
+		false, // immediate
+		*msg,
+	)
 }
 
 // reply sends a command response to a waiting sender.
 func (i *invoker) reply(msg *amqp.Delivery) {
-	pub := i.pending[msg.RoutingKey]
-	if pub != nil {
-		delete(i.pending, msg.RoutingKey)
-		pub.Reply <- msg
-		msg.Ack(false)
-	} else {
+	channel := i.pending[msg.RoutingKey]
+	if channel == nil {
 		msg.Reject(false)
+		return
 	}
+
+	msg.Ack(false)
+
+	delete(i.pending, msg.RoutingKey)
+	channel <- msg // buffered chan
+	close(channel)
 }
 
 // unpack extracts the payload and error information from an AMQP message.
