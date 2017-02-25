@@ -115,3 +115,13 @@ func (err FrozenAttributesError) Error() string {
 		err.Ref,
 	)
 }
+
+// PeerStopped indicates an operation can not be completed by the peer is
+// stopping or has already stopped.
+var PeerStopped peerStoppedError
+
+type peerStoppedError struct{}
+
+func (peerStoppedError) Error() string {
+	return "operation canceled, peer has been stopped"
+}
