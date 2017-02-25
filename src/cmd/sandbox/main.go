@@ -28,9 +28,14 @@ func main() {
 	}
 	defer peer.Stop()
 
-	if os.Getenv("OVERPASS_SERVER") != "" {
+	switch os.Getenv("SANDBOX_ROLE") {
+	case "server":
 		go runServer(peer)
-	} else {
+	case "notifier":
+		go runNotifier(peer)
+	case "listener":
+		go runListener(peer)
+	default:
 		go runClient(peer)
 	}
 
@@ -43,13 +48,12 @@ func main() {
 		select {
 		case sig := <-signals:
 			if stopping {
-				// TODO: reimplement everything using service.StateMachine
 				fmt.Println(" -- forceful stop:", sig)
-				go peer.Stop()
+				peer.Stop()
 			} else {
 				stopping = true
 				fmt.Println(" -- graceful stop:", sig)
-				go peer.GracefulStop()
+				peer.GracefulStop()
 			}
 		case <-peer.Done():
 			if err := peer.Err(); err != nil {

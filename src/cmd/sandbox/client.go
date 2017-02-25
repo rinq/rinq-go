@@ -13,15 +13,15 @@ func runClient(peer overpass.Peer) {
 	defer sess.Close()
 
 	for i := 0; i < 4; i++ {
-		go send(sess)
+		go call(sess)
 	}
 
-	// send(sess)
+	// call(sess)
 
 	<-sess.Done()
 }
 
-func send(sess overpass.Session) {
+func call(sess overpass.Session) {
 	for {
 		ctx := context.Background()
 		ctx, cancel := context.WithTimeout(ctx, 11*time.Second)
