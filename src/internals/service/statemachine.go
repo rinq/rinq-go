@@ -51,7 +51,9 @@ func (s *StateMachine) Run() {
 		s.state, err = s.state()
 	}
 
-	err = s.finalizer(err)
+	if s.finalizer != nil {
+		err = s.finalizer(err)
+	}
 
 	s.mutex.Lock()
 	s.err = err
