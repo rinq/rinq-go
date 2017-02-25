@@ -252,7 +252,7 @@ func (s *server) forceful() (service.State, error) {
 }
 
 func (s *server) finalize(err error) error {
-	l.cancelCtx()
+	s.cancelCtx()
 	logServerStop(s.logger, s.peerID, err)
 	return err
 
