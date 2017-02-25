@@ -15,7 +15,7 @@ var _ = Describe("Context", func() {
 	Describe("PutCorrelationID", func() {
 		It("sets the correlation ID", func() {
 			del := amqp.Delivery{MessageId: "<id>"}
-			ctx := amqputil.WithCorrelationID(context.Background(), del)
+			ctx := amqputil.WithCorrelationID(context.Background(), &del)
 
 			pub := amqp.Publishing{}
 			result := amqputil.PutCorrelationID(ctx, &pub)
@@ -26,7 +26,7 @@ var _ = Describe("Context", func() {
 
 		It("does not set the correlation ID if it's the same as the message ID", func() {
 			del := amqp.Delivery{MessageId: "<id>"}
-			ctx := amqputil.WithCorrelationID(context.Background(), del)
+			ctx := amqputil.WithCorrelationID(context.Background(), &del)
 
 			pub := amqp.Publishing{MessageId: "<id>"}
 			result := amqputil.PutCorrelationID(ctx, &pub)
@@ -39,7 +39,7 @@ var _ = Describe("Context", func() {
 	Describe("WithCorrelationID and GetCorrelationID", func() {
 		It("transports the correlation ID in the context", func() {
 			msg := amqp.Delivery{MessageId: "<id>"}
-			ctx := amqputil.WithCorrelationID(context.Background(), msg)
+			ctx := amqputil.WithCorrelationID(context.Background(), &msg)
 
 			Expect(amqputil.GetCorrelationID(ctx)).To(Equal("<id>"))
 		})
@@ -98,7 +98,7 @@ var _ = Describe("Context", func() {
 				Expiration: "0",
 			}
 
-			ctx, cancel := amqputil.WithExpiration(context.Background(), msg)
+			ctx, cancel := amqputil.WithExpiration(context.Background(), &msg)
 			defer cancel()
 
 			deadline, ok := ctx.Deadline()
@@ -112,7 +112,7 @@ var _ = Describe("Context", func() {
 				Expiration: "1000",
 			}
 
-			ctx, cancel := amqputil.WithExpiration(context.Background(), msg)
+			ctx, cancel := amqputil.WithExpiration(context.Background(), &msg)
 			defer cancel()
 
 			_, ok := ctx.Deadline()

@@ -266,8 +266,8 @@ func (s *server) handle(msgID overpass.MessageID, namespace string, msg amqp.Del
 		return err
 	}
 
-	ctx := amqputil.WithCorrelationID(s.parentCtx, msg)
-	ctx, cancel := amqputil.WithExpiration(ctx, msg)
+	ctx := amqputil.WithCorrelationID(s.parentCtx, &msg)
+	ctx, cancel := amqputil.WithExpiration(ctx, &msg)
 	defer cancel()
 
 	cmd := overpass.Command{

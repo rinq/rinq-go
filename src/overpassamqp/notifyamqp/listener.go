@@ -246,7 +246,7 @@ func (l *listener) handleUnicast(msgID overpass.MessageID, msg amqp.Delivery) er
 	}
 
 	return l.handle(
-		amqputil.WithCorrelationID(context.Background(), msg),
+		amqputil.WithCorrelationID(context.Background(), &msg),
 		msgID,
 		sess,
 		overpass.Notification{
@@ -285,7 +285,7 @@ func (l *listener) handleMulticast(msgID overpass.MessageID, msg amqp.Delivery) 
 		return err
 	}
 
-	ctx := amqputil.WithCorrelationID(context.Background(), msg)
+	ctx := amqputil.WithCorrelationID(context.Background(), &msg)
 	payload := overpass.NewPayloadFromBytes(msg.Body)
 	defer payload.Close()
 

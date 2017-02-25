@@ -40,7 +40,7 @@ func GetCorrelationID(ctx context.Context) string {
 //
 // If the correlation ID is empty, the message is considered a "root" request,
 // so the message ID is used as the correlation ID.
-func WithCorrelationID(parent context.Context, msg amqp.Delivery) context.Context {
+func WithCorrelationID(parent context.Context, msg *amqp.Delivery) context.Context {
 	id := msg.CorrelationId
 	if id == "" {
 		id = msg.MessageId
@@ -88,7 +88,7 @@ func PutExpiration(ctx context.Context, msg *amqp.Publishing) (bool, error) {
 // computed from the expiration information in msg.
 //
 // The return values are the same as context.WithDeadline()
-func WithExpiration(parent context.Context, msg amqp.Delivery) (context.Context, func()) {
+func WithExpiration(parent context.Context, msg *amqp.Delivery) (context.Context, func()) {
 	deadlineMillis, ok := msg.Headers[deadlineHeader].(int64)
 	if !ok {
 		return context.WithCancel(parent)
