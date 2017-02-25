@@ -33,8 +33,8 @@ type invoker struct {
 	pending map[string]*publishing
 }
 
-// pubishing encapsulates an AMQP message and the information required to
-// publish it.
+// publishing encapsulates an AMQP message, the information required to publish it,
+// and the channels used to respond to it.
 type publishing struct {
 	Exchange string
 	Key      string
