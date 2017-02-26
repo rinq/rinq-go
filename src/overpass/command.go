@@ -69,7 +69,8 @@ type Response interface {
 	// Fail is a convenience method that creates a Failure and passes it to
 	// Error() method. The created failure is returned.
 	//
-	// A panic occurs if the response has already been closed.
+	// A panic occurs if the response has already been closed or if failureType
+	// is empty.
 	Fail(failureType, message string) Failure
 
 	// Close finalizes the response.
@@ -83,8 +84,8 @@ type Response interface {
 
 // ValidateNamespace checks if ns is a valid namespace.
 //
-// Namespaces can contain alpha-numeric characters, underscores, hyphens,
-// periods and colons.
+// Namespaces must not be empty. Valid characters are alpha-numeric characters,
+// underscores, hyphens, periods and colons.
 //
 // Namespaces beginning with an underscore are reserved for internal use.
 //

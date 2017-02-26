@@ -41,6 +41,13 @@ var _ = Describe("Failure", func() {
 			r := overpass.IsFailureType("foo", errors.New(""))
 			Expect(r).To(BeFalse())
 		})
+
+		It("panics if the type is empty", func() {
+			f := func() {
+				overpass.IsFailureType("", errors.New(""))
+			}
+			Expect(f).Should(Panic())
+		})
 	})
 
 	Describe("FailureType", func() {
@@ -52,6 +59,13 @@ var _ = Describe("Failure", func() {
 		It("returns empty string for other error types", func() {
 			r := overpass.FailureType(errors.New(""))
 			Expect(r).To(Equal(""))
+		})
+
+		It("panics if the type is empty", func() {
+			f := func() {
+				overpass.FailureType(overpass.Failure{})
+			}
+			Expect(f).Should(Panic())
 		})
 	})
 })

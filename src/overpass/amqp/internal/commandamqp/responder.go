@@ -82,6 +82,10 @@ func (r *response) Error(err error) {
 	}
 
 	if f, ok := err.(overpass.Failure); ok {
+		if f.Type == "" {
+			panic("failure type is empty")
+		}
+
 		r.close(amqp.Publishing{
 			Type: failureResponse,
 			Headers: amqp.Table{
