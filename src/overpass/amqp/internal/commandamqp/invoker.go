@@ -82,63 +82,89 @@ func (i *invoker) CallUnicast(
 	ctx context.Context,
 	msgID overpass.MessageID,
 	target overpass.PeerID,
-	namespace string,
-	command string,
-	payload *overpass.Payload,
+	ns string,
+	cmd string,
+	req *overpass.Payload,
 ) (string, *overpass.Payload, error) {
-	return i.call(ctx, unicastExchange, target.String(), &amqp.Publishing{
+	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  callUnicastPriority,
-		Type:      command,
-		Headers:   amqp.Table{namespaceHeader: namespace},
-		Body:      payload.Bytes(),
-	})
+		Type:      cmd,
+		Headers:   amqp.Table{namespaceHeader: ns},
+		Body:      req.Bytes(),
+	}
+	traceID := amqputil.PackTrace(ctx, msg)
+
+	logUnicastCallBegin(i.logger, i.peerID, msgID, target, ns, cmd, traceID, req)
+	res, err := i.call(ctx, unicastExchange, target.String(), msg)
+	logCallEnd(i.logger, i.peerID, msgID, ns, cmd, traceID, res, err)
+
+	return traceID, res, err
 }
 
 func (i *invoker) CallBalanced(
 	ctx context.Context,
 	msgID overpass.MessageID,
-	namespace string,
-	command string,
-	payload *overpass.Payload,
+	ns string,
+	cmd string,
+	req *overpass.Payload,
 ) (string, *overpass.Payload, error) {
-	return i.call(ctx, balancedExchange, namespace, &amqp.Publishing{
+	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  callBalancedPriority,
-		Type:      command,
-		Body:      payload.Bytes(),
-	})
+		Type:      cmd,
+		Body:      req.Bytes(),
+	}
+	traceID := amqputil.PackTrace(ctx, msg)
+
+	logBalancedCallBegin(i.logger, i.peerID, msgID, ns, cmd, traceID, req)
+	res, err := i.call(ctx, balancedExchange, ns, msg)
+	logCallEnd(i.logger, i.peerID, msgID, ns, cmd, traceID, res, err)
+
+	return traceID, res, err
 }
 
 func (i *invoker) ExecuteBalanced(
 	ctx context.Context,
 	msgID overpass.MessageID,
-	namespace string,
-	command string,
+	ns string,
+	cmd string,
 	payload *overpass.Payload,
 ) (string, error) {
-	return i.execute(ctx, balancedExchange, namespace, &amqp.Publishing{
+	msg := &amqp.Publishing{
 		MessageId:    msgID.String(),
 		Priority:     executePriority,
-		Type:         command,
+		Type:         cmd,
 		DeliveryMode: amqp.Persistent,
 		Body:         payload.Bytes(),
-	})
+	}
+	traceID := amqputil.PackTrace(ctx, msg)
+
+	err := i.execute(ctx, balancedExchange, ns, msg)
+	logBalancedExecute(i.logger, i.peerID, msgID, ns, cmd, traceID, payload, err)
+
+	return traceID, err
 }
 
 func (i *invoker) ExecuteMulticast(
 	ctx context.Context,
 	msgID overpass.MessageID,
-	namespace string,
-	command string,
+	ns string,
+	cmd string,
 	payload *overpass.Payload,
 ) (string, error) {
-	return i.execute(ctx, multicastExchange, namespace, &amqp.Publishing{
+	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  executePriority,
-		Type:      command,
+		Type:      cmd,
 		Body:      payload.Bytes(),
-	})
+	}
+	traceID := amqputil.PackTrace(ctx, msg)
+
+	err := i.execute(ctx, multicastExchange, ns, msg)
+	logMulticastExecute(i.logger, i.peerID, msgID, ns, cmd, traceID, payload, err)
+
+	return traceID, err
 }
 
 // initialize prepares the AMQP channel and starts the state machine
@@ -272,12 +298,9 @@ func (i *invoker) call(
 	key string,
 	msg *amqp.Publishing,
 ) (
-	string,
 	*overpass.Payload,
 	error,
 ) {
-	traceID := amqputil.PackTrace(ctx, msg)
-
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel func()
 		ctx, cancel = context.WithCancel(ctx)
@@ -286,7 +309,7 @@ func (i *invoker) call(
 
 	msg.ReplyTo = "Y"
 	if _, err := amqputil.PackDeadline(ctx, msg); err != nil {
-		return traceID, nil, err
+		return nil, err
 	}
 
 	c := call{
@@ -298,11 +321,11 @@ func (i *invoker) call(
 	case i.track <- c:
 		// ready to publish
 	case <-ctx.Done():
-		return traceID, nil, ctx.Err()
+		return nil, ctx.Err()
 	case <-i.sm.Graceful:
-		return traceID, nil, context.Canceled
+		return nil, context.Canceled
 	case <-i.sm.Forceful:
-		return traceID, nil, context.Canceled
+		return nil, context.Canceled
 	}
 
 	// notify the state machine that we're bailing if it hasn't already sent
@@ -320,17 +343,17 @@ func (i *invoker) call(
 
 	err := i.publish(exchange, key, msg)
 	if err != nil {
-		return traceID, nil, err
+		return nil, err
 	}
 
 	select {
 	case msg := <-c.Reply:
 		payload, err := i.unpack(msg)
-		return traceID, payload, err
+		return payload, err
 	case <-ctx.Done():
-		return traceID, nil, ctx.Err()
+		return nil, ctx.Err()
 	case <-i.sm.Forceful:
-		return traceID, nil, context.Canceled
+		return nil, context.Canceled
 	}
 }
 
@@ -340,18 +363,16 @@ func (i *invoker) execute(
 	exchange string,
 	key string,
 	msg *amqp.Publishing,
-) (string, error) {
-	traceID := amqputil.PackTrace(ctx, msg)
-
+) error {
 	select {
 	default:
-		return traceID, i.publish(exchange, key, msg)
+		return i.publish(exchange, key, msg)
 	case <-ctx.Done():
-		return traceID, ctx.Err()
+		return ctx.Err()
 	case <-i.sm.Graceful:
-		return traceID, context.Canceled
+		return context.Canceled
 	case <-i.sm.Forceful:
-		return traceID, context.Canceled
+		return context.Canceled
 	}
 }
 

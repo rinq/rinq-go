@@ -46,13 +46,13 @@ func main() {
 
 	for {
 		select {
-		case sig := <-signals:
+		case <-signals:
 			if stopping {
-				fmt.Println(" -- forceful stop:", sig)
+				fmt.Printf("\n-- forceful stop --\n\n")
 				peer.Stop()
 			} else {
 				stopping = true
-				fmt.Println(" -- graceful stop:", sig)
+				fmt.Printf("\n-- graceful stop --\n\n")
 				peer.GracefulStop()
 			}
 		case <-peer.Done():

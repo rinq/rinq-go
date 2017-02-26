@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"time"
 
 	"github.com/over-pass/overpass-go/src/overpass"
 )
@@ -14,8 +13,13 @@ func runServer(peer overpass.Peer) {
 		res overpass.Response,
 	) {
 		defer req.Payload.Close()
-		time.Sleep(5 * time.Second)
-		res.Close()
+
+		_, err := req.Source.Update(ctx, overpass.Set("foo", "bar"))
+		if err != nil {
+			res.Fail("cant-update", "failed to set attributes on the source session")
+		} else {
+			res.Close()
+		}
 	})
 
 	<-peer.Done()
