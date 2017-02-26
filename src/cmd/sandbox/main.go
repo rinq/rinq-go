@@ -17,7 +17,7 @@ func main() {
 
 	peer, err := amqp.DialConfig(
 		context.Background(),
-		"amqp://localhost",
+		os.Getenv("AMQP_DSN"),
 		overpass.Config{
 			Logger:        overpass.NewLogger(true),
 			PruneInterval: 10 * time.Second,
