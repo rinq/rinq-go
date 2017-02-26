@@ -46,32 +46,27 @@ func (r *revision) Get(ctx context.Context, key string) (overpass.Attr, error) {
 }
 
 func (r *revision) GetMany(ctx context.Context, keys ...string) (overpass.AttrTable, error) {
-	attrs := overpass.AttrTable{}
-
-	if r.ref.Rev == 0 {
-		return attrs, nil
+	if len(keys) == 0 {
+		return nil, nil
 	}
+
+	table := overpass.AttrTable{}
 
 	for _, key := range keys {
 		attr, ok := r.attrs[key]
 
-		// The attribute hadn't yet been created at this revision.
 		if !ok || attr.CreatedAt > r.ref.Rev {
-			continue
-		}
-
-		// The attribute exists, but has been updated since this revision.
-		// The value at this revision is no longer known.
-		if attr.UpdatedAt > r.ref.Rev {
+			// The attribute hadn't yet been created at this revision.
+			table[key] = overpass.Attr{Key: key}
+		} else if attr.UpdatedAt <= r.ref.Rev {
+			// The attribute was updated before this revision, it's still valid.
+			table[key] = attr.Attr
+		} else {
 			return nil, overpass.StaleFetchError{Ref: r.ref}
-		}
-
-		if attr.Value != "" {
-			attrs[key] = attr.Attr
 		}
 	}
 
-	return attrs, nil
+	return table, nil
 }
 
 func (r *revision) Update(ctx context.Context, attrs ...overpass.Attr) (overpass.Revision, error) {

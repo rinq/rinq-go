@@ -35,18 +35,24 @@ func (r *revision) Get(ctx context.Context, key string) (overpass.Attr, error) {
 }
 
 func (r *revision) GetMany(ctx context.Context, keys ...string) (overpass.AttrTable, error) {
-	if r.ref.Rev == 0 {
+	if len(keys) == 0 {
 		return nil, nil
+	}
+
+	table := overpass.AttrTable{}
+	for _, key := range keys {
+		table[key] = overpass.Attr{Key: key}
+	}
+
+	if r.ref.Rev == 0 {
+		return table, nil
 	}
 
 	attrs, err := r.catalog.Fetch(ctx, r.ref.Rev, keys...)
 	if err != nil {
 		return nil, err
-	} else if len(attrs) == 0 {
-		return nil, nil
 	}
 
-	table := overpass.AttrTable{}
 	for _, attr := range attrs {
 		table[attr.Key] = attr
 	}
