@@ -168,7 +168,9 @@ func (s *server) close(
 		return
 	}
 
-	if err := cat.TryClose(sessID.At(args.Rev)); err != nil {
+	ref := sessID.At(args.Rev)
+
+	if err := cat.TryClose(ref); err != nil {
 		switch err.(type) {
 		case overpass.NotFoundError:
 			res.Fail(notFoundFailure, "")
@@ -180,6 +182,8 @@ func (s *server) close(
 
 		return
 	}
+
+	logRemoteClose(ctx, s.logger, cat, req.Source.Ref().ID.Peer)
 
 	res.Close()
 }

@@ -6,11 +6,8 @@ import (
 	"time"
 
 	"github.com/over-pass/overpass-go/src/overpass"
-	"github.com/over-pass/overpass-go/src/overpass/internal/attrmeta"
-	"github.com/over-pass/overpass-go/src/overpass/internal/bufferpool"
 	"github.com/over-pass/overpass-go/src/overpass/internal/command"
 	"github.com/over-pass/overpass-go/src/overpass/internal/notify"
-	"github.com/over-pass/overpass-go/src/overpass/internal/syncutil"
 	"github.com/over-pass/overpass-go/src/overpass/internal/trace"
 )
 
@@ -55,7 +52,7 @@ func NewSession(
 
 	go func() {
 		<-catalog.Done()
-		sess.Close()
+		sess.close()
 	}()
 
 	return sess
@@ -324,43 +321,24 @@ func (s *session) Unlisten() error {
 }
 
 func (s *session) Close() {
-	unlock := syncutil.Lock(&s.mutex)
-	defer unlock()
+	if s.close() {
+		logSessionClose(s.logger, s.catalog, "")
+	}
+}
+
+func (s *session) close() bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	select {
 	case <-s.done:
-		return
+		return false
 	default:
+		close(s.done)
+		s.catalog.Close()
+		s.listener.Unlisten(s.id)
+		return true
 	}
-
-	close(s.done)
-	s.catalog.Close()
-	s.listener.Unlisten(s.id)
-
-	unlock()
-
-	ref, attrs := s.catalog.Attrs()
-
-	buffer := bufferpool.Get()
-	defer bufferpool.Put(buffer)
-
-	for _, attr := range attrs {
-		if !attr.IsFrozen && attr.Value == "" {
-			continue
-		}
-
-		if buffer.Len() != 0 {
-			buffer.WriteString(", ")
-		}
-
-		attrmeta.Write(buffer, attr)
-	}
-
-	s.logger.Log(
-		"%s session destroyed {%s}",
-		ref.ShortString(),
-		buffer,
-	)
 }
 
 func (s *session) Done() <-chan struct{} {
