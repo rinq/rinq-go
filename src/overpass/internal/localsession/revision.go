@@ -87,5 +87,12 @@ func (r *revision) Update(ctx context.Context, attrs ...overpass.Attr) (overpass
 }
 
 func (r *revision) Close(ctx context.Context) error {
-	return r.catalog.TryClose(r.ref)
+	err := r.catalog.TryClose(r.ref)
+	if err != nil {
+		return err
+	}
+
+	logClose(ctx, r.logger, r.catalog)
+
+	return nil
 }

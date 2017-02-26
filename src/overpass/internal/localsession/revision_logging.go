@@ -29,3 +29,11 @@ func logUpdate(
 		)
 	}
 }
+
+func logClose(
+	ctx context.Context,
+	logger overpass.Logger,
+	cat Catalog,
+) {
+	logSessionClose(logger, cat, trace.Get(ctx))
+}
