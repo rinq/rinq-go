@@ -3,10 +3,10 @@ package localsession
 import (
 	"context"
 
+	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpass/internal/attrmeta"
 	"github.com/over-pass/overpass-go/src/overpass/internal/bufferpool"
 	"github.com/over-pass/overpass-go/src/overpass/internal/trace"
-	"github.com/over-pass/overpass-go/src/overpass"
 )
 
 type revision struct {

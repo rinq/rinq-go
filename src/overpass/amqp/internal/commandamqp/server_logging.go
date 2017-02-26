@@ -3,8 +3,8 @@ package commandamqp
 import (
 	"context"
 
-	"github.com/over-pass/overpass-go/src/overpass/internal/trace"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpass/internal/trace"
 )
 
 func logInvalidMessageID(
@@ -46,7 +46,7 @@ func logRequestBegin(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
 	msgID overpass.MessageID,
-	request overpass.Command,
+	req overpass.Request,
 ) {
 	if !logger.IsDebug() {
 		return
@@ -55,11 +55,11 @@ func logRequestBegin(
 	logger.Log(
 		"%s began '%s::%s' command request %s [%s] >>> %s",
 		peerID.ShortString(),
-		request.Namespace,
-		request.Command,
+		req.Namespace,
+		req.Command,
 		msgID.ShortString(),
 		trace.Get(ctx),
-		request.Payload,
+		req.Payload,
 	)
 }
 
@@ -68,7 +68,7 @@ func logRequestEnd(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
 	msgID overpass.MessageID,
-	request overpass.Command,
+	req overpass.Request,
 	payload *overpass.Payload,
 	err error,
 ) {
@@ -81,8 +81,8 @@ func logRequestEnd(
 		logger.Log(
 			"%s completed '%s::%s' command request %s successfully [%s] <<< %s",
 			peerID.ShortString(),
-			request.Namespace,
-			request.Command,
+			req.Namespace,
+			req.Command,
 			msgID.ShortString(),
 			trace.Get(ctx),
 			payload,
@@ -91,8 +91,8 @@ func logRequestEnd(
 		logger.Log(
 			"%s completed '%s::%s' command request %s with '%s' failure: %s [%s] <<< %s",
 			peerID.ShortString(),
-			request.Namespace,
-			request.Command,
+			req.Namespace,
+			req.Command,
 			msgID.ShortString(),
 			e.Type,
 			e.Message,
@@ -103,8 +103,8 @@ func logRequestEnd(
 		logger.Log(
 			"%s completed '%s::%s' command request %s with error [%s] <<< %s",
 			peerID.ShortString(),
-			request.Namespace,
-			request.Command,
+			req.Namespace,
+			req.Command,
 			msgID.ShortString(),
 			trace.Get(ctx),
 			err,
@@ -116,7 +116,7 @@ func logNoLongerListening(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
 	msgID overpass.MessageID,
-	namespace string,
+	ns string,
 ) {
 	if !logger.IsDebug() {
 		return
@@ -125,7 +125,7 @@ func logNoLongerListening(
 	logger.Log(
 		"%s is no longer listening to '%s' namespace, request %s has been re-queued",
 		peerID.ShortString(),
-		namespace,
+		ns,
 		msgID.ShortString(),
 	)
 }
@@ -135,7 +135,7 @@ func logRequestRequeued(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
 	msgID overpass.MessageID,
-	request overpass.Command,
+	req overpass.Request,
 ) {
 	if !logger.IsDebug() {
 		return
@@ -144,8 +144,8 @@ func logRequestRequeued(
 	logger.Log(
 		"%s did not write a response for '%s::%s' command request, request %s has been re-queued [%s]",
 		peerID.ShortString(),
-		request.Namespace,
-		request.Command,
+		req.Namespace,
+		req.Command,
 		msgID.ShortString(),
 		trace.Get(ctx),
 	)
@@ -156,14 +156,14 @@ func logRequestRejected(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
 	msgID overpass.MessageID,
-	request overpass.Command,
+	req overpass.Request,
 	reason string,
 ) {
 	logger.Log(
 		"%s did not write a response for '%s::%s' command request %s, request has been abandoned (%s) [%s]",
 		peerID.ShortString(),
-		request.Namespace,
-		request.Command,
+		req.Namespace,
+		req.Command,
 		msgID.ShortString(),
 		reason,
 		trace.Get(ctx),

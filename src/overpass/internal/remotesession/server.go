@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpass/internal/attrmeta"
 	"github.com/over-pass/overpass-go/src/overpass/internal/command"
 	"github.com/over-pass/overpass-go/src/overpass/internal/localsession"
-	"github.com/over-pass/overpass-go/src/overpass"
 )
 
 type server struct {
@@ -32,18 +32,18 @@ func Listen(
 
 func (s *server) handle(
 	ctx context.Context,
-	cmd overpass.Command,
-	res overpass.Responder,
+	req overpass.Request,
+	res overpass.Response,
 ) {
-	defer cmd.Payload.Close()
+	defer req.Payload.Close()
 
-	switch cmd.Command {
+	switch req.Command {
 	case fetchCommand:
-		s.fetch(ctx, cmd, res)
+		s.fetch(ctx, req, res)
 	case updateCommand:
-		s.update(ctx, cmd, res)
+		s.update(ctx, req, res)
 	case closeCommand:
-		s.close(ctx, cmd, res)
+		s.close(ctx, req, res)
 	default:
 		res.Error(errors.New("unknown command"))
 	}
@@ -51,17 +51,17 @@ func (s *server) handle(
 
 func (s *server) fetch(
 	ctx context.Context,
-	cmd overpass.Command,
-	res overpass.Responder,
+	req overpass.Request,
+	res overpass.Response,
 ) {
-	var req fetchRequest
+	var args fetchRequest
 
-	if err := cmd.Payload.Decode(&req); err != nil {
+	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
 		return
 	}
 
-	sessID := overpass.SessionID{Peer: s.peerID, Seq: req.Seq}
+	sessID := overpass.SessionID{Peer: s.peerID, Seq: args.Seq}
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		res.Fail(notFoundFailure, "")
@@ -70,11 +70,11 @@ func (s *server) fetch(
 
 	ref, attrs := cat.Attrs()
 	rsp := fetchResponse{Rev: ref.Rev}
-	count := len(req.Keys)
+	count := len(args.Keys)
 
 	if count != 0 {
 		rsp.Attrs = make([]attrmeta.Attr, 0, count)
-		for _, key := range req.Keys {
+		for _, key := range args.Keys {
 			if attr, ok := attrs[key]; ok {
 				rsp.Attrs = append(rsp.Attrs, attr)
 			}
@@ -89,24 +89,24 @@ func (s *server) fetch(
 
 func (s *server) update(
 	ctx context.Context,
-	cmd overpass.Command,
-	res overpass.Responder,
+	req overpass.Request,
+	res overpass.Response,
 ) {
-	var req updateRequest
+	var args updateRequest
 
-	if err := cmd.Payload.Decode(&req); err != nil {
+	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
 		return
 	}
 
-	sessID := overpass.SessionID{Peer: s.peerID, Seq: req.Seq}
+	sessID := overpass.SessionID{Peer: s.peerID, Seq: args.Seq}
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		res.Fail(notFoundFailure, "")
 		return
 	}
 
-	rev, err := cat.TryUpdate(sessID.At(req.Rev), req.Attrs, nil)
+	rev, err := cat.TryUpdate(sessID.At(args.Rev), args.Attrs, nil)
 	if err != nil {
 		switch err.(type) {
 		case overpass.NotFoundError:
@@ -124,11 +124,11 @@ func (s *server) update(
 
 	rsp := updateResponse{
 		Rev:         rev.Ref().Rev,
-		CreatedRevs: make([]overpass.RevisionNumber, 0, len(req.Attrs)),
+		CreatedRevs: make([]overpass.RevisionNumber, 0, len(args.Attrs)),
 	}
 	_, attrs := cat.Attrs()
 
-	for _, attr := range req.Attrs {
+	for _, attr := range args.Attrs {
 		rsp.CreatedRevs = append(
 			rsp.CreatedRevs,
 			attrs[attr.Key].CreatedAt,
@@ -142,24 +142,24 @@ func (s *server) update(
 
 func (s *server) close(
 	ctx context.Context,
-	cmd overpass.Command,
-	res overpass.Responder,
+	req overpass.Request,
+	res overpass.Response,
 ) {
-	var req closeRequest
+	var args closeRequest
 
-	if err := cmd.Payload.Decode(&req); err != nil {
+	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
 		return
 	}
 
-	sessID := overpass.SessionID{Peer: s.peerID, Seq: req.Seq}
+	sessID := overpass.SessionID{Peer: s.peerID, Seq: args.Seq}
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		res.Fail(notFoundFailure, "")
 		return
 	}
 
-	if err := cat.TryClose(sessID.At(req.Rev)); err != nil {
+	if err := cat.TryClose(sessID.At(args.Rev)); err != nil {
 		switch err.(type) {
 		case overpass.NotFoundError:
 			res.Fail(notFoundFailure, "")

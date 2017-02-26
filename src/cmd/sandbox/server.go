@@ -10,10 +10,10 @@ import (
 func runServer(peer overpass.Peer) {
 	peer.Listen("our-namespace", func(
 		ctx context.Context,
-		cmd overpass.Command,
-		res overpass.Responder,
+		req overpass.Request,
+		res overpass.Response,
 	) {
-		defer cmd.Payload.Close()
+		defer req.Payload.Close()
 		time.Sleep(5 * time.Second)
 		res.Close()
 	})

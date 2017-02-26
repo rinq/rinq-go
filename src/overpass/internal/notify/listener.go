@@ -1,8 +1,8 @@
 package notify
 
 import (
-	"github.com/over-pass/overpass-go/src/overpass/internal/service"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpass/internal/service"
 )
 
 // Listener accepts notifications sent by a notifier.

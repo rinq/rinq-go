@@ -1,11 +1,11 @@
 package notifyamqp
 
 import (
+	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpass/amqp/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/overpass/internal/localsession"
 	"github.com/over-pass/overpass-go/src/overpass/internal/notify"
 	"github.com/over-pass/overpass-go/src/overpass/internal/revision"
-	"github.com/over-pass/overpass-go/src/overpass"
-	"github.com/over-pass/overpass-go/src/overpass/amqp/internal/amqputil"
 )
 
 // New returns a pair of notifier and listener.

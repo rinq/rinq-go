@@ -5,13 +5,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpass/internal/attrmeta"
 	"github.com/over-pass/overpass-go/src/overpass/internal/bufferpool"
 	"github.com/over-pass/overpass-go/src/overpass/internal/command"
 	"github.com/over-pass/overpass-go/src/overpass/internal/notify"
 	"github.com/over-pass/overpass-go/src/overpass/internal/syncutil"
 	"github.com/over-pass/overpass-go/src/overpass/internal/trace"
-	"github.com/over-pass/overpass-go/src/overpass"
 )
 
 type session struct {

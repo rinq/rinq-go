@@ -30,47 +30,51 @@ func logStoppedListening(
 	)
 }
 
-type loggingResponder struct {
-	parent    overpass.Responder
+// loggingResponse wraps are "parent" response and emits a log entry when it is
+// closed.
+type loggingResponse struct {
+	req overpass.Request
+	res overpass.Response
+
 	peerID    overpass.PeerID
 	traceID   string
-	request   overpass.Command
 	logger    overpass.Logger
 	startedAt time.Time
 }
 
-func newLoggingResponder(
-	parent overpass.Responder,
+func newLoggingResponse(
+	req overpass.Request,
+	res overpass.Response,
 	peerID overpass.PeerID,
 	traceID string,
-	request overpass.Command,
 	logger overpass.Logger,
-) overpass.Responder {
-	return &loggingResponder{
-		parent:    parent,
+) overpass.Response {
+	return &loggingResponse{
+		res: res,
+		req: req,
+
 		peerID:    peerID,
 		traceID:   traceID,
-		request:   request,
 		logger:    logger,
 		startedAt: time.Now(),
 	}
 }
 
-func (r *loggingResponder) IsRequired() bool {
-	return r.parent.IsRequired()
+func (r *loggingResponse) IsRequired() bool {
+	return r.res.IsRequired()
 }
 
-func (r *loggingResponder) IsClosed() bool {
-	return r.parent.IsClosed()
+func (r *loggingResponse) IsClosed() bool {
+	return r.res.IsClosed()
 }
 
-func (r *loggingResponder) Done(payload *overpass.Payload) {
-	r.parent.Done(payload)
+func (r *loggingResponse) Done(payload *overpass.Payload) {
+	r.res.Done(payload)
 	r.logSuccess(payload)
 }
 
-func (r *loggingResponder) Error(err error) {
-	r.parent.Error(err)
+func (r *loggingResponse) Error(err error) {
+	r.res.Error(err)
 
 	if failure, ok := err.(overpass.Failure); ok {
 		r.logFailure(failure.Type, failure.Payload)
@@ -79,14 +83,14 @@ func (r *loggingResponder) Error(err error) {
 	}
 }
 
-func (r *loggingResponder) Fail(failureType, message string) overpass.Failure {
-	err := r.parent.Fail(failureType, message)
+func (r *loggingResponse) Fail(failureType, message string) overpass.Failure {
+	err := r.res.Fail(failureType, message)
 	r.logFailure(failureType, nil)
 	return err
 }
 
-func (r *loggingResponder) Close() bool {
-	if r.parent.Close() {
+func (r *loggingResponse) Close() bool {
+	if r.res.Close() {
 		r.logSuccess(nil)
 		return true
 	}
@@ -94,44 +98,44 @@ func (r *loggingResponder) Close() bool {
 	return false
 }
 
-func (r *loggingResponder) logSuccess(payload *overpass.Payload) {
+func (r *loggingResponse) logSuccess(payload *overpass.Payload) {
 	r.logger.Log(
 		"%s handled %s '%s' command from %s successfully (%dms %d/i %d/o) [%s]",
 		r.peerID.ShortString(),
-		r.request.Namespace,
-		r.request.Command,
-		r.request.Source.Ref().ShortString(),
+		r.req.Namespace,
+		r.req.Command,
+		r.req.Source.Ref().ShortString(),
 		time.Now().Sub(r.startedAt)/time.Millisecond,
-		r.request.Payload.Len(),
+		r.req.Payload.Len(),
 		payload.Len(),
 		r.traceID,
 	)
 }
-func (r *loggingResponder) logFailure(failureType string, payload *overpass.Payload) {
+func (r *loggingResponse) logFailure(failureType string, payload *overpass.Payload) {
 	r.logger.Log(
 		"%s handled %s '%s' command from %s: '%s' failure (%dms %d/i %d/o) [%s]",
 		r.peerID.ShortString(),
-		r.request.Namespace,
-		r.request.Command,
-		r.request.Source.Ref().ShortString(),
+		r.req.Namespace,
+		r.req.Command,
+		r.req.Source.Ref().ShortString(),
 		failureType,
 		time.Now().Sub(r.startedAt)/time.Millisecond,
-		r.request.Payload.Len(),
+		r.req.Payload.Len(),
 		payload.Len(),
 		r.traceID,
 	)
 }
 
-func (r *loggingResponder) logError(err error) {
+func (r *loggingResponse) logError(err error) {
 	r.logger.Log(
 		"%s handled %s '%s' command from %s: '%s' error (%dms %d/i 0/o) [%s]",
 		r.peerID.ShortString(),
-		r.request.Namespace,
-		r.request.Command,
-		r.request.Source.Ref().ShortString(),
+		r.req.Namespace,
+		r.req.Command,
+		r.req.Source.Ref().ShortString(),
 		err,
 		time.Now().Sub(r.startedAt)/time.Millisecond,
-		r.request.Payload.Len(),
+		r.req.Payload.Len(),
 		r.traceID,
 	)
 }

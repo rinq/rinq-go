@@ -1,8 +1,8 @@
 package command
 
 import (
-	"github.com/over-pass/overpass-go/src/overpass/internal/service"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpass/internal/service"
 )
 
 // Server processes command requests made by an invoker.

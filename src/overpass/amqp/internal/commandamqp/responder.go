@@ -9,11 +9,11 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// responder is used to send responses to command requests, it implements
-// overpass.Responder.
-type responder struct {
-	channels amqputil.ChannelPool
+// response is used to send responses to command requests, it implements
+// overpass.Response.
+type response struct {
 	context  context.Context
+	channels amqputil.ChannelPool
 	msgID    overpass.MessageID
 
 	mutex      sync.RWMutex
@@ -21,7 +21,21 @@ type responder struct {
 	isClosed   bool
 }
 
-func (r *responder) IsRequired() bool {
+func newResponse(
+	ctx context.Context,
+	channels amqputil.ChannelPool,
+	msgID overpass.MessageID,
+	isRequired bool,
+) overpass.Response {
+	return &response{
+		context:    ctx,
+		channels:   channels,
+		msgID:      msgID,
+		isRequired: isRequired,
+	}
+}
+
+func (r *response) IsRequired() bool {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
@@ -38,14 +52,14 @@ func (r *responder) IsRequired() bool {
 	}
 }
 
-func (r *responder) IsClosed() bool {
+func (r *response) IsClosed() bool {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
 	return r.isClosed
 }
 
-func (r *responder) Done(payload *overpass.Payload) {
+func (r *response) Done(payload *overpass.Payload) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -59,7 +73,7 @@ func (r *responder) Done(payload *overpass.Payload) {
 	})
 }
 
-func (r *responder) Error(err error) {
+func (r *response) Error(err error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -84,13 +98,13 @@ func (r *responder) Error(err error) {
 	}
 }
 
-func (r *responder) Fail(failureType, message string) overpass.Failure {
+func (r *response) Fail(failureType, message string) overpass.Failure {
 	err := overpass.Failure{Type: failureType, Message: message}
 	r.Error(err)
 	return err
 }
 
-func (r *responder) Close() bool {
+func (r *response) Close() bool {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -102,7 +116,7 @@ func (r *responder) Close() bool {
 	return false
 }
 
-func (r *responder) close(msg amqp.Publishing) {
+func (r *response) close(msg amqp.Publishing) {
 	if r.isRequired {
 		channel, err := r.channels.Get()
 		if err != nil {

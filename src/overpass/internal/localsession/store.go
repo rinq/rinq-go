@@ -3,8 +3,8 @@ package localsession
 import (
 	"sync"
 
-	revisionpkg "github.com/over-pass/overpass-go/src/overpass/internal/revision"
 	"github.com/over-pass/overpass-go/src/overpass"
+	revisionpkg "github.com/over-pass/overpass-go/src/overpass/internal/revision"
 )
 
 // Store is a collection of sessions and their catalogs.

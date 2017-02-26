@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync/atomic"
 
+	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpass/internal/attrmeta"
 	"github.com/over-pass/overpass-go/src/overpass/internal/command"
-	"github.com/over-pass/overpass-go/src/overpass"
 )
 
 type client struct {

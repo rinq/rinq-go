@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpass/amqp/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/overpass/internal/command"
 	"github.com/over-pass/overpass-go/src/overpass/internal/revision"
 	"github.com/over-pass/overpass-go/src/overpass/internal/service"
-	"github.com/over-pass/overpass-go/src/overpass"
-	"github.com/over-pass/overpass-go/src/overpass/amqp/internal/amqputil"
 	"github.com/streadway/amqp"
 )
 
@@ -325,7 +325,7 @@ func (s *server) handle(
 	ctx, cancel := amqputil.UnpackDeadline(ctx, msg)
 	defer cancel()
 
-	cmd := overpass.Command{
+	req := overpass.Request{
 		Source:      source,
 		Namespace:   namespace,
 		Command:     msg.Type,
@@ -333,41 +333,34 @@ func (s *server) handle(
 		IsMulticast: msg.Exchange == multicastExchange,
 	}
 
-	var res overpass.Responder = &responder{
-		channels:   s.channels,
-		context:    ctx,
-		msgID:      msgID,
-		isRequired: msg.ReplyTo != "",
-	}
+	res := newResponse(ctx, s.channels, msgID, msg.ReplyTo != "")
 
 	if s.logger.IsDebug() {
-		res = newCapturingResponder(res)
-		logRequestBegin(ctx, s.logger, s.peerID, msgID, cmd)
+		res = newDebugResponse(res)
+		logRequestBegin(ctx, s.logger, s.peerID, msgID, req)
 	}
 
-	handler(ctx, cmd, res)
+	handler(ctx, req, res)
 
 	if res.IsClosed() {
 		msg.Ack(false) // false = single message
 
-		if s.logger.IsDebug() {
-			cap := res.(*capturingResponder)
-			payload, err := cap.Response()
-			defer payload.Close()
-			logRequestEnd(ctx, s.logger, s.peerID, msgID, cmd, payload, err)
+		if dr, ok := res.(*debugResponse); ok {
+			defer dr.Payload.Close()
+			logRequestEnd(ctx, s.logger, s.peerID, msgID, req, dr.Payload, dr.Err)
 		}
 	} else if msg.Exchange == balancedExchange {
 		select {
 		case <-ctx.Done():
 			msg.Reject(false) // false = don't requeue
-			logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd, ctx.Err().Error())
+			logRequestRejected(ctx, s.logger, s.peerID, msgID, req, ctx.Err().Error())
 		default:
 			msg.Reject(true) // true = requeue
-			logRequestRequeued(ctx, s.logger, s.peerID, msgID, cmd)
+			logRequestRequeued(ctx, s.logger, s.peerID, msgID, req)
 		}
 	} else {
 		msg.Reject(false) // false = don't requeue
-		logRequestRejected(ctx, s.logger, s.peerID, msgID, cmd, ctx.Err().Error())
+		logRequestRejected(ctx, s.logger, s.peerID, msgID, req, ctx.Err().Error())
 	}
 }
 

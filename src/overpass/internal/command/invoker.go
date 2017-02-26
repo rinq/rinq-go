@@ -3,8 +3,8 @@ package command
 import (
 	"context"
 
-	"github.com/over-pass/overpass-go/src/overpass/internal/service"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpass/internal/service"
 )
 
 // Invoker is a low-level RPC interface, it is used to implement the

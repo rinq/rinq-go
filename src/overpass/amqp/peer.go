@@ -107,17 +107,17 @@ func (p *peer) Listen(namespace string, handler overpass.CommandHandler) error {
 		namespace,
 		func(
 			ctx context.Context,
-			cmd overpass.Command,
-			res overpass.Responder,
+			req overpass.Request,
+			res overpass.Response,
 		) {
 			handler(
 				ctx,
-				cmd,
-				newLoggingResponder(
+				req,
+				newLoggingResponse(
+					req,
 					res,
 					p.id,
 					trace.Get(ctx),
-					cmd,
 					p.logger,
 				),
 			)

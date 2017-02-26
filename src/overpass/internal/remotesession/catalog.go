@@ -5,10 +5,10 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpass/internal/attrmeta"
 	revisionpkg "github.com/over-pass/overpass-go/src/overpass/internal/revision"
 	"github.com/over-pass/overpass-go/src/overpass/internal/syncutil"
-	"github.com/over-pass/overpass-go/src/overpass"
 )
 
 type catalog struct {

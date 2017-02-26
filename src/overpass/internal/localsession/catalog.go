@@ -5,8 +5,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/overpass/internal/attrmeta"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpass/internal/attrmeta"
 )
 
 // Catalog is an interface for manipulating an attribute table.

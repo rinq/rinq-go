@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/over-pass/overpass-go/src/overpass/internal/command"
-	"github.com/over-pass/overpass-go/src/overpass/internal/service"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpass/amqp/internal/amqputil"
+	"github.com/over-pass/overpass-go/src/overpass/internal/command"
+	"github.com/over-pass/overpass-go/src/overpass/internal/service"
 	"github.com/streadway/amqp"
 )
 
