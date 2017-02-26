@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/over-pass/overpass-go/src/overpass"
-	"github.com/over-pass/overpass-go/src/overpassamqp"
+	"github.com/over-pass/overpass-go/src/overpass/amqp"
 )
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	peer, err := overpassamqp.DialConfig(
+	peer, err := amqp.DialConfig(
 		context.Background(),
 		"amqp://localhost",
 		overpass.Config{
