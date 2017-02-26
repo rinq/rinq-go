@@ -2,29 +2,6 @@ package overpass
 
 import "fmt"
 
-// IsServerError returns true if err is an error that occurred on the server
-// during a command call.
-func IsServerError(err error) bool {
-	switch err.(type) {
-	case Failure, UnexpectedError:
-		return true
-	default:
-		return false
-	}
-}
-
-// UnexpectedError is an error (in contrast to a faliure) that occurred on the
-// remote peer when calling a command.
-type UnexpectedError string
-
-func (err UnexpectedError) Error() string {
-	if err == "" {
-		return "unexpected error"
-	}
-
-	return string(err)
-}
-
 // ShouldRetry is used to check whether a session operation should be retried
 // after refreshing the session.
 func ShouldRetry(err error) bool {

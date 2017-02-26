@@ -9,7 +9,7 @@ import (
 )
 
 var _ = Describe("Context", func() {
-	Describe("WithID and GetID", func() {
+	Describe("With and Get", func() {
 		It("transports the trace ID in the context", func() {
 			ctx := trace.With(context.Background(), "<id>")
 
