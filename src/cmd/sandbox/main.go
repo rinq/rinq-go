@@ -15,7 +15,7 @@ import (
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	peer, err := overpassamqp.Dial(
+	peer, err := overpassamqp.DialConfig(
 		context.Background(),
 		"amqp://localhost",
 		overpass.Config{

@@ -24,29 +24,35 @@ type Dialer struct {
 	AMQPConfig amqp.Config
 }
 
-// Dial connects to an AMQP broker and returns a new peer using the default dialer.
-func Dial(ctx context.Context, dsn string, config overpass.Config) (overpass.Peer, error) {
+// Dial connects to an AMQP broker using the default configuration.
+func Dial(dsn string) (overpass.Peer, error) {
 	d := Dialer{}
-	return d.Dial(ctx, dsn, config)
+	return d.Dial(context.Background(), dsn, overpass.DefaultConfig)
+}
+
+// DialConfig connects to an AMQP broker using the provided context and configuration.
+func DialConfig(ctx context.Context, dsn string, cfg overpass.Config) (overpass.Peer, error) {
+	d := Dialer{}
+	return d.Dial(ctx, dsn, cfg)
 }
 
 // Dial connects to an AMQP broker and returns a new peer.
-func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (overpass.Peer, error) {
+func (d *Dialer) Dial(ctx context.Context, dsn string, cfg overpass.Config) (overpass.Peer, error) {
 	if dsn == "" {
 		dsn = "amqp://localhost"
 	}
 
-	amqpConfig := d.AMQPConfig
-	if amqpConfig.Properties == nil {
-		amqpConfig.Properties = amqp.Table{
+	amqpCfg := d.AMQPConfig
+	if amqpCfg.Properties == nil {
+		amqpCfg.Properties = amqp.Table{
 			"product": path.Base(os.Args[0]),
 			"version": "overpass-go/0.0.0",
 		}
 	}
 
-	config = config.WithDefaults()
+	cfg = withDefaults(cfg)
 
-	broker, err := amqp.DialConfig(dsn, amqpConfig)
+	broker, err := amqp.DialConfig(dsn, amqpCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -65,12 +71,12 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	}
 
 	channels := amqputil.NewChannelPool(broker, poolSize)
-	peerID, err := d.establishIdentity(ctx, channels, config.Logger)
+	peerID, err := d.establishIdentity(ctx, channels, cfg.Logger)
 	if err != nil {
 		return nil, err
 	}
 
-	config.Logger.Log(
+	cfg.Logger.Log(
 		"%s connected to '%s' as %s",
 		peerID.ShortString(),
 		dsn,
@@ -78,24 +84,24 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 	)
 
 	localStore := localsession.NewStore()
-	aggregateStore := &revision.AggregateStore{
+	revStore := &revision.AggregateStore{
 		PeerID: peerID,
 		Local:  localStore,
 		// Remote revision store depends on invoker, created below
 	}
 
-	invoker, server, err := commandamqp.New(peerID, config, aggregateStore, channels)
+	invoker, server, err := commandamqp.New(peerID, cfg, revStore, channels)
 	if err != nil {
 		return nil, err
 	}
 
-	notifier, listener, err := notifyamqp.New(peerID, config, localStore, aggregateStore, channels)
+	notifier, listener, err := notifyamqp.New(peerID, cfg, localStore, revStore, channels)
 	if err != nil {
 		return nil, err
 	}
 
-	remoteStore := remotesession.NewStore(peerID, invoker, config.PruneInterval, config.Logger)
-	aggregateStore.Remote = remoteStore
+	remoteStore := remotesession.NewStore(peerID, invoker, cfg.PruneInterval, cfg.Logger)
+	revStore.Remote = remoteStore
 
 	remotesession.Listen(peerID, localStore, server)
 
@@ -108,7 +114,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, config overpass.Config) (
 		server,
 		notifier,
 		listener,
-		config.Logger,
+		cfg.Logger,
 	), nil
 }
 
@@ -157,4 +163,30 @@ func (d *Dialer) establishIdentity(
 			}
 		}
 	}
+}
+
+// withDefaults returns a copy of cfg config with empty properties replaced
+// with their defaults.
+func withDefaults(cfg overpass.Config) overpass.Config {
+	if cfg.DefaultTimeout == 0 {
+		cfg.DefaultTimeout = overpass.DefaultConfig.DefaultTimeout
+	}
+
+	if cfg.CommandPreFetch == 0 {
+		cfg.CommandPreFetch = overpass.DefaultConfig.CommandPreFetch
+	}
+
+	if cfg.SessionPreFetch == 0 {
+		cfg.SessionPreFetch = overpass.DefaultConfig.SessionPreFetch
+	}
+
+	if cfg.Logger == nil {
+		cfg.Logger = overpass.DefaultConfig.Logger
+	}
+
+	if cfg.PruneInterval == 0 {
+		cfg.PruneInterval = overpass.DefaultConfig.PruneInterval
+	}
+
+	return cfg
 }

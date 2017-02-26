@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// DefaultConfig is the default Overpass configuration.
+var DefaultConfig Config
+
 // Config describes peer configuration.
 type Config struct {
 	// DefaultTimeout specifies the maximum amount of time to wait for a call to
@@ -29,28 +32,12 @@ type Config struct {
 	PruneInterval time.Duration
 }
 
-// WithDefaults returns a copy of this config with empty properties replaced
-// with their defaults.
-func (config Config) WithDefaults() Config {
-	if config.DefaultTimeout == 0 {
-		config.DefaultTimeout = 5 * time.Second
+func init() {
+	DefaultConfig = Config{
+		DefaultTimeout:  5 * time.Second,
+		CommandPreFetch: runtime.GOMAXPROCS(0),
+		SessionPreFetch: runtime.GOMAXPROCS(0) * 10,
+		Logger:          NewLogger(false),
+		PruneInterval:   3 * time.Minute,
 	}
-
-	if config.CommandPreFetch == 0 {
-		config.CommandPreFetch = runtime.GOMAXPROCS(0)
-	}
-
-	if config.SessionPreFetch == 0 {
-		config.SessionPreFetch = runtime.GOMAXPROCS(0) * 10
-	}
-
-	if config.Logger == nil {
-		config.Logger = NewLogger(false)
-	}
-
-	if config.PruneInterval == 0 {
-		config.PruneInterval = 3 * time.Minute
-	}
-
-	return config
 }
