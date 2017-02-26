@@ -13,31 +13,6 @@ func IsServerError(err error) bool {
 	}
 }
 
-// IsFailure returns true if err represents an application-defined command
-// failure response (as opposed to an unexpected failure).
-func IsFailure(err error) bool {
-	_, ok := err.(Failure)
-	return ok
-}
-
-// IsFailureType returns true if err represents an application-defined command
-// failure of a specific type.
-func IsFailureType(t string, err error) bool {
-	f, ok := err.(Failure)
-	return ok && f.Type == t
-}
-
-// Failure represents an application-defined command failure.
-type Failure struct {
-	Type    string
-	Message string
-	Payload *Payload
-}
-
-func (err Failure) Error() string {
-	return fmt.Sprintf("%s: %s", err.Type, err.Message)
-}
-
 // UnexpectedError is an error (in contrast to a faliure) that occurred on the
 // remote peer when calling a command.
 type UnexpectedError string
