@@ -2,22 +2,24 @@ package overpass
 
 import "fmt"
 
-// Failure represents an application-defined command failure.
+// Failure is an application-defined command error.
 //
-// Failures are returned by commands to indicate an error that is "expected"
-// within the domain of the command. Failures form part of a command's public
-// API and should usually be handled by the client.
+// Failures are used to indicate an error that is "expected" within the domain
+// of the command that produced it. The for part of the command's API and should
+// usually be handled by the caller.
+//
+// Failures can be produced by a command handler by calling Response.Fail() or
+// passing a Failure value to Response.Error().
 type Failure struct {
-	// Type is an application-defined failure type. There is no restriction on
-	// the content, but the type must not be empty. Overpass logs the failure
-	// type for each failed request.
+	// Type is an application-defined string identifying the failure.
+	// They serve the same purpose as an error code. They should be concise
+	// and easily understandable within the context of the application's API.
 	Type string
 
 	// Message is an optional human-readable description of the failure.
 	Message string
 
-	// Payload is an optional application-defined payload sent along with the
-	// failure.
+	// Payload is an optional application-defined payload.
 	Payload *Payload
 }
 
@@ -41,8 +43,8 @@ func IsFailureType(t string, err error) bool {
 	return f.Type == t
 }
 
-// FailureType returns the type of err if is a Failure; otherwise is returns an
-// empty string.
+// FailureType returns the failure type of err; or an empty string if err is not
+// a Failure.
 func FailureType(err error) string {
 	f, ok := err.(Failure)
 	if ok && f.Type == "" {
