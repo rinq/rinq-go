@@ -1,6 +1,9 @@
 package overpass
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // Session is an interface representing a "local" session, that is, a session
 // created by a peer running in this process.
@@ -129,4 +132,20 @@ type Session interface {
 	//
 	// All sessions are closed when their owning peer is stopped.
 	Done() <-chan struct{}
+}
+
+// NotFoundError indicates that an operation failed because the session does
+// not exist.
+type NotFoundError struct {
+	ID SessionID
+}
+
+// IsNotFound returns true if err is a NotFoundError.
+func IsNotFound(err error) bool {
+	_, ok := err.(NotFoundError)
+	return ok
+}
+
+func (err NotFoundError) Error() string {
+	return fmt.Sprintf("session %s not found", err.ID)
 }

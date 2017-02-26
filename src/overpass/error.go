@@ -25,22 +25,6 @@ func (err UnexpectedError) Error() string {
 	return string(err)
 }
 
-// IsNotFound checks if the given error indicates that session could not be
-// found.
-func IsNotFound(err error) bool {
-	_, ok := err.(NotFoundError)
-	return ok
-}
-
-// NotFoundError indicates a failure to find a session because it does not exist.
-type NotFoundError struct {
-	ID SessionID
-}
-
-func (err NotFoundError) Error() string {
-	return fmt.Sprintf("session %s not found", err.ID)
-}
-
 // ShouldRetry is used to check whether a session operation should be retried
 // after refreshing the session.
 func ShouldRetry(err error) bool {
