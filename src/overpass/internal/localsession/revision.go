@@ -6,7 +6,6 @@ import (
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpass/internal/attrmeta"
 	"github.com/over-pass/overpass-go/src/overpass/internal/bufferpool"
-	"github.com/over-pass/overpass-go/src/overpass/internal/trace"
 )
 
 type revision struct {
@@ -82,20 +81,7 @@ func (r *revision) Update(ctx context.Context, attrs ...overpass.Attr) (overpass
 		return r, err
 	}
 
-	if traceID := trace.Get(ctx); traceID != "" {
-		r.logger.Log(
-			"%s session updated {%s} [%s]",
-			rev.Ref().ShortString(),
-			diff.String(),
-			traceID,
-		)
-	} else {
-		r.logger.Log(
-			"%s session updated {%s}",
-			rev.Ref().ShortString(),
-			diff.String(),
-		)
-	}
+	logUpdate(ctx, r.logger, rev.Ref(), diff)
 
 	return rev, nil
 }

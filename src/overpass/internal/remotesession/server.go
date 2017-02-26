@@ -6,6 +6,7 @@ import (
 
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpass/internal/attrmeta"
+	"github.com/over-pass/overpass-go/src/overpass/internal/bufferpool"
 	"github.com/over-pass/overpass-go/src/overpass/internal/command"
 	"github.com/over-pass/overpass-go/src/overpass/internal/localsession"
 )
@@ -13,17 +14,20 @@ import (
 type server struct {
 	peerID   overpass.PeerID
 	sessions localsession.Store
+	logger   overpass.Logger
 }
 
 // Listen attaches a new remote session service to the given command server.
 func Listen(
+	svr command.Server,
 	peerID overpass.PeerID,
 	sessions localsession.Store,
-	svr command.Server,
+	logger overpass.Logger,
 ) error {
 	s := &server{
 		peerID:   peerID,
 		sessions: sessions,
+		logger:   logger,
 	}
 
 	_, err := svr.Listen(sessionNamespace, s.handle)
@@ -106,7 +110,10 @@ func (s *server) update(
 		return
 	}
 
-	rev, err := cat.TryUpdate(sessID.At(args.Rev), args.Attrs, nil)
+	diff := bufferpool.Get()
+	defer bufferpool.Put(diff)
+
+	rev, err := cat.TryUpdate(sessID.At(args.Rev), args.Attrs, diff)
 	if err != nil {
 		switch err.(type) {
 		case overpass.NotFoundError:
@@ -121,6 +128,8 @@ func (s *server) update(
 
 		return
 	}
+
+	logRemoteUpdate(ctx, s.logger, rev.Ref(), req.Source.Ref().ID.Peer, diff)
 
 	rsp := updateResponse{
 		Rev:         rev.Ref().Rev,
