@@ -12,33 +12,24 @@ func runClient(peer overpass.Peer) {
 	sess := peer.Session()
 	defer sess.Close()
 
-	for i := 0; i < 4; i++ {
-		go call(sess)
-	}
-
-	// call(sess)
+	call(sess)
+	sess.Close()
 
 	<-sess.Done()
 }
 
 func call(sess overpass.Session) {
-	for {
-		ctx := context.Background()
-		ctx, cancel := context.WithTimeout(ctx, 11*time.Second)
-		defer cancel()
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 11*time.Second)
+	defer cancel()
 
-		result, err := sess.Call(
-			ctx,
-			"our-namespace",
-			"<whatever>",
-			nil,
-		)
-		defer result.Close()
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
+	err := sess.Execute(
+		ctx,
+		"our-namespace",
+		"<whatever>",
+		nil,
+	)
+	if err != nil {
+		fmt.Println(err)
 	}
-
-	sess.Close()
 }

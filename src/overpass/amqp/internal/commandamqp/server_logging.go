@@ -53,7 +53,7 @@ func logRequestBegin(
 	}
 
 	logger.Log(
-		"%s began '%s::%s' command request %s [%s] >>> %s",
+		"%s server began '%s::%s' command request %s [%s] <<< %s",
 		peerID.ShortString(),
 		req.Namespace,
 		req.Command,
@@ -79,7 +79,7 @@ func logRequestEnd(
 	switch e := err.(type) {
 	case nil:
 		logger.Log(
-			"%s completed '%s::%s' command request %s successfully [%s] <<< %s",
+			"%s server completed '%s::%s' command request %s successfully [%s] >>> %s",
 			peerID.ShortString(),
 			req.Namespace,
 			req.Command,
@@ -88,20 +88,25 @@ func logRequestEnd(
 			payload,
 		)
 	case overpass.Failure:
+		var message string
+		if e.Message != "" {
+			message = ": " + e.Message
+		}
+
 		logger.Log(
-			"%s completed '%s::%s' command request %s with '%s' failure: %s [%s] <<< %s",
+			"%s server completed '%s::%s' command request %s with '%s' failure%s [%s] <<< %s",
 			peerID.ShortString(),
 			req.Namespace,
 			req.Command,
 			msgID.ShortString(),
 			e.Type,
-			e.Message,
+			message,
 			trace.Get(ctx),
 			payload,
 		)
 	default:
 		logger.Log(
-			"%s completed '%s::%s' command request %s with error [%s] <<< %s",
+			"%s server completed '%s::%s' command request %s with error [%s] <<< %s",
 			peerID.ShortString(),
 			req.Namespace,
 			req.Command,
