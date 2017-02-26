@@ -75,7 +75,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, cfg overpass.Config) (ove
 
 	poolSize := d.PoolSize
 	if poolSize == 0 {
-		poolSize = 20
+		poolSize = DefaultPoolSize
 	}
 
 	channels := amqputil.NewChannelPool(broker, poolSize)
@@ -111,7 +111,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, cfg overpass.Config) (ove
 	remoteStore := remotesession.NewStore(peerID, invoker, cfg.PruneInterval, cfg.Logger)
 	revStore.Remote = remoteStore
 
-	remotesession.Listen(peerID, localStore, server)
+	remotesession.Listen(server, peerID, localStore, cfg.Logger)
 
 	return newPeer(
 		peerID,

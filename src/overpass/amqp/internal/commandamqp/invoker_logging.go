@@ -17,7 +17,7 @@ func logUnicastCallBegin(
 	}
 
 	logger.Log(
-		"%s invoker began unicast '%s::%s' call %s on %s [%s] >>> %s",
+		"%s invoker began unicast '%s::%s' call %s to %s [%s] >>> %s",
 		peerID.ShortString(),
 		ns,
 		cmd,

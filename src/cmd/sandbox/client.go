@@ -23,7 +23,7 @@ func call(sess overpass.Session) {
 	ctx, cancel := context.WithTimeout(ctx, 11*time.Second)
 	defer cancel()
 
-	err := sess.Execute(
+	_, err := sess.Call(
 		ctx,
 		"our-namespace",
 		"<whatever>",
