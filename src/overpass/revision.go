@@ -1,6 +1,9 @@
 package overpass
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // Revision represents a specific revision of session.
 //
@@ -91,4 +94,57 @@ type Revision interface {
 	// revision. If Ref().Rev is not the latest revision the closure fails;
 	// ShouldRetry(err) returns true.
 	Close(ctx context.Context) (err error)
+}
+
+// ShouldRetry returns true if a call to Revision.Get(), GetMany(), Update() or
+// Close() failed because the revision is out of date.
+//
+// The operation should be retried on the latest revision of the session,
+// which can be retreived with Revision.Refresh().
+func ShouldRetry(err error) bool {
+	switch err.(type) {
+	case StaleFetchError, StaleUpdateError:
+		return true
+	default:
+		return false
+	}
+}
+
+// StaleFetchError indicates a failure to fetch an attribute for a specific
+// revision because it has been modified after that revision.
+type StaleFetchError struct {
+	Ref SessionRef
+}
+
+func (err StaleFetchError) Error() string {
+	return fmt.Sprintf(
+		"can not fetch attributes at %s, one or more attributes have been modified since that revision",
+		err.Ref,
+	)
+}
+
+// StaleUpdateError indicates a failure to update or close a session revision
+// because the session has been modified after that revision.
+type StaleUpdateError struct {
+	Ref SessionRef
+}
+
+func (err StaleUpdateError) Error() string {
+	return fmt.Sprintf(
+		"can not update or close %s, the session has been modified since that revision",
+		err.Ref,
+	)
+}
+
+// FrozenAttributesError indicates a failure to apply a change-set because one
+// or more attributes in the change-set are frozen.
+type FrozenAttributesError struct {
+	Ref SessionRef
+}
+
+func (err FrozenAttributesError) Error() string {
+	return fmt.Sprintf(
+		"can not update %s, the change-set references one or more frozen key(s)",
+		err.Ref,
+	)
 }
