@@ -130,7 +130,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 				payload.Len(),
 				traceID,
 			)
-		case overpass.UnexpectedError:
+		case overpass.CommandError:
 			s.logger.Log(
 				"%s called '%s::%s' command: '%s' error (%dms, %d/o 0/i) [%s]",
 				msgID.ShortString(),

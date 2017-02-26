@@ -417,7 +417,7 @@ func (i *invoker) unpack(msg *amqp.Delivery) (*overpass.Payload, error) {
 		}
 
 	case errorResponse:
-		return nil, overpass.UnexpectedError(msg.Body)
+		return nil, overpass.CommandError(msg.Body)
 
 	default:
 		return nil, fmt.Errorf("malformed response, message type '%s' is unexpected", msg.Type)
