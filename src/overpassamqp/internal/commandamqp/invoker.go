@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/internal/command"
 	"github.com/over-pass/overpass-go/src/internal/service"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp/internal/amqputil"
 	"github.com/streadway/amqp"
 )
 
@@ -276,7 +276,7 @@ func (i *invoker) call(
 	*overpass.Payload,
 	error,
 ) {
-	corrID := amqputil.PutCorrelationID(ctx, msg)
+	traceID := amqputil.PackTrace(ctx, msg)
 
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel func()
@@ -285,8 +285,8 @@ func (i *invoker) call(
 	}
 
 	msg.ReplyTo = "Y"
-	if _, err := amqputil.PutExpiration(ctx, msg); err != nil {
-		return corrID, nil, err
+	if _, err := amqputil.PackDeadline(ctx, msg); err != nil {
+		return traceID, nil, err
 	}
 
 	c := call{
@@ -298,11 +298,11 @@ func (i *invoker) call(
 	case i.track <- c:
 		// ready to publish
 	case <-ctx.Done():
-		return corrID, nil, ctx.Err()
+		return traceID, nil, ctx.Err()
 	case <-i.sm.Graceful:
-		return corrID, nil, context.Canceled
+		return traceID, nil, context.Canceled
 	case <-i.sm.Forceful:
-		return corrID, nil, context.Canceled
+		return traceID, nil, context.Canceled
 	}
 
 	// notify the state machine that we're bailing if it hasn't already sent
@@ -320,17 +320,17 @@ func (i *invoker) call(
 
 	err := i.publish(exchange, key, msg)
 	if err != nil {
-		return corrID, nil, err
+		return traceID, nil, err
 	}
 
 	select {
 	case msg := <-c.Reply:
 		payload, err := i.unpack(msg)
-		return corrID, payload, err
+		return traceID, payload, err
 	case <-ctx.Done():
-		return corrID, nil, ctx.Err()
+		return traceID, nil, ctx.Err()
 	case <-i.sm.Forceful:
-		return corrID, nil, context.Canceled
+		return traceID, nil, context.Canceled
 	}
 }
 
@@ -341,17 +341,17 @@ func (i *invoker) execute(
 	key string,
 	msg *amqp.Publishing,
 ) (string, error) {
-	corrID := amqputil.PutCorrelationID(ctx, msg)
+	traceID := amqputil.PackTrace(ctx, msg)
 
 	select {
 	default:
-		return corrID, i.publish(exchange, key, msg)
+		return traceID, i.publish(exchange, key, msg)
 	case <-ctx.Done():
-		return corrID, ctx.Err()
+		return traceID, ctx.Err()
 	case <-i.sm.Graceful:
-		return corrID, context.Canceled
+		return traceID, context.Canceled
 	case <-i.sm.Forceful:
-		return corrID, context.Canceled
+		return traceID, context.Canceled
 	}
 }
 

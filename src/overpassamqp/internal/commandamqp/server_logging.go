@@ -3,7 +3,7 @@ package commandamqp
 import (
 	"context"
 
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
+	"github.com/over-pass/overpass-go/src/internal/trace"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -58,7 +58,7 @@ func logRequestBegin(
 		request.Namespace,
 		request.Command,
 		msgID.ShortString(),
-		amqputil.GetCorrelationID(ctx),
+		trace.Get(ctx),
 		request.Payload,
 	)
 }
@@ -84,7 +84,7 @@ func logRequestEnd(
 			request.Namespace,
 			request.Command,
 			msgID.ShortString(),
-			amqputil.GetCorrelationID(ctx),
+			trace.Get(ctx),
 			payload,
 		)
 	case overpass.Failure:
@@ -96,7 +96,7 @@ func logRequestEnd(
 			msgID.ShortString(),
 			e.Type,
 			e.Message,
-			amqputil.GetCorrelationID(ctx),
+			trace.Get(ctx),
 			payload,
 		)
 	default:
@@ -106,7 +106,7 @@ func logRequestEnd(
 			request.Namespace,
 			request.Command,
 			msgID.ShortString(),
-			amqputil.GetCorrelationID(ctx),
+			trace.Get(ctx),
 			err,
 		)
 	}
@@ -147,7 +147,7 @@ func logRequestRequeued(
 		request.Namespace,
 		request.Command,
 		msgID.ShortString(),
-		amqputil.GetCorrelationID(ctx),
+		trace.Get(ctx),
 	)
 }
 
@@ -166,7 +166,7 @@ func logRequestRejected(
 		request.Command,
 		msgID.ShortString(),
 		reason,
-		amqputil.GetCorrelationID(ctx),
+		trace.Get(ctx),
 	)
 }
 

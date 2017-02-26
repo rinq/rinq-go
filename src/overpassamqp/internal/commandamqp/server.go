@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/internal/command"
 	"github.com/over-pass/overpass-go/src/internal/revision"
 	"github.com/over-pass/overpass-go/src/internal/service"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp/internal/amqputil"
 	"github.com/streadway/amqp"
 )
 
@@ -321,8 +321,8 @@ func (s *server) handle(
 	source overpass.Revision,
 	handler overpass.CommandHandler,
 ) {
-	ctx := amqputil.WithCorrelationID(s.parentCtx, msg)
-	ctx, cancel := amqputil.WithExpiration(ctx, msg)
+	ctx := amqputil.UnpackTrace(s.parentCtx, msg)
+	ctx, cancel := amqputil.UnpackDeadline(ctx, msg)
 	defer cancel()
 
 	cmd := overpass.Command{

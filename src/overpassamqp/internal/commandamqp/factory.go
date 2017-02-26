@@ -1,10 +1,10 @@
 package commandamqp
 
 import (
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/internal/command"
 	"github.com/over-pass/overpass-go/src/internal/revision"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp/internal/amqputil"
 )
 
 // New returns a pair of invoker and server.

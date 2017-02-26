@@ -3,9 +3,9 @@ package notifyamqp
 import (
 	"context"
 
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/internal/notify"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp/internal/amqputil"
 	"github.com/streadway/amqp"
 )
 
@@ -37,13 +37,13 @@ func (n *notifier) NotifyUnicast(
 		Type:      notificationType,
 		Body:      payload.Bytes(),
 	}
-	corrID := amqputil.PutCorrelationID(ctx, &msg)
+	traceID := amqputil.PackTrace(ctx, &msg)
 
 	if err := n.send(unicastExchange, target.String(), msg); err != nil {
-		return corrID, err
+		return traceID, err
 	}
 
-	return corrID, nil
+	return traceID, nil
 }
 
 func (n *notifier) NotifyMulticast(
@@ -59,17 +59,17 @@ func (n *notifier) NotifyMulticast(
 		Headers:   amqp.Table{},
 		Body:      payload.Bytes(),
 	}
-	corrID := amqputil.PutCorrelationID(ctx, &msg)
+	traceID := amqputil.PackTrace(ctx, &msg)
 
 	for key, value := range constraint {
 		msg.Headers[key] = value
 	}
 
 	if err := n.send(multicastExchange, "", msg); err != nil {
-		return corrID, err
+		return traceID, err
 	}
 
-	return corrID, nil
+	return traceID, nil
 }
 
 func (n *notifier) send(exchange, key string, msg amqp.Publishing) error {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp/internal/amqputil"
 	"github.com/streadway/amqp"
 )
 
@@ -110,8 +110,8 @@ func (r *responder) close(msg amqp.Publishing) {
 		}
 		defer r.channels.Put(channel)
 
-		amqputil.PutCorrelationID(r.context, &msg)
-		amqputil.PutExpiration(r.context, &msg)
+		amqputil.PackTrace(r.context, &msg)
+		amqputil.PackDeadline(r.context, &msg)
 
 		err = channel.Publish(
 			responseExchange,

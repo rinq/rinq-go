@@ -33,7 +33,7 @@ func logStoppedListening(
 type loggingResponder struct {
 	parent    overpass.Responder
 	peerID    overpass.PeerID
-	corrID    string
+	traceID   string
 	request   overpass.Command
 	logger    overpass.Logger
 	startedAt time.Time
@@ -42,14 +42,14 @@ type loggingResponder struct {
 func newLoggingResponder(
 	parent overpass.Responder,
 	peerID overpass.PeerID,
-	corrID string,
+	traceID string,
 	request overpass.Command,
 	logger overpass.Logger,
 ) overpass.Responder {
 	return &loggingResponder{
 		parent:    parent,
 		peerID:    peerID,
-		corrID:    corrID,
+		traceID:   traceID,
 		request:   request,
 		logger:    logger,
 		startedAt: time.Now(),
@@ -104,7 +104,7 @@ func (r *loggingResponder) logSuccess(payload *overpass.Payload) {
 		time.Now().Sub(r.startedAt)/time.Millisecond,
 		r.request.Payload.Len(),
 		payload.Len(),
-		r.corrID,
+		r.traceID,
 	)
 }
 func (r *loggingResponder) logFailure(failureType string, payload *overpass.Payload) {
@@ -118,7 +118,7 @@ func (r *loggingResponder) logFailure(failureType string, payload *overpass.Payl
 		time.Now().Sub(r.startedAt)/time.Millisecond,
 		r.request.Payload.Len(),
 		payload.Len(),
-		r.corrID,
+		r.traceID,
 	)
 }
 
@@ -132,6 +132,6 @@ func (r *loggingResponder) logError(err error) {
 		err,
 		time.Now().Sub(r.startedAt)/time.Millisecond,
 		r.request.Payload.Len(),
-		r.corrID,
+		r.traceID,
 	)
 }

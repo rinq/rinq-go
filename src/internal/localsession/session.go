@@ -5,12 +5,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/internal/attrmeta"
 	"github.com/over-pass/overpass-go/src/internal/bufferpool"
 	"github.com/over-pass/overpass-go/src/internal/command"
 	"github.com/over-pass/overpass-go/src/internal/notify"
 	"github.com/over-pass/overpass-go/src/internal/syncutil"
+	"github.com/over-pass/overpass-go/src/internal/trace"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -91,7 +91,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 	msgID := s.catalog.NextMessageID()
 
 	start := time.Now()
-	corrID, payload, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, p)
+	traceID, payload, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, p)
 	elapsed := time.Now().Sub(start) / time.Millisecond
 
 	if err == context.DeadlineExceeded || err == context.Canceled {
@@ -103,7 +103,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 			err,
 			elapsed,
 			p.Len(),
-			corrID,
+			traceID,
 		)
 	} else {
 		switch e := err.(type) {
@@ -116,7 +116,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 				elapsed,
 				p.Len(),
 				payload.Len(),
-				corrID,
+				traceID,
 			)
 		case overpass.Failure:
 			s.logger.Log(
@@ -128,7 +128,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 				elapsed,
 				p.Len(),
 				payload.Len(),
-				corrID,
+				traceID,
 			)
 		case overpass.UnexpectedError:
 			s.logger.Log(
@@ -139,7 +139,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 				e,
 				elapsed,
 				p.Len(),
-				corrID,
+				traceID,
 			)
 		}
 	}
@@ -159,7 +159,7 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Paylo
 	}
 
 	msgID := s.catalog.NextMessageID()
-	corrID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
+	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
 
 	if err == nil {
 		s.logger.Log(
@@ -168,7 +168,7 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Paylo
 			ns,
 			cmd,
 			p.Len(),
-			corrID,
+			traceID,
 		)
 	}
 
@@ -187,7 +187,7 @@ func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *overpass.P
 	}
 
 	msgID := s.catalog.NextMessageID()
-	corrID, err := s.invoker.ExecuteMulticast(ctx, msgID, ns, cmd, p)
+	traceID, err := s.invoker.ExecuteMulticast(ctx, msgID, ns, cmd, p)
 
 	if err == nil {
 		s.logger.Log(
@@ -196,7 +196,7 @@ func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *overpass.P
 			ns,
 			cmd,
 			p.Len(),
-			corrID,
+			traceID,
 		)
 	}
 
@@ -211,7 +211,7 @@ func (s *session) Notify(ctx context.Context, target overpass.SessionID, typ str
 	}
 
 	msgID := s.catalog.NextMessageID()
-	corrID, err := s.notifier.NotifyUnicast(ctx, msgID, target, typ, p)
+	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, typ, p)
 
 	if err == nil {
 		s.logger.Log(
@@ -220,7 +220,7 @@ func (s *session) Notify(ctx context.Context, target overpass.SessionID, typ str
 			typ,
 			target.ShortString(),
 			p.Len(),
-			corrID,
+			traceID,
 		)
 	}
 
@@ -235,7 +235,7 @@ func (s *session) NotifyMany(ctx context.Context, con overpass.Constraint, typ s
 	}
 
 	msgID := s.catalog.NextMessageID()
-	corrID, err := s.notifier.NotifyMulticast(ctx, msgID, con, typ, p)
+	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, typ, p)
 
 	if err == nil {
 		s.logger.Log(
@@ -244,7 +244,7 @@ func (s *session) NotifyMany(ctx context.Context, con overpass.Constraint, typ s
 			typ,
 			con,
 			p.Len(),
-			corrID,
+			traceID,
 		)
 	}
 
@@ -280,7 +280,7 @@ func (s *session) Listen(handler overpass.NotificationHandler) error {
 				n.Type,
 				n.Source.Ref().ShortString(),
 				n.Payload.Len(),
-				amqputil.GetCorrelationID(ctx),
+				trace.Get(ctx),
 			)
 
 			handler(ctx, target, n)

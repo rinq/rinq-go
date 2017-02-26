@@ -7,45 +7,12 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
+	"github.com/over-pass/overpass-go/src/overpassamqp/internal/amqputil"
 	"github.com/streadway/amqp"
 )
 
-var _ = Describe("Context", func() {
-	Describe("PutCorrelationID", func() {
-		It("sets the correlation ID", func() {
-			del := amqp.Delivery{MessageId: "<id>"}
-			ctx := amqputil.WithCorrelationID(context.Background(), &del)
-
-			pub := amqp.Publishing{}
-			result := amqputil.PutCorrelationID(ctx, &pub)
-
-			Expect(pub.CorrelationId).To(Equal(del.MessageId))
-			Expect(result).To(Equal(del.MessageId))
-		})
-
-		It("does not set the correlation ID if it's the same as the message ID", func() {
-			del := amqp.Delivery{MessageId: "<id>"}
-			ctx := amqputil.WithCorrelationID(context.Background(), &del)
-
-			pub := amqp.Publishing{MessageId: "<id>"}
-			result := amqputil.PutCorrelationID(ctx, &pub)
-
-			Expect(pub.CorrelationId).To(Equal(""))
-			Expect(result).To(Equal(del.MessageId))
-		})
-	})
-
-	Describe("WithCorrelationID and GetCorrelationID", func() {
-		It("transports the correlation ID in the context", func() {
-			msg := amqp.Delivery{MessageId: "<id>"}
-			ctx := amqputil.WithCorrelationID(context.Background(), &msg)
-
-			Expect(amqputil.GetCorrelationID(ctx)).To(Equal("<id>"))
-		})
-	})
-
-	Describe("PutExpiration", func() {
+var _ = Describe("Deadline", func() {
+	Describe("PackDeadline", func() {
 		It("sets the expiration", func() {
 			now := time.Now()
 			deadline := now.Add(10 * time.Second)
@@ -54,7 +21,7 @@ var _ = Describe("Context", func() {
 			defer cancel()
 
 			msg := amqp.Publishing{}
-			hasDeadline, err := amqputil.PutExpiration(ctx, &msg)
+			hasDeadline, err := amqputil.PackDeadline(ctx, &msg)
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(hasDeadline).To(BeTrue())
@@ -71,7 +38,7 @@ var _ = Describe("Context", func() {
 			defer cancel()
 
 			msg := amqp.Publishing{}
-			hasDeadline, err := amqputil.PutExpiration(ctx, &msg)
+			hasDeadline, err := amqputil.PackDeadline(ctx, &msg)
 
 			Expect(err).To(Equal(ctx.Err()))
 			Expect(hasDeadline).To(BeTrue())
@@ -79,7 +46,7 @@ var _ = Describe("Context", func() {
 
 		It("does nothing if the context has no deadline", func() {
 			msg := amqp.Publishing{}
-			hasDeadline, err := amqputil.PutExpiration(context.Background(), &msg)
+			hasDeadline, err := amqputil.PackDeadline(context.Background(), &msg)
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(hasDeadline).To(BeFalse())
@@ -89,7 +56,7 @@ var _ = Describe("Context", func() {
 		})
 	})
 
-	Describe("WithExpiration", func() {
+	Describe("UnpackDeadline", func() {
 		It("returns a context with the deadline from the message", func() {
 			expected := time.Now()
 
@@ -98,7 +65,7 @@ var _ = Describe("Context", func() {
 				Expiration: "0",
 			}
 
-			ctx, cancel := amqputil.WithExpiration(context.Background(), &msg)
+			ctx, cancel := amqputil.UnpackDeadline(context.Background(), &msg)
 			defer cancel()
 
 			deadline, ok := ctx.Deadline()
@@ -112,7 +79,7 @@ var _ = Describe("Context", func() {
 				Expiration: "1000",
 			}
 
-			ctx, cancel := amqputil.WithExpiration(context.Background(), &msg)
+			ctx, cancel := amqputil.UnpackDeadline(context.Background(), &msg)
 			defer cancel()
 
 			_, ok := ctx.Deadline()

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/internal/localsession"
 	"github.com/over-pass/overpass-go/src/internal/notify"
 	"github.com/over-pass/overpass-go/src/internal/revision"
 	"github.com/over-pass/overpass-go/src/internal/service"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp/internal/amqputil"
 	"github.com/streadway/amqp"
 )
 
@@ -305,7 +305,7 @@ func (l *listener) handleUnicast(
 	}
 
 	l.handle(
-		amqputil.WithCorrelationID(l.parentCtx, msg),
+		amqputil.UnpackTrace(l.parentCtx, msg),
 		msgID,
 		sess,
 		overpass.Notification{
@@ -347,7 +347,7 @@ func (l *listener) handleMulticast(
 		return nil
 	}
 
-	ctx := amqputil.WithCorrelationID(l.parentCtx, msg)
+	ctx := amqputil.UnpackTrace(l.parentCtx, msg)
 	payload := overpass.NewPayloadFromBytes(msg.Body)
 	defer payload.Close()
 

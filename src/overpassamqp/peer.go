@@ -4,13 +4,13 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/internal/command"
 	"github.com/over-pass/overpass-go/src/internal/localsession"
 	"github.com/over-pass/overpass-go/src/internal/notify"
 	"github.com/over-pass/overpass-go/src/internal/remotesession"
 	"github.com/over-pass/overpass-go/src/internal/service"
 	"github.com/over-pass/overpass-go/src/internal/syncutil"
+	"github.com/over-pass/overpass-go/src/internal/trace"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/streadway/amqp"
 )
@@ -116,7 +116,7 @@ func (p *peer) Listen(namespace string, handler overpass.CommandHandler) error {
 				newLoggingResponder(
 					res,
 					p.id,
-					amqputil.GetCorrelationID(ctx),
+					trace.Get(ctx),
 					cmd,
 					p.logger,
 				),

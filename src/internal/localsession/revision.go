@@ -3,9 +3,9 @@ package localsession
 import (
 	"context"
 
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/internal/attrmeta"
 	"github.com/over-pass/overpass-go/src/internal/bufferpool"
+	"github.com/over-pass/overpass-go/src/internal/trace"
 	"github.com/over-pass/overpass-go/src/overpass"
 )
 
@@ -82,12 +82,12 @@ func (r *revision) Update(ctx context.Context, attrs ...overpass.Attr) (overpass
 		return r, err
 	}
 
-	if corrID := amqputil.GetCorrelationID(ctx); corrID != "" {
+	if traceID := trace.Get(ctx); traceID != "" {
 		r.logger.Log(
 			"%s session updated {%s} [%s]",
 			rev.Ref().ShortString(),
 			diff.String(),
-			corrID,
+			traceID,
 		)
 	} else {
 		r.logger.Log(

@@ -5,11 +5,11 @@ import (
 	"os"
 	"path"
 
-	"github.com/over-pass/overpass-go/src/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/internal/localsession"
 	"github.com/over-pass/overpass-go/src/internal/remotesession"
 	"github.com/over-pass/overpass-go/src/internal/revision"
 	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/over-pass/overpass-go/src/overpassamqp/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/overpassamqp/internal/commandamqp"
 	"github.com/over-pass/overpass-go/src/overpassamqp/internal/notifyamqp"
 	"github.com/streadway/amqp"
