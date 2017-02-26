@@ -5,38 +5,46 @@ import (
 	"os"
 	"path"
 
-	"github.com/over-pass/overpass-go/src/internals/amqputil"
-	"github.com/over-pass/overpass-go/src/internals/localsession"
-	"github.com/over-pass/overpass-go/src/internals/remotesession"
-	"github.com/over-pass/overpass-go/src/internals/revision"
+	"github.com/over-pass/overpass-go/src/internal/amqputil"
+	"github.com/over-pass/overpass-go/src/internal/localsession"
+	"github.com/over-pass/overpass-go/src/internal/remotesession"
+	"github.com/over-pass/overpass-go/src/internal/revision"
 	"github.com/over-pass/overpass-go/src/overpass"
-	"github.com/over-pass/overpass-go/src/overpassamqp/commandamqp"
-	"github.com/over-pass/overpass-go/src/overpassamqp/notifyamqp"
+	"github.com/over-pass/overpass-go/src/overpassamqp/internal/commandamqp"
+	"github.com/over-pass/overpass-go/src/overpassamqp/internal/notifyamqp"
 	"github.com/streadway/amqp"
 )
 
-// Dialer creates a peer by connecting to an AMQP broker.
+// Dialer connects to an AMQP-based Overpass network, establishing the peer's
+// unique identity on th enetwork.
 type Dialer struct {
-	// The number of AMQP channels to keep open when not in use.
+	// The minimum number of AMQP channels to keep open. If PoolSize is zero,
+	// DefaultPoolSize is used.
 	PoolSize uint
 
-	// Low-level AMQP configuration.
+	// Configuration for the underlying AMQP connection.
 	AMQPConfig amqp.Config
 }
 
-// Dial connects to an AMQP broker using the default configuration.
+// DefaultPoolSize is the default size to use for channel pools.
+const DefaultPoolSize = 20
+
+// Dial connects to an AMQP-based Overpass network using the default dialer
+// and Overpass configuration.
 func Dial(dsn string) (overpass.Peer, error) {
 	d := Dialer{}
 	return d.Dial(context.Background(), dsn, overpass.DefaultConfig)
 }
 
-// DialConfig connects to an AMQP broker using the provided context and configuration.
+// DialConfig connects to an AMQP-based Overpass network using the default
+// dialer and the specified context and Overpass configuration.
 func DialConfig(ctx context.Context, dsn string, cfg overpass.Config) (overpass.Peer, error) {
 	d := Dialer{}
 	return d.Dial(ctx, dsn, cfg)
 }
 
-// Dial connects to an AMQP broker and returns a new peer.
+// Dial connects to an AMQP-based Overpass network using d and the specified
+// context and Overpass configuration.
 func (d *Dialer) Dial(ctx context.Context, dsn string, cfg overpass.Config) (overpass.Peer, error) {
 	if dsn == "" {
 		dsn = "amqp://localhost"

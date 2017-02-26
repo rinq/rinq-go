@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"sync"
 
-	"github.com/over-pass/overpass-go/src/internals/bufferpool"
-	"github.com/over-pass/overpass-go/src/internals/reflectutil"
+	"github.com/over-pass/overpass-go/src/internal/bufferpool"
+	"github.com/over-pass/overpass-go/src/internal/reflectutil"
 	"github.com/ugorji/go/codec"
 )
 
