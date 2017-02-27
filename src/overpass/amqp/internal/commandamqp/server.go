@@ -333,7 +333,7 @@ func (s *server) handle(
 		IsMulticast: msg.Exchange == multicastExchange,
 	}
 
-	res := newResponse(ctx, s.channels, msgID, msg.ReplyTo != "")
+	res, finalize := newResponse(ctx, s.channels, msgID, msg.ReplyTo != "")
 
 	if s.logger.IsDebug() {
 		res = newDebugResponse(res)
@@ -342,7 +342,7 @@ func (s *server) handle(
 
 	handler(ctx, req, res)
 
-	if res.IsClosed() {
+	if finalize() {
 		msg.Ack(false) // false = single message
 
 		if dr, ok := res.(*debugResponse); ok {

@@ -26,13 +26,15 @@ func newResponse(
 	channels amqputil.ChannelPool,
 	msgID overpass.MessageID,
 	isRequired bool,
-) overpass.Response {
-	return &response{
+) (overpass.Response, func() bool) {
+	r := &response{
 		context:    ctx,
 		channels:   channels,
 		msgID:      msgID,
 		isRequired: isRequired,
 	}
+
+	return r, r.finalize
 }
 
 func (r *response) IsRequired() bool {
@@ -67,7 +69,7 @@ func (r *response) Done(payload *overpass.Payload) {
 		panic("responder is already closed")
 	}
 
-	r.close(amqp.Publishing{
+	r.respond(amqp.Publishing{
 		Type: successResponse,
 		Body: payload.Bytes(),
 	})
@@ -86,7 +88,7 @@ func (r *response) Error(err error) {
 			panic("failure type is empty")
 		}
 
-		r.close(amqp.Publishing{
+		r.respond(amqp.Publishing{
 			Type: failureResponse,
 			Headers: amqp.Table{
 				failureTypeHeader:    f.Type,
@@ -95,7 +97,7 @@ func (r *response) Error(err error) {
 			Body: f.Payload.Bytes(),
 		})
 	} else {
-		r.close(amqp.Publishing{
+		r.respond(amqp.Publishing{
 			Type: errorResponse,
 			Body: []byte(err.Error()),
 		})
@@ -112,15 +114,30 @@ func (r *response) Close() bool {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	if !r.isClosed {
-		r.close(amqp.Publishing{Type: successResponse})
+	if r.isClosed {
+		return false
+	}
+
+	r.respond(amqp.Publishing{Type: successResponse})
+
+	return true
+}
+
+func (r *response) finalize() bool {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if r.isClosed {
 		return true
 	}
+
+	r.isClosed = true
+	r.isRequired = false
 
 	return false
 }
 
-func (r *response) close(msg amqp.Publishing) {
+func (r *response) respond(msg amqp.Publishing) {
 	if r.isRequired {
 		channel, err := r.channels.Get()
 		if err != nil {
