@@ -1,6 +1,9 @@
 package overpass
 
-import "log"
+import (
+	"log"
+	"os"
+)
 
 // Logger is a simple interface used for logging throughout Overpass.
 type Logger interface {
@@ -8,17 +11,21 @@ type Logger interface {
 	IsDebug() bool
 }
 
-// NewLogger returns a logger that writes using the built-in logger.
+// NewLogger returns a logger that writes to stdout.
 func NewLogger(isDebug bool) Logger {
-	return standardLogger{isDebug}
+	return standardLogger{
+		isDebug,
+		log.New(os.Stdout, "", log.LstdFlags),
+	}
 }
 
 type standardLogger struct {
 	isDebug bool
+	logger  *log.Logger
 }
 
 func (l standardLogger) Log(f string, v ...interface{}) {
-	log.Printf(f, v...)
+	l.logger.Printf(f, v...)
 }
 
 func (l standardLogger) IsDebug() bool {

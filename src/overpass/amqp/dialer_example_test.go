@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/over-pass/overpass-go/src/overpass"
-	"github.com/over-pass/overpass-go/src/overpass/amqp"
+	. "github.com/over-pass/overpass-go/src/overpass/amqp"
 )
 
 // This example demonstrates how to establish a peer on an Overpass network
 // using the default Overpass configuration.
 func ExampleDial() {
-	peer, err := amqp.Dial("amqp://localhost")
+	peer, err := Dial("amqp://localhost")
 	if err != nil {
 		panic(err)
 	}
@@ -31,7 +31,7 @@ func ExampleDialConfig() {
 		DefaultTimeout: 10 * time.Second,
 	}
 
-	peer, err := amqp.DialConfig(context.Background(), "amqp://localhost", cfg)
+	peer, err := DialConfig(context.Background(), "amqp://localhost", cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -44,7 +44,7 @@ func ExampleDialConfig() {
 // This example demonstrates how to establish a peer on an Overpass network
 // using a Dialer with a customer AMQP configuration.
 func ExampleDialer() {
-	dialer := &amqp.Dialer{}
+	dialer := &Dialer{}
 	dialer.AMQPConfig.Heartbeat = 1 * time.Minute
 
 	peer, err := dialer.Dial(

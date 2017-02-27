@@ -18,8 +18,8 @@ import (
 // peer.
 type CommandHandler func(
 	ctx context.Context,
-	q Request,
-	r Response,
+	req Request,
+	res Response,
 )
 
 // Request holds information about an incoming command request.

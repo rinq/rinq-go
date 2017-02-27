@@ -22,4 +22,21 @@ var _ = Describe("Attr", func() {
 			Expect(attr).To(Equal(expected))
 		})
 	})
+
+	Describe("String", func() {
+		It("uses 'equals' syntax", func() {
+			attr := overpass.Attr{Key: "foo", Value: "bar"}
+			Expect(attr.String()).To(Equal("foo=bar"))
+		})
+
+		It("uses 'at' syntax for frozen attributes", func() {
+			attr := overpass.Attr{Key: "foo", Value: "bar", IsFrozen: true}
+			Expect(attr.String()).To(Equal("foo@bar"))
+		})
+
+		It("uses 'bang' syntax for empty frozen attributes", func() {
+			attr := overpass.Attr{Key: "foo", Value: "", IsFrozen: true}
+			Expect(attr.String()).To(Equal("!foo"))
+		})
+	})
 })
