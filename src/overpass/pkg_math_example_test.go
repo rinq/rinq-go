@@ -8,16 +8,6 @@ import (
 	"github.com/over-pass/overpass-go/src/overpass/amqp"
 )
 
-// connect establishes a peer connection
-func connect() overpass.Peer {
-	peer, err := amqp.Dial("")
-	if err != nil {
-		panic(err)
-	}
-
-	return peer
-}
-
 // arguments contains the parameters for the commands in the "math" namespace
 type arguments struct {
 	Left, Right int
@@ -68,13 +58,19 @@ func mathHandler(
 func Example_mathService() {
 	// create a new peer to act as the "server" and start listening for commands
 	// in the "math" namespace.
-	serverPeer := connect()
+	serverPeer, err := amqp.Dial("")
+	if err != nil {
+		panic(err)
+	}
 	defer serverPeer.Stop()
 	serverPeer.Listen("math", mathHandler)
 
 	// create a new peer to act as the "client", and a session to make the
 	// call.
-	clientPeer := connect()
+	clientPeer, err := amqp.Dial("")
+	if err != nil {
+		panic(err)
+	}
 	defer clientPeer.Stop()
 
 	sess := clientPeer.Session()
