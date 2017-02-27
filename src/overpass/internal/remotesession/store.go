@@ -37,11 +37,8 @@ func NewStore(
 	logger overpass.Logger,
 ) Store {
 	s := &store{
-		peerID: peerID,
-		client: &client{
-			peerID:  peerID,
-			invoker: invoker,
-		},
+		peerID:   peerID,
+		client:   newClient(peerID, invoker, logger),
 		interval: pruneInterval,
 		logger:   logger,
 		cache:    map[overpass.SessionID]*catalogCacheEntry{},

@@ -12,7 +12,20 @@ import (
 type client struct {
 	peerID  overpass.PeerID
 	invoker command.Invoker
+	logger  overpass.Logger
 	seq     uint32
+}
+
+func newClient(
+	peerID overpass.PeerID,
+	invoker command.Invoker,
+	logger overpass.Logger,
+) *client {
+	return &client{
+		peerID:  peerID,
+		invoker: invoker,
+		logger:  logger,
+	}
 }
 
 func (c *client) Fetch(
@@ -115,6 +128,8 @@ func (c *client) Update(
 		)
 	}
 
+	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), updatedAttrs)
+
 	return rsp.Rev, updatedAttrs, nil
 }
 
@@ -147,6 +162,8 @@ func (c *client) Close(
 
 		return err
 	}
+
+	logClose(ctx, c.logger, c.peerID, ref)
 
 	return nil
 }
