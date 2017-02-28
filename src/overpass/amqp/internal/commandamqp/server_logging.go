@@ -7,7 +7,7 @@ import (
 	"github.com/over-pass/overpass-go/src/overpass/internal/trace"
 )
 
-func logInvalidMessageID(
+func logServerInvalidMessageID(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
 	msgID string,

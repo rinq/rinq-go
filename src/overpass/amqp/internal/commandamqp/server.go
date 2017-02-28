@@ -280,7 +280,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
 		msg.Reject(false)
-		logInvalidMessageID(s.logger, s.peerID, msg.MessageId)
+		logServerInvalidMessageID(s.logger, s.peerID, msg.MessageId)
 		return
 	}
 

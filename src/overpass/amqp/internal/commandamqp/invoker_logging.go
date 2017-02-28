@@ -2,6 +2,40 @@ package commandamqp
 
 import "github.com/over-pass/overpass-go/src/overpass"
 
+func logInvokerInvalidMessageID(
+	logger overpass.Logger,
+	peerID overpass.PeerID,
+	msgID string,
+) {
+	if !logger.IsDebug() {
+		return
+	}
+
+	logger.Log(
+		"%s invoker ignored AMQP message, '%s' is not a valid message ID",
+		peerID.ShortString(),
+		msgID,
+	)
+}
+
+func logInvokerIgnoredMessage(
+	logger overpass.Logger,
+	peerID overpass.PeerID,
+	msgID overpass.MessageID,
+	err error,
+) {
+	if !logger.IsDebug() {
+		return
+	}
+
+	logger.Log(
+		"%s invoker ignored AMQP message %s, %s",
+		peerID.ShortString(),
+		msgID.ShortString(),
+		err,
+	)
+}
+
 func logUnicastCallBegin(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
@@ -122,7 +156,32 @@ func logAsyncRequest(
 	}
 
 	logger.Log(
-		"%s invoker sent asynchronous '%s::%s' call %s [%s] >>> %s",
+		"%s invoker sent asynchronous '%s::%s' call request %s [%s] >>> %s",
+		peerID.ShortString(),
+		ns,
+		cmd,
+		msgID.ShortString(),
+		traceID,
+		payload,
+	)
+}
+
+func logAsyncResponse(
+	logger overpass.Logger,
+	peerID overpass.PeerID,
+	msgID overpass.MessageID,
+	ns string,
+	cmd string,
+	traceID string,
+	payload *overpass.Payload,
+	err error,
+) {
+	if !logger.IsDebug() {
+		return
+	}
+
+	logger.Log(
+		"%s invoker received asynchronous '%s::%s' call response %s [%s] >>> %s",
 		peerID.ShortString(),
 		ns,
 		cmd,

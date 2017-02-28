@@ -11,6 +11,7 @@ import (
 	"github.com/over-pass/overpass-go/src/overpass/amqp/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/overpass/internal/command"
 	"github.com/over-pass/overpass-go/src/overpass/internal/service"
+	"github.com/over-pass/overpass-go/src/overpass/internal/trace"
 	"github.com/streadway/amqp"
 )
 
@@ -479,15 +480,21 @@ func (i *invoker) replySync(msg *amqp.Delivery) bool {
 func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 	msgID, err := overpass.ParseMessageID(msg.RoutingKey)
 	if err != nil {
-		// TODO: log
+		logInvokerInvalidMessageID(i.logger, i.peerID, msg.RoutingKey)
 		return false
 	}
 
 	ns, ok := msg.Headers[namespaceHeader].(string)
-	cmd, _ := msg.Headers[commandHeader].(string)
-
 	if !ok {
-		// TODO: log return "", errors.New("malformed request, namespace is not a string")
+		err = errors.New("malformed response, namespace is not a string")
+		logInvokerIgnoredMessage(i.logger, i.peerID, msgID, err)
+		return false
+	}
+
+	cmd, ok := msg.Headers[commandHeader].(string)
+	if !ok {
+		err = errors.New("malformed response, command is not a string")
+		logInvokerIgnoredMessage(i.logger, i.peerID, msgID, err)
 		return false
 	}
 
@@ -499,17 +506,12 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 		return false
 	}
 
+	ctx := amqputil.UnpackTrace(context.Background(), msg)
 	payload, err := i.unpack(msg)
 
-	// TODO: log response
-	go handler(
-		amqputil.UnpackTrace(context.Background(), msg),
-		msgID,
-		ns,
-		cmd,
-		payload,
-		err,
-	)
+	logAsyncResponse(i.logger, i.peerID, msgID, ns, cmd, trace.Get(ctx), payload, err)
+
+	go handler(ctx, msgID, ns, cmd, payload, err)
 
 	return true
 }

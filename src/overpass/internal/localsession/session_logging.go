@@ -81,7 +81,7 @@ func logAsyncRequest(
 	traceID string,
 ) {
 	logger.Log(
-		"%s sent asynchronous '%s::%s' command request (%d/o) [%s]",
+		"%s called '%s::%s' command asynchronously (%d/o) [%s]",
 		msgID.ShortString(),
 		ns,
 		cmd,
