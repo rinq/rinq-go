@@ -333,7 +333,13 @@ func (s *server) handle(
 		IsMulticast: msg.Exchange == multicastExchange,
 	}
 
-	res, finalize := newResponse(ctx, s.channels, msgID, msg.ReplyTo != "")
+	res, finalize := newResponse(
+		ctx,
+		s.channels,
+		msgID,
+		req,
+		replyType(msg.ReplyTo),
+	)
 
 	if s.logger.IsDebug() {
 		res = newDebugResponse(res)
