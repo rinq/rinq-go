@@ -2,8 +2,6 @@ package commandamqp
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -91,23 +89,20 @@ func (i *invoker) CallUnicast(
 	target overpass.PeerID,
 	ns string,
 	cmd string,
-	req *overpass.Payload,
+	out *overpass.Payload,
 ) (string, *overpass.Payload, error) {
 	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  callUnicastPriority,
-		Type:      cmd,
-		Headers:   amqp.Table{namespaceHeader: ns},
-		Body:      req.Bytes(),
-		ReplyTo:   string(replyCorrelated),
 	}
+	packRequest(msg, ns, cmd, out, replyCorrelated)
 	traceID := amqputil.PackTrace(ctx, msg)
 
-	logUnicastCallBegin(i.logger, i.peerID, msgID, target, ns, cmd, traceID, req)
-	res, err := i.call(ctx, unicastExchange, target.String(), msg)
-	logCallEnd(i.logger, i.peerID, msgID, ns, cmd, traceID, res, err)
+	logUnicastCallBegin(i.logger, i.peerID, msgID, target, ns, cmd, traceID, out)
+	in, err := i.call(ctx, unicastExchange, target.String(), msg)
+	logCallEnd(i.logger, i.peerID, msgID, ns, cmd, traceID, in, err)
 
-	return traceID, res, err
+	return traceID, in, err
 }
 
 func (i *invoker) CallBalanced(
@@ -115,22 +110,20 @@ func (i *invoker) CallBalanced(
 	msgID overpass.MessageID,
 	ns string,
 	cmd string,
-	req *overpass.Payload,
+	out *overpass.Payload,
 ) (string, *overpass.Payload, error) {
 	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  callBalancedPriority,
-		Type:      cmd,
-		Body:      req.Bytes(),
-		ReplyTo:   string(replyCorrelated),
 	}
+	packRequest(msg, ns, cmd, out, replyCorrelated)
 	traceID := amqputil.PackTrace(ctx, msg)
 
-	logBalancedCallBegin(i.logger, i.peerID, msgID, ns, cmd, traceID, req)
-	res, err := i.call(ctx, balancedExchange, ns, msg)
-	logCallEnd(i.logger, i.peerID, msgID, ns, cmd, traceID, res, err)
+	logBalancedCallBegin(i.logger, i.peerID, msgID, ns, cmd, traceID, out)
+	in, err := i.call(ctx, balancedExchange, ns, msg)
+	logCallEnd(i.logger, i.peerID, msgID, ns, cmd, traceID, in, err)
 
-	return traceID, res, err
+	return traceID, in, err
 }
 
 // CallBalancedAsync sends a load-balanced command request to the first
@@ -140,19 +133,17 @@ func (i *invoker) CallBalancedAsync(
 	msgID overpass.MessageID,
 	ns string,
 	cmd string,
-	req *overpass.Payload,
+	out *overpass.Payload,
 ) (string, error) {
 	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  callBalancedPriority,
-		Type:      cmd,
-		Body:      req.Bytes(),
-		ReplyTo:   string(replyUncorrelated),
 	}
+	packRequest(msg, ns, cmd, out, replyUncorrelated)
 	traceID := amqputil.PackTrace(ctx, msg)
 
 	err := i.send(ctx, balancedExchange, ns, msg)
-	logAsyncRequest(i.logger, i.peerID, msgID, ns, cmd, traceID, req, err)
+	logAsyncRequest(i.logger, i.peerID, msgID, ns, cmd, traceID, out, err)
 
 	return traceID, err
 }
@@ -175,19 +166,18 @@ func (i *invoker) ExecuteBalanced(
 	msgID overpass.MessageID,
 	ns string,
 	cmd string,
-	payload *overpass.Payload,
+	out *overpass.Payload,
 ) (string, error) {
 	msg := &amqp.Publishing{
 		MessageId:    msgID.String(),
 		Priority:     executePriority,
-		Type:         cmd,
 		DeliveryMode: amqp.Persistent,
-		Body:         payload.Bytes(),
 	}
+	packRequest(msg, ns, cmd, out, replyNone)
 	traceID := amqputil.PackTrace(ctx, msg)
 
 	err := i.send(ctx, balancedExchange, ns, msg)
-	logBalancedExecute(i.logger, i.peerID, msgID, ns, cmd, traceID, payload, err)
+	logBalancedExecute(i.logger, i.peerID, msgID, ns, cmd, traceID, out, err)
 
 	return traceID, err
 }
@@ -197,18 +187,17 @@ func (i *invoker) ExecuteMulticast(
 	msgID overpass.MessageID,
 	ns string,
 	cmd string,
-	payload *overpass.Payload,
+	out *overpass.Payload,
 ) (string, error) {
 	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  executePriority,
-		Type:      cmd,
-		Body:      payload.Bytes(),
 	}
+	packRequest(msg, ns, cmd, out, replyNone)
 	traceID := amqputil.PackTrace(ctx, msg)
 
 	err := i.send(ctx, multicastExchange, ns, msg)
-	logMulticastExecute(i.logger, i.peerID, msgID, ns, cmd, traceID, payload, err)
+	logMulticastExecute(i.logger, i.peerID, msgID, ns, cmd, traceID, out, err)
 
 	return traceID, err
 }
@@ -389,7 +378,7 @@ func (i *invoker) call(
 
 	select {
 	case msg := <-c.Reply:
-		payload, err := i.unpack(msg)
+		payload, err := unpackResponse(msg)
 		return payload, err
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -447,7 +436,7 @@ func (i *invoker) publish(
 // reply sends a command response to a waiting sender.
 func (i *invoker) reply(msg *amqp.Delivery) {
 	var ack bool
-	if replyType(msg.ReplyTo) == replyUncorrelated {
+	if unpackReplyMode(msg) == replyUncorrelated {
 		ack = i.replyAsync(msg)
 	} else {
 		ack = i.replySync(msg)
@@ -480,16 +469,8 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 		return false
 	}
 
-	ns, ok := msg.Headers[namespaceHeader].(string)
-	if !ok {
-		err = errors.New("malformed response, namespace is not a string")
-		logInvokerIgnoredMessage(i.logger, i.peerID, msgID, err)
-		return false
-	}
-
-	cmd, ok := msg.Headers[commandHeader].(string)
-	if !ok {
-		err = errors.New("malformed response, command is not a string")
+	ns, cmd, err := unpackNamespaceAndCommand(msg)
+	if err != nil {
 		logInvokerIgnoredMessage(i.logger, i.peerID, msgID, err)
 		return false
 	}
@@ -503,38 +484,11 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 	}
 
 	ctx := amqputil.UnpackTrace(context.Background(), msg)
-	payload, err := i.unpack(msg)
+	payload, err := unpackResponse(msg)
 
 	logAsyncResponse(i.logger, i.peerID, msgID, ns, cmd, trace.Get(ctx), payload, err)
 
 	go handler(ctx, msgID, ns, cmd, payload, err)
 
 	return true
-}
-
-// unpack extracts the payload and error information from an AMQP message.
-func (i *invoker) unpack(msg *amqp.Delivery) (*overpass.Payload, error) {
-	switch msg.Type {
-	case successResponse:
-		return overpass.NewPayloadFromBytes(msg.Body), nil
-
-	case failureResponse:
-		failureType, _ := msg.Headers[failureTypeHeader].(string)
-		if failureType == "" {
-			return nil, errors.New("malformed response, failure type must be a non-empty string")
-		}
-
-		payload := overpass.NewPayloadFromBytes(msg.Body)
-		return payload, overpass.Failure{
-			Type:    failureType,
-			Message: msg.Headers[failureMessageHeader].(string),
-			Payload: payload,
-		}
-
-	case errorResponse:
-		return nil, overpass.CommandError(msg.Body)
-
-	default:
-		return nil, fmt.Errorf("malformed response, message type '%s' is unexpected", msg.Type)
-	}
 }
