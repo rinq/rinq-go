@@ -2,6 +2,7 @@ package localsession
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -213,6 +214,10 @@ func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *overpass.P
 }
 
 func (s *session) Notify(ctx context.Context, target overpass.SessionID, typ string, p *overpass.Payload) error {
+	if err := target.Validate(); err != nil || target.Seq == 0 {
+		return fmt.Errorf("session ID %s is invalid", target)
+	}
+
 	select {
 	case <-s.done:
 		return overpass.NotFoundError{ID: s.id}
