@@ -71,7 +71,7 @@ func (s *store) getCatalog(id overpass.SessionID) *catalog {
 		return entry.Catalog
 	}
 
-	cat := &catalog{id: id, client: s.client}
+	cat := newCatalog(id, s.client)
 	s.cache[id] = &catalogCacheEntry{cat, false}
 	logCacheAdd(s.logger, s.peerID, id)
 

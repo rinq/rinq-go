@@ -53,7 +53,7 @@ func mathHandler(
 // and a "client" peer which invokes those operations.
 //
 // In the example both the client peer and the server peer are running in the
-// same processs. Outside of an example, these peers would typically be running
+// same process. Outside of an example, these peers would typically be running
 // on separate servers.
 func Example_mathService() {
 	// create a new peer to act as the "server" and start listening for commands

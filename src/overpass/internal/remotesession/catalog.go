@@ -2,7 +2,6 @@ package remotesession
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/overpass"
@@ -19,6 +18,15 @@ type catalog struct {
 	highestRev overpass.RevisionNumber
 	cache      map[string]attrCacheEntry
 	isClosed   bool
+}
+
+func newCatalog(id overpass.SessionID, client *client) *catalog {
+	return &catalog{
+		id:     id,
+		client: client,
+
+		cache: map[string]attrCacheEntry{},
+	}
 }
 
 type attrCacheEntry struct {
@@ -41,15 +49,10 @@ func (c *catalog) Head(ctx context.Context) (overpass.Revision, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	if err != nil {
-		if overpass.IsNotFound(err) {
-			c.isClosed = true
-		}
-		return nil, err
-	}
+	c.updateState(rev, err)
 
-	if rev > c.highestRev {
-		c.highestRev = rev
+	if err != nil {
+		return nil, err
 	}
 
 	return &revision{
@@ -68,9 +71,7 @@ func (c *catalog) At(rev overpass.RevisionNumber) overpass.Revision {
 		return revisionpkg.Closed(ref)
 	}
 
-	if rev > c.highestRev {
-		c.highestRev = rev
-	}
+	c.updateState(rev, nil)
 
 	return &revision{
 		ref:     ref,
@@ -83,42 +84,22 @@ func (c *catalog) Fetch(
 	rev overpass.RevisionNumber,
 	keys ...string,
 ) ([]overpass.Attr, error) {
-	unlock := syncutil.RLock(&c.mutex)
-	defer unlock()
-
 	solvedAttrs, unsolvedKeys, err := c.fetchLocal(rev, keys)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(unsolvedKeys) == 0 {
+	} else if len(unsolvedKeys) == 0 {
 		return solvedAttrs, nil
 	}
-
-	if c.isClosed {
-		return nil, overpass.NotFoundError{ID: c.id}
-	}
-
-	unlock()
 
 	fetchedRev, fetchedAttrs, err := c.client.Fetch(ctx, c.id, unsolvedKeys)
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
+	c.updateState(fetchedRev, err)
+
 	if err != nil {
-		if overpass.IsNotFound(err) {
-			c.isClosed = true
-		}
 		return nil, err
-	}
-
-	if fetchedRev < rev {
-		return nil, errors.New("revision is from the future")
-	}
-
-	if fetchedRev > c.highestRev {
-		c.highestRev = fetchedRev
 	}
 
 	if len(fetchedAttrs) == 0 {
@@ -126,10 +107,6 @@ func (c *catalog) Fetch(
 	}
 
 	isStaleFetch := false
-
-	if c.cache == nil {
-		c.cache = map[string]attrCacheEntry{}
-	}
 
 	for _, attr := range fetchedAttrs {
 		// Update the cache entry if the fetched revision is newer.
@@ -211,19 +188,10 @@ func (c *catalog) TryUpdate(
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
+	c.updateState(updatedRev, err)
+
 	if err != nil {
-		if overpass.IsNotFound(err) {
-			c.isClosed = true
-		}
 		return nil, err
-	}
-
-	if updatedRev > c.highestRev {
-		c.highestRev = updatedRev
-	}
-
-	if c.cache == nil {
-		c.cache = map[string]attrCacheEntry{}
 	}
 
 	for _, attr := range returnedAttrs {
@@ -279,6 +247,9 @@ func (c *catalog) fetchLocal(
 	unsolved []string,
 	err error,
 ) {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
 	count := len(keys)
 	solved = make([]overpass.Attr, 0, count)
 	unsolved = make([]string, 0, count)
@@ -310,5 +281,19 @@ func (c *catalog) fetchLocal(
 		unsolved = append(unsolved, key)
 	}
 
+	if len(unsolved) > 0 && c.isClosed {
+		err = overpass.NotFoundError{ID: c.id}
+	}
+
 	return
+}
+
+func (c *catalog) updateState(rev overpass.RevisionNumber, err error) {
+	if err != nil {
+		if overpass.IsNotFound(err) {
+			c.isClosed = true
+		}
+	} else if rev > c.highestRev {
+		c.highestRev = rev
+	}
 }
