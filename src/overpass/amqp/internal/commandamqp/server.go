@@ -151,17 +151,13 @@ func (s *server) Unlisten(namespace string) (bool, error) {
 
 // initialize prepares the AMQP channel
 func (s *server) initialize() error {
-	if channel, err := s.channels.Get(); err == nil { // do not return to pool, used for consume
+	if channel, err := s.channels.GetQOS(s.preFetch); err == nil { // do not return to pool, used for consume
 		s.channel = channel
 	} else {
 		return err
 	}
 
 	s.channel.NotifyClose(s.amqpClosed)
-
-	if err := s.channel.Qos(s.preFetch, 0, true); err != nil {
-		return err
-	}
 
 	queue := requestQueue(s.peerID)
 
