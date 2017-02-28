@@ -2,9 +2,11 @@ package amqp
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path"
 
+	version "github.com/hashicorp/go-version"
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpass/amqp/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/overpass/amqp/internal/commandamqp"
@@ -72,6 +74,10 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, cfg overpass.Config) (ove
 			broker.Close()
 		}
 	}()
+
+	if err = d.checkCapabilities(broker); err != nil {
+		return nil, err
+	}
 
 	poolSize := d.PoolSize
 	if poolSize == 0 {
@@ -171,6 +177,37 @@ func (d *Dialer) establishIdentity(
 			}
 		}
 	}
+}
+
+func (d *Dialer) checkCapabilities(broker *amqp.Connection) error {
+	product, _ := broker.Properties["product"].(string)
+
+	ver, _ := broker.Properties["version"].(string)
+	semver, err := version.NewVersion(ver)
+	if err != nil {
+		return err
+	}
+
+	var minVersion *version.Version
+
+	switch product {
+	case "RabbitMQ":
+		// minimum of 3.5.0 is required for priority queues
+		minVersion = version.Must(version.NewVersion("3.5.0"))
+	default:
+		return fmt.Errorf("unsupported AMQP broker: %s", product)
+	}
+
+	if semver.LessThan(minVersion) {
+		return fmt.Errorf(
+			"unsupported AMQP broker: %s %s, minimum version is %s",
+			product,
+			semver.String(),
+			minVersion.String(),
+		)
+	}
+
+	return nil
 }
 
 // withDefaults returns a copy of cfg config with empty properties replaced

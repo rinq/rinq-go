@@ -10,3 +10,4 @@ import:
   version: ^1.0.0
   subpackages:
   - spew
+- package: github.com/hashicorp/go-version
