@@ -151,7 +151,7 @@ func (i *invoker) CallBalancedAsync(
 	traceID := amqputil.PackTrace(ctx, msg)
 
 	err := i.send(ctx, balancedExchange, ns, msg)
-	logAsyncCall(i.logger, i.peerID, msgID, ns, cmd, traceID, req, err)
+	logAsyncRequest(i.logger, i.peerID, msgID, ns, cmd, traceID, req, err)
 
 	return traceID, err
 }
@@ -348,7 +348,7 @@ func (i *invoker) call(
 ) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel func()
-		ctx, cancel = context.WithCancel(ctx)
+		ctx, cancel = context.WithTimeout(ctx, i.defaultTimeout)
 		defer cancel()
 	}
 
@@ -499,7 +499,9 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 
 	payload, err := i.unpack(msg)
 
+	// TODO: log response
 	go handler(
+		amqputil.UnpackTrace(context.Background(), msg),
 		msgID,
 		ns,
 		msg.Type,

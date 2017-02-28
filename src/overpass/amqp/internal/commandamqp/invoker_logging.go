@@ -107,7 +107,7 @@ func logCallEnd(
 	}
 }
 
-func logAsyncCall(
+func logAsyncRequest(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
 	msgID overpass.MessageID,
