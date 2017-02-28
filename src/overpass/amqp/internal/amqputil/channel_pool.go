@@ -7,6 +7,11 @@ type ChannelPool interface {
 	// Get fetches a channel from the pool, or creates one as necessary.
 	Get() (*amqp.Channel, error)
 
+	// GetQOS fetches a channel from the pool and sets the pre-fetch count
+	// before returning it. The pre-fetch is applied to across all consumers on
+	// the channel.
+	GetQOS(preFetch int) (*amqp.Channel, error)
+
 	// Put returns a channel to the pool.
 	Put(*amqp.Channel)
 }
@@ -32,6 +37,28 @@ func (p *channelPool) Get() (channel *amqp.Channel, err error) {
 	}
 
 	return
+}
+
+// GetQOS fetches a channel from the pool and sets the pre-fetch count
+// before returning it. The pre-fetch is applied to across all consumers on
+// the channel.
+func (p *channelPool) GetQOS(preFetch int) (*amqp.Channel, error) {
+	channel, err := p.Get()
+	if err != nil {
+		return nil, err
+	}
+
+	// Always use a "channel-wide" QoS setting.
+	// http://www.rabbitmq.com/consumer-prefetch.html
+	caps, _ := p.broker.Properties["capabilities"].(amqp.Table)
+	global, _ := caps["per_consumer_qos"].(bool)
+
+	err = channel.Qos(preFetch, 0, global)
+	if err != nil {
+		return nil, err
+	}
+
+	return channel, nil
 }
 
 func (p *channelPool) Put(channel *amqp.Channel) {

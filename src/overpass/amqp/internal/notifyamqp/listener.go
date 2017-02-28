@@ -144,10 +144,6 @@ func (l *listener) Unlisten(id overpass.SessionID) (bool, error) {
 func (l *listener) initialize() error {
 	l.channel.NotifyClose(l.amqpClosed)
 
-	if err := l.channel.Qos(l.preFetch, 0, true); err != nil {
-		return err
-	}
-
 	queue := notifyQueue(l.peerID)
 
 	if _, err := l.channel.QueueDeclare(

@@ -215,17 +215,13 @@ func (i *invoker) ExecuteMulticast(
 
 // initialize prepares the AMQP channel and starts the state machine
 func (i *invoker) initialize() error {
-	if channel, err := i.channels.Get(); err == nil { // do not return to pool, used for consume
+	if channel, err := i.channels.GetQOS(i.preFetch); err == nil { // do not return to pool, used for consume
 		i.channel = channel
 	} else {
 		return err
 	}
 
 	i.channel.NotifyClose(i.amqpClosed)
-
-	if err := i.channel.Qos(i.preFetch, 0, true); err != nil {
-		return err
-	}
 
 	queue := responseQueue(i.peerID)
 
