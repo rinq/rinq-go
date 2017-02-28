@@ -93,7 +93,10 @@ type Session interface {
 	//
 	// h is invoked for each command response received to a command request made
 	// with CallAsync().
-	SetAsyncHandler(h AsyncHandler)
+	//
+	// If IsNotFound(err) returns true, the session has been closed and the
+	// command request can not be sent.
+	SetAsyncHandler(h AsyncHandler) error
 
 	// Execute sends a command request to the next available peer listening to
 	// the ns namespace and returns immediately.
@@ -175,6 +178,7 @@ type Session interface {
 // contains the failure's application-defined payload; for this reason
 // in.Close() must be called, even if err is non-nil.
 type AsyncHandler func(
+	ctx context.Context,
 	msgID MessageID,
 	ns string,
 	cmd string,
