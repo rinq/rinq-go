@@ -107,6 +107,31 @@ func logCallEnd(
 	}
 }
 
+func logAsyncCall(
+	logger overpass.Logger,
+	peerID overpass.PeerID,
+	msgID overpass.MessageID,
+	ns string,
+	cmd string,
+	traceID string,
+	payload *overpass.Payload,
+	err error,
+) {
+	if !logger.IsDebug() {
+		return
+	}
+
+	logger.Log(
+		"%s invoker sent asynchronous '%s::%s' call %s [%s] >>> %s",
+		peerID.ShortString(),
+		ns,
+		cmd,
+		msgID.ShortString(),
+		traceID,
+		payload,
+	)
+}
+
 func logBalancedExecute(
 	logger overpass.Logger,
 	peerID overpass.PeerID,
