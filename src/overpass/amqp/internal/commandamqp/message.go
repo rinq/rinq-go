@@ -15,8 +15,12 @@ const (
 )
 
 const (
-	// namespaceHeader specifies the namespace in unicast command requests.
+	// namespaceHeader specifies the namespace in unicast command requests and
+	// uncorrelated command responses.
 	namespaceHeader = "n"
+
+	// commandHeader specifies the command name in uncorrelated command responses.
+	commandHeader = "c"
 
 	// failureTypeHeader specifies the failure type in command responses with
 	// the "failureResponse" type.
@@ -25,4 +29,22 @@ const (
 	// failureMessageHeader holds the error message in command responses with
 	// the "failureResponse" type.
 	failureMessageHeader = "m"
+)
+
+type replyType string
+
+const (
+	// replyNone is the AMQP reply-to value used for command requests that are
+	// not expecting a reply.
+	replyNone replyType = ""
+
+	// replyNormal is the AMQP reply-to value used for command requests that are
+	// waiting for a reply.
+	replyCorrelated replyType = "c"
+
+	// replyUncorrelated is the AMQP reply-to value used for command requests
+	// that are waiting for a reply, but where the invoker does not have
+	// any information about the request. This instruct the server to include
+	// request information in the response.
+	replyUncorrelated replyType = "u"
 )

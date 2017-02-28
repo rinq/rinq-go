@@ -36,6 +36,20 @@ type Invoker interface {
 		payload *overpass.Payload,
 	) (string, *overpass.Payload, error)
 
+	// CallBalancedAsync sends a load-balanced command request to the first
+	// available peer, instructs it to send a response, but does not block.
+	CallBalancedAsync(
+		ctx context.Context,
+		msgID overpass.MessageID,
+		namespace string,
+		command string,
+		payload *overpass.Payload,
+	) (string, error)
+
+	// SetAsyncHandler sets the asynchronous handler to use for a specific
+	// session.
+	SetAsyncHandler(sessID overpass.SessionID, h overpass.AsyncHandler)
+
 	// ExecuteBalanced sends a load-balanced command request to the first
 	// available peer and returns immediately.
 	ExecuteBalanced(

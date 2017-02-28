@@ -59,7 +59,7 @@ type Session interface {
 	// on the server.
 	//
 	// IsFailure(err) returns true if the error is an application-defined
-	// failure. Failure's are server-side errors that are part of the command's
+	// failure. Failures are server-side errors that are part of the command's
 	// public API, as opposed to unexpected errors. If err is a failure, out
 	// contains the failure's application-defined payload; for this reason
 	// out.Close() must be called, even if err is non-nil.
@@ -67,6 +67,36 @@ type Session interface {
 	// If IsNotFound(err) returns true, the session has been closed and the
 	// command request can not be sent.
 	Call(ctx context.Context, ns, cmd string, out *Payload) (in *Payload, err error)
+
+	// CallAync sends a command request to the next available peer listening to
+	// the ns namespace and instructs it to send a response, but does not block.
+	//
+	// cmd and out are an application-defined command name and request payload,
+	// respectively. Both are passed to the command handler on the server.
+	//
+	// id is a value identifying the outgoing command request.
+	//
+	// When a response is received, the handler specified by SetAsyncHandler()
+	// is invoked. It is passed the id, namespace and command name of the
+	// request, along with the response payload and error.
+	//
+	// It is the application's responsibility to correlate the request with the
+	// response and handle the context deadline. The request is NOT tracked by
+	// Overpass, and as such the handler is never invoked in the event of a
+	// timeout.
+	//
+	// If IsNotFound(err) returns true, the session has been closed and the
+	// command request can not be sent.
+	CallAsync(ctx context.Context, ns, cmd string, out *Payload) (id MessageID, err error)
+
+	// SetAsyncHandler sets the asynchronous call handler.
+	//
+	// h is invoked for each command response received to a command request made
+	// with CallAsync().
+	//
+	// If IsNotFound(err) returns true, the session has been closed and the
+	// command request can not be sent.
+	SetAsyncHandler(h AsyncHandler) error
 
 	// Execute sends a command request to the next available peer listening to
 	// the ns namespace and returns immediately.
@@ -136,6 +166,25 @@ type Session interface {
 	// All sessions are closed when their owning peer is stopped.
 	Done() <-chan struct{}
 }
+
+// AsyncHandler is a call-back function invoked when a response is
+// received to a command call made with Session.CallAsync()
+//
+// If err is non-nil, it always represents a server-side error.
+//
+// IsFailure(err) returns true if the error is an application-defined
+// failure. Failures are server-side errors that are part of the command's
+// public API, as opposed to unexpected errors. If err is a failure, in
+// contains the failure's application-defined payload; for this reason
+// in.Close() must be called, even if err is non-nil.
+type AsyncHandler func(
+	ctx context.Context,
+	msgID MessageID,
+	ns string,
+	cmd string,
+	in *Payload,
+	err error,
+)
 
 // NotFoundError indicates that an operation failed because the session does
 // not exist.

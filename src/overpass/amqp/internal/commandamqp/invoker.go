@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/over-pass/overpass-go/src/overpass"
 	"github.com/over-pass/overpass-go/src/overpass/amqp/internal/amqputil"
 	"github.com/over-pass/overpass-go/src/overpass/internal/command"
 	"github.com/over-pass/overpass-go/src/overpass/internal/service"
+	"github.com/over-pass/overpass-go/src/overpass/internal/trace"
 	"github.com/streadway/amqp"
 )
 
@@ -25,6 +27,9 @@ type invoker struct {
 	channels       amqputil.ChannelPool
 	channel        *amqp.Channel // channel used for consuming
 	logger         overpass.Logger
+
+	mutex    sync.RWMutex
+	handlers map[overpass.SessionID]overpass.AsyncHandler
 
 	track      chan call            // add information about a call to pending
 	cancel     chan call            // remove call information from pending
@@ -59,6 +64,8 @@ func newInvoker(
 		channels:       channels,
 		logger:         logger,
 
+		handlers: map[overpass.SessionID]overpass.AsyncHandler{},
+
 		track:      make(chan call),
 		cancel:     make(chan call),
 		amqpClosed: make(chan *amqp.Error, 1),
@@ -92,6 +99,7 @@ func (i *invoker) CallUnicast(
 		Type:      cmd,
 		Headers:   amqp.Table{namespaceHeader: ns},
 		Body:      req.Bytes(),
+		ReplyTo:   string(replyCorrelated),
 	}
 	traceID := amqputil.PackTrace(ctx, msg)
 
@@ -114,6 +122,7 @@ func (i *invoker) CallBalanced(
 		Priority:  callBalancedPriority,
 		Type:      cmd,
 		Body:      req.Bytes(),
+		ReplyTo:   string(replyCorrelated),
 	}
 	traceID := amqputil.PackTrace(ctx, msg)
 
@@ -122,6 +131,43 @@ func (i *invoker) CallBalanced(
 	logCallEnd(i.logger, i.peerID, msgID, ns, cmd, traceID, res, err)
 
 	return traceID, res, err
+}
+
+// CallBalancedAsync sends a load-balanced command request to the first
+// available peer, instructs it to send a response, but does not block.
+func (i *invoker) CallBalancedAsync(
+	ctx context.Context,
+	msgID overpass.MessageID,
+	ns string,
+	cmd string,
+	req *overpass.Payload,
+) (string, error) {
+	msg := &amqp.Publishing{
+		MessageId: msgID.String(),
+		Priority:  callBalancedPriority,
+		Type:      cmd,
+		Body:      req.Bytes(),
+		ReplyTo:   string(replyUncorrelated),
+	}
+	traceID := amqputil.PackTrace(ctx, msg)
+
+	err := i.send(ctx, balancedExchange, ns, msg)
+	logAsyncRequest(i.logger, i.peerID, msgID, ns, cmd, traceID, req, err)
+
+	return traceID, err
+}
+
+// SetAsyncHandler sets the asynchronous handler to use for a specific
+// session.
+func (i *invoker) SetAsyncHandler(sessID overpass.SessionID, h overpass.AsyncHandler) {
+	i.mutex.Lock()
+	defer i.mutex.Unlock()
+
+	if h == nil {
+		delete(i.handlers, sessID)
+	} else {
+		i.handlers[sessID] = h
+	}
 }
 
 func (i *invoker) ExecuteBalanced(
@@ -140,7 +186,7 @@ func (i *invoker) ExecuteBalanced(
 	}
 	traceID := amqputil.PackTrace(ctx, msg)
 
-	err := i.execute(ctx, balancedExchange, ns, msg)
+	err := i.send(ctx, balancedExchange, ns, msg)
 	logBalancedExecute(i.logger, i.peerID, msgID, ns, cmd, traceID, payload, err)
 
 	return traceID, err
@@ -161,7 +207,7 @@ func (i *invoker) ExecuteMulticast(
 	}
 	traceID := amqputil.PackTrace(ctx, msg)
 
-	err := i.execute(ctx, multicastExchange, ns, msg)
+	err := i.send(ctx, multicastExchange, ns, msg)
 	logMulticastExecute(i.logger, i.peerID, msgID, ns, cmd, traceID, payload, err)
 
 	return traceID, err
@@ -303,11 +349,10 @@ func (i *invoker) call(
 ) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel func()
-		ctx, cancel = context.WithCancel(ctx)
+		ctx, cancel = context.WithTimeout(ctx, i.defaultTimeout)
 		defer cancel()
 	}
 
-	msg.ReplyTo = "Y"
 	if _, err := amqputil.PackDeadline(ctx, msg); err != nil {
 		return nil, err
 	}
@@ -357,8 +402,8 @@ func (i *invoker) call(
 	}
 }
 
-// execute publishes a message for an "execute-type" invocation
-func (i *invoker) execute(
+// send publishes a message for a command request
+func (i *invoker) send(
 	ctx context.Context,
 	exchange string,
 	key string,
@@ -405,17 +450,70 @@ func (i *invoker) publish(
 
 // reply sends a command response to a waiting sender.
 func (i *invoker) reply(msg *amqp.Delivery) {
-	channel := i.pending[msg.RoutingKey]
-	if channel == nil {
-		msg.Reject(false)
-		return
+	var ack bool
+	if replyType(msg.ReplyTo) == replyUncorrelated {
+		ack = i.replyAsync(msg)
+	} else {
+		ack = i.replySync(msg)
 	}
 
-	msg.Ack(false)
+	if ack {
+		msg.Ack(false)
+	} else {
+		msg.Reject(false)
+	}
+}
+
+func (i *invoker) replySync(msg *amqp.Delivery) bool {
+	channel := i.pending[msg.RoutingKey]
+	if channel == nil {
+		return false
+	}
 
 	delete(i.pending, msg.RoutingKey)
 	channel <- msg // buffered chan
 	close(channel)
+
+	return true
+}
+
+func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
+	msgID, err := overpass.ParseMessageID(msg.RoutingKey)
+	if err != nil {
+		logInvokerInvalidMessageID(i.logger, i.peerID, msg.RoutingKey)
+		return false
+	}
+
+	ns, ok := msg.Headers[namespaceHeader].(string)
+	if !ok {
+		err = errors.New("malformed response, namespace is not a string")
+		logInvokerIgnoredMessage(i.logger, i.peerID, msgID, err)
+		return false
+	}
+
+	cmd, ok := msg.Headers[commandHeader].(string)
+	if !ok {
+		err = errors.New("malformed response, command is not a string")
+		logInvokerIgnoredMessage(i.logger, i.peerID, msgID, err)
+		return false
+	}
+
+	i.mutex.RLock()
+	handler := i.handlers[msgID.Session.ID]
+	i.mutex.RUnlock()
+
+	if handler == nil {
+		return false
+	}
+
+	ctx := amqputil.UnpackTrace(context.Background(), msg)
+	payload, err := i.unpack(msg)
+
+	logAsyncResponse(i.logger, i.peerID, msgID, ns, cmd, trace.Get(ctx), payload, err)
+
+	go handler(ctx, msgID, ns, cmd, payload, err)
+
+	return true
 }
 
 // unpack extracts the payload and error information from an AMQP message.

@@ -14,17 +14,17 @@ func runServer(peer overpass.Peer) {
 	) {
 		defer req.Payload.Close()
 
-		rev, err := req.Source.Update(ctx, overpass.Set("foo", "bar"))
+		_, err := req.Source.Update(ctx, overpass.Set("foo", "bar"))
 		if err != nil {
 			res.Fail("cant-update", "failed to set attributes on the source session")
 			return
 		}
 
-		err = rev.Close(ctx)
-		if err != nil {
-			res.Fail("cant-close", "failed to close the source session")
-			return
-		}
+		// err = rev.Close(ctx)
+		// if err != nil {
+		// 	res.Fail("cant-close", "failed to close the source session")
+		// 	return
+		// }
 
 		res.Close()
 	})

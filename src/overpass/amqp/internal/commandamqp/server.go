@@ -280,7 +280,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 	msgID, err := overpass.ParseMessageID(msg.MessageId)
 	if err != nil {
 		msg.Reject(false)
-		logInvalidMessageID(s.logger, s.peerID, msg.MessageId)
+		logServerInvalidMessageID(s.logger, s.peerID, msg.MessageId)
 		return
 	}
 
@@ -333,7 +333,13 @@ func (s *server) handle(
 		IsMulticast: msg.Exchange == multicastExchange,
 	}
 
-	res, finalize := newResponse(ctx, s.channels, msgID, msg.ReplyTo != "")
+	res, finalize := newResponse(
+		ctx,
+		s.channels,
+		msgID,
+		req,
+		replyType(msg.ReplyTo),
+	)
 
 	if s.logger.IsDebug() {
 		res = newDebugResponse(res)
