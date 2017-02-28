@@ -28,7 +28,7 @@ type Revision interface {
 	// Get returns the attribute with key k from the attribute table.
 	//
 	// The returned attribute is guaranteed to be correct as of Ref().Rev.
-	// Non-existant attributes are equivalent to empty attributes, therefore it
+	// Non-existent attributes are equivalent to empty attributes, therefore it
 	// is not an error to request a key that has never been created.
 	//
 	// Peers do not always have a copy of the complete attribute table. If the
@@ -46,7 +46,7 @@ type Revision interface {
 	// GetMany the attributes with keys in k from the attribute table.
 	//
 	// The returned attributes are guaranteed to be correct as of Ref().Rev.
-	// Non-existant attributes are equivalent to empty attributes, therefore it
+	// Non-existent attributes are equivalent to empty attributes, therefore it
 	// is not an error to request keys that have never been created.
 	//
 	// Peers do not always have a copy of the complete attribute table. If any

@@ -26,7 +26,7 @@ import (
 // against concurrent writes. In order for a write to succeed, it must be made
 // through a Revision value that represents the current (most recent) revision.
 //
-// Individual attributes in the table can be "frozen", preventing any futher
+// Individual attributes in the table can be "frozen", preventing any further
 // changes to that attribute.
 type Session interface {
 	// ID returns the session's unique identifier.

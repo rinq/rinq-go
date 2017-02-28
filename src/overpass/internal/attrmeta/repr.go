@@ -2,7 +2,7 @@ package attrmeta
 
 import "bytes"
 
-// WriteDiff write a "diff" represenation of attr to buffer.
+// WriteDiff write a "diff" representation of attr to buffer.
 func WriteDiff(buffer *bytes.Buffer, attr Attr) {
 	if attr.Value == "" {
 		Write(buffer, attr)

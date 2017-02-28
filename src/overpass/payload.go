@@ -200,7 +200,7 @@ type payloadData struct {
 	// Indicates whether the value has been populated.
 	hasValue bool
 
-	// refCount is the number of payload structurs that are pointing to this
+	// refCount is the number of payload structures that are pointing to this
 	// element.
 	refCount uint
 }

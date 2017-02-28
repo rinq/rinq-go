@@ -135,7 +135,7 @@ func FailureType(err error) string {
 }
 
 // IsCommandError returns true if err was sent in response to a command request,
-// as opposed to a local error that occured when attempting to send the request.
+// as opposed to a local error that occurred when attempting to send the request.
 func IsCommandError(err error) bool {
 	switch err.(type) {
 	case Failure, CommandError:
