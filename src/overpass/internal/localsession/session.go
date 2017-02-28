@@ -71,7 +71,7 @@ func (s *session) CurrentRevision() (overpass.Revision, error) {
 	}
 }
 
-func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload) (*overpass.Payload, error) {
+func (s *session) Call(ctx context.Context, ns, cmd string, out *overpass.Payload) (*overpass.Payload, error) {
 	if err := overpass.ValidateNamespace(ns); err != nil {
 		return nil, err
 	}
@@ -88,60 +88,72 @@ func (s *session) Call(ctx context.Context, ns, cmd string, p *overpass.Payload)
 	msgID := s.catalog.NextMessageID()
 
 	start := time.Now()
-	traceID, payload, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, p)
+	traceID, in, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, out)
 	elapsed := time.Now().Sub(start) / time.Millisecond
 
-	if err == context.DeadlineExceeded || err == context.Canceled {
-		s.logger.Log(
-			"%s called '%s::%s' command: %s (%dms, %d/o -/i) [%s]",
-			msgID.ShortString(),
-			ns,
-			cmd,
-			err,
-			elapsed,
-			p.Len(),
-			traceID,
-		)
-	} else {
-		switch e := err.(type) {
-		case nil:
-			s.logger.Log(
-				"%s called '%s::%s' command successfully (%dms, %d/o %d/i) [%s]",
-				msgID.ShortString(),
-				ns,
-				cmd,
-				elapsed,
-				p.Len(),
-				payload.Len(),
-				traceID,
-			)
-		case overpass.Failure:
-			s.logger.Log(
-				"%s called '%s::%s' command: '%s' failure (%dms, %d/o %d/i) [%s]",
-				msgID.ShortString(),
-				ns,
-				cmd,
-				e.Type,
-				elapsed,
-				p.Len(),
-				payload.Len(),
-				traceID,
-			)
-		case overpass.CommandError:
-			s.logger.Log(
-				"%s called '%s::%s' command: '%s' error (%dms, %d/o 0/i) [%s]",
-				msgID.ShortString(),
-				ns,
-				cmd,
-				e,
-				elapsed,
-				p.Len(),
-				traceID,
-			)
-		}
+	logCall(s.logger, msgID, ns, cmd, elapsed, out, in, err, traceID)
+
+	return in, err
+}
+
+func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *overpass.Payload) (overpass.MessageID, error) {
+	var msgID overpass.MessageID
+
+	if err := overpass.ValidateNamespace(ns); err != nil {
+		return msgID, err
 	}
 
-	return payload, err
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	select {
+	case <-s.done:
+		return msgID, overpass.NotFoundError{ID: s.id}
+	default:
+	}
+
+	msgID = s.catalog.NextMessageID()
+
+	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
+	if err != nil {
+		return msgID, err
+	}
+
+	logAsyncRequest(s.logger, msgID, ns, cmd, out, traceID)
+
+	return msgID, nil
+}
+
+// SetAsyncHandler sets the asynchronous call handler.
+//
+// h is invoked for each command response received to a command request made
+// with CallAsync().
+func (s *session) SetAsyncHandler(h overpass.AsyncHandler) error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	select {
+	case <-s.done:
+		return overpass.NotFoundError{ID: s.id}
+	default:
+	}
+
+	s.invoker.SetAsyncHandler(
+		s.id,
+		func(
+			ctx context.Context,
+			msgID overpass.MessageID,
+			ns string,
+			cmd string,
+			in *overpass.Payload,
+			err error,
+		) {
+			logAsyncResponse(ctx, s.logger, msgID, ns, cmd, in, err)
+			h(ctx, msgID, ns, cmd, in, err)
+		},
+	)
+
+	return nil
 }
 
 func (s *session) Execute(ctx context.Context, ns, cmd string, p *overpass.Payload) error {
@@ -336,6 +348,7 @@ func (s *session) close() bool {
 	default:
 		close(s.done)
 		s.catalog.Close()
+		s.invoker.SetAsyncHandler(s.id, nil)
 		s.listener.Unlisten(s.id)
 		return true
 	}

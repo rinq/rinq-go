@@ -159,7 +159,8 @@ func (r *response) respond(msg *amqp.Publishing) {
 			}
 
 			msg.Headers[namespaceHeader] = r.request.Namespace
-			msg.Type = r.request.Command
+			msg.Headers[commandHeader] = r.request.Command
+			msg.ReplyTo = string(r.replyType)
 		}
 
 		err = channel.Publish(

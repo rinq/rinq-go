@@ -15,8 +15,12 @@ const (
 )
 
 const (
-	// namespaceHeader specifies the namespace in unicast command requests.
+	// namespaceHeader specifies the namespace in unicast command requests and
+	// uncorrelated command responses.
 	namespaceHeader = "n"
+
+	// commandHeader specifies the command name in uncorrelated command responses.
+	commandHeader = "c"
 
 	// failureTypeHeader specifies the failure type in command responses with
 	// the "failureResponse" type.

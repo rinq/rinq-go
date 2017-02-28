@@ -477,14 +477,16 @@ func (i *invoker) replySync(msg *amqp.Delivery) bool {
 }
 
 func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
-	msgID, err := overpass.ParseMessageID(msg.MessageId)
+	msgID, err := overpass.ParseMessageID(msg.RoutingKey)
 	if err != nil {
 		// TODO: log
 		return false
 	}
 
 	ns, ok := msg.Headers[namespaceHeader].(string)
-	if ok {
+	cmd, _ := msg.Headers[commandHeader].(string)
+
+	if !ok {
 		// TODO: log return "", errors.New("malformed request, namespace is not a string")
 		return false
 	}
@@ -504,7 +506,7 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 		amqputil.UnpackTrace(context.Background(), msg),
 		msgID,
 		ns,
-		msg.Type,
+		cmd,
 		payload,
 		err,
 	)
