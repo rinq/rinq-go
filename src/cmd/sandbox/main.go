@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/over-pass/overpass-go/src/overpass"
-	"github.com/over-pass/overpass-go/src/overpass/amqp"
+	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/amqp"
 )
 
 func main() {
@@ -18,8 +18,8 @@ func main() {
 	peer, err := amqp.DialConfig(
 		context.Background(),
 		os.Getenv("AMQP_DSN"),
-		overpass.Config{
-			Logger:        overpass.NewLogger(true),
+		rinq.Config{
+			Logger:        rinq.NewLogger(true),
 			PruneInterval: 10 * time.Second,
 		},
 	)

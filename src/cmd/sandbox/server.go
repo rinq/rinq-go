@@ -3,18 +3,18 @@ package main
 import (
 	"context"
 
-	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/rinq/rinq-go/src/rinq"
 )
 
-func runServer(peer overpass.Peer) {
+func runServer(peer rinq.Peer) {
 	peer.Listen("our-namespace", func(
 		ctx context.Context,
-		req overpass.Request,
-		res overpass.Response,
+		req rinq.Request,
+		res rinq.Response,
 	) {
 		defer req.Payload.Close()
 
-		_, err := req.Source.Update(ctx, overpass.Set("foo", "bar"))
+		_, err := req.Source.Update(ctx, rinq.Set("foo", "bar"))
 		if err != nil {
 			res.Fail("cant-update", "failed to set attributes on the source session")
 			return

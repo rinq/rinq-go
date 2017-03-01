@@ -1,13 +1,13 @@
-# Overpass for Go
+# Rinq for Go
 
-[![Build Status](http://img.shields.io/travis/over-pass/overpass-go/master.svg?style=flat-square)](https://travis-ci.org/over-pass/overpass-go)
-[![Code Coverage](https://img.shields.io/codecov/c/github/over-pass/overpass-go/master.svg?style=flat-square)](https://codecov.io/github/over-pass/overpass-go)
-[![Latest Version](https://img.shields.io/github/tag/over-pass/overpass-go.svg?style=flat-square&label=semver)](https://semver.org)
-[![GoDoc](https://godoc.org/github.com/over-pass/overpass-go?status.svg)](https://godoc.org/github.com/over-pass/overpass-go/src/overpass)
-[![Go Report Card](https://goreportcard.com/badge/github.com/over-pass/overpass-go)](https://goreportcard.com/report/github.com/over-pass/overpass-go)
+[![Build Status](http://img.shields.io/travis/rinq/rinq-go/master.svg?style=flat-square)](https://travis-ci.org/rinq/rinq-go)
+[![Code Coverage](https://img.shields.io/codecov/c/github/rinq/rinq-go/master.svg?style=flat-square)](https://codecov.io/github/rinq/rinq-go)
+[![Latest Version](https://img.shields.io/github/tag/rinq/rinq-go.svg?style=flat-square&label=semver)](https://semver.org)
+[![GoDoc](https://godoc.org/github.com/rinq/rinq-go?status.svg)](https://godoc.org/github.com/rinq/rinq-go/src/rinq)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rinq/rinq-go)](https://goreportcard.com/report/github.com/rinq/rinq-go)
 
-Overpass is an AMQP-based command bus with a distributed session store. This
-repository provides an implementation of Overpass in Go.
+Rinq is a cross-language command bus and distributed ephemeral data store. This
+repository provides an implementation of Rinq in Go.
 
 ## Building and testing
 

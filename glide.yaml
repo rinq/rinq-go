@@ -1,4 +1,4 @@
-package: github.com/over-pass/overpass-go
+package: github.com/rinq/rinq-go
 import:
 - package: github.com/streadway/amqp
   version: master
