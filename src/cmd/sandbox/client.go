@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/rinq/rinq-go/src/rinq"
 )
 
-func runClient(peer overpass.Peer) {
+func runClient(peer rinq.Peer) {
 	sess := peer.Session()
 	defer sess.Close()
 
@@ -18,7 +18,7 @@ func runClient(peer overpass.Peer) {
 	<-sess.Done()
 }
 
-func call(sess overpass.Session) {
+func call(sess rinq.Session) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 11*time.Second)
 	defer cancel()
@@ -34,13 +34,13 @@ func call(sess overpass.Session) {
 	}
 }
 
-func callAsync(sess overpass.Session) {
+func callAsync(sess rinq.Session) {
 	err := sess.SetAsyncHandler(func(
 		ctx context.Context,
-		msgID overpass.MessageID,
+		msgID rinq.MessageID,
 		ns string,
 		cmd string,
-		in *overpass.Payload,
+		in *rinq.Payload,
 		err error,
 	) {
 		if err != nil {

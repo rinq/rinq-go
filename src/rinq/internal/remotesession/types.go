@@ -1,0 +1,48 @@
+package remotesession
+
+import (
+	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+)
+
+const (
+	sessionNamespace = "_sess"
+)
+
+const (
+	fetchCommand  = "fetch"
+	updateCommand = "update"
+	closeCommand  = "close"
+)
+
+const (
+	notFoundFailure         = "not-found"
+	staleUpdateFailure      = "stale"
+	frozenAttributesFailure = "frozen"
+)
+
+type fetchRequest struct {
+	Seq  uint32   `json:"s"`
+	Keys []string `json:"k,omitempty"`
+}
+
+type fetchResponse struct {
+	Rev   rinq.RevisionNumber `json:"r"`
+	Attrs []attrmeta.Attr     `json:"a,omitempty"`
+}
+
+type updateRequest struct {
+	Seq   uint32              `json:"s"`
+	Rev   rinq.RevisionNumber `json:"r"`
+	Attrs []rinq.Attr         `json:"a,omitempty"`
+}
+
+type updateResponse struct {
+	Rev         rinq.RevisionNumber   `json:"r"`
+	CreatedRevs []rinq.RevisionNumber `json:"cr"`
+}
+
+type closeRequest struct {
+	Seq uint32              `json:"s"`
+	Rev rinq.RevisionNumber `json:"r"`
+}

@@ -1,6 +1,6 @@
 # Contributing
 
-**Overpass** is open source software; contributions from the community are
+**Rinq** is open source software; contributions from the community are
 encouraged and appreciated. Please take a moment to read these guidelines
 before submitting changes.
 

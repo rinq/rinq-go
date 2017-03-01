@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/rinq/rinq-go/src/rinq"
 )
 
-func runNotifier(peer overpass.Peer) {
+func runNotifier(peer rinq.Peer) {
 	sess := peer.Session()
 	defer sess.Close()
 
@@ -17,7 +17,7 @@ func runNotifier(peer overpass.Peer) {
 	<-sess.Done()
 }
 
-func notify(sess overpass.Session) {
+func notify(sess rinq.Session) {
 	for {
 		time.Sleep(1 * time.Second)
 		err := sess.NotifyMany(

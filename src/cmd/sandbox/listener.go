@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/over-pass/overpass-go/src/overpass"
+	"github.com/rinq/rinq-go/src/rinq"
 )
 
-func runListener(peer overpass.Peer) {
+func runListener(peer rinq.Peer) {
 	sess := peer.Session()
 	defer sess.Close()
 
@@ -19,8 +19,8 @@ func runListener(peer overpass.Peer) {
 
 func handle(
 	ctx context.Context,
-	target overpass.Session,
-	n overpass.Notification,
+	target rinq.Session,
+	n rinq.Notification,
 ) {
 	defer n.Payload.Close()
 
