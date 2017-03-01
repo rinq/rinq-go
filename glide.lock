@@ -1,10 +1,6 @@
-hash: 86ac30d6fdaed36aa56ccc796fb19f28e1da06827c21cb6933603b254f96f4cb
-updated: 2017-03-01T12:50:16.577114+10:00
+hash: 9af6840633affb5ca27c315723251db603301e43ccc882e2bed707a9fffe84a5
+updated: 2017-03-01T19:29:25.881773725+10:00
 imports:
-- name: github.com/davecgh/go-spew
-  version: 346938d642f2ec3594ed81d874461961cd0faa76
-  subpackages:
-  - spew
 - name: github.com/hashicorp/go-version
   version: 03c5bf6be031b6dd45afec16b1cf94fc8938bc77
 - name: github.com/onsi/ginkgo

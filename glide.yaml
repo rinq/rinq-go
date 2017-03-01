@@ -6,8 +6,4 @@ import:
   version: master
 - package: github.com/onsi/gomega
   version: master
-- package: github.com/davecgh/go-spew
-  version: ^1.0.0
-  subpackages:
-  - spew
 - package: github.com/hashicorp/go-version
