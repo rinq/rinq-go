@@ -2,8 +2,6 @@ package commandamqp
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/over-pass/overpass-go/src/overpass"
@@ -280,8 +278,8 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 		return
 	}
 
-	// determine command namespace
-	namespace, err := s.unpackNamespace(msg)
+	// determine namespace + command
+	ns, cmd, err := unpackNamespaceAndCommand(msg)
 	if err != nil {
 		msg.Reject(false)
 		logIgnoredMessage(s.logger, s.peerID, msgID, err)
@@ -290,11 +288,11 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 
 	// find the handler for this namespace
 	s.mutex.RLock()
-	handler, ok := s.handlers[namespace]
+	h, ok := s.handlers[ns]
 	s.mutex.RUnlock()
 	if !ok {
 		msg.Reject(msg.Exchange == balancedExchange) // requeue if "balanced"
-		logNoLongerListening(s.logger, s.peerID, msgID, namespace)
+		logNoLongerListening(s.logger, s.peerID, msgID, ns)
 		return
 	}
 
@@ -306,14 +304,15 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 		return
 	}
 
-	s.handle(msgID, msg, namespace, source, handler)
+	s.handle(msgID, msg, ns, cmd, source, h)
 }
 
 // handle invokes the command handler for request.
 func (s *server) handle(
 	msgID overpass.MessageID,
 	msg *amqp.Delivery,
-	namespace string,
+	ns string,
+	cmd string,
 	source overpass.Revision,
 	handler overpass.CommandHandler,
 ) {
@@ -323,8 +322,8 @@ func (s *server) handle(
 
 	req := overpass.Request{
 		Source:      source,
-		Namespace:   namespace,
-		Command:     msg.Type,
+		Namespace:   ns,
+		Command:     cmd,
 		Payload:     overpass.NewPayloadFromBytes(msg.Body),
 		IsMulticast: msg.Exchange == multicastExchange,
 	}
@@ -334,7 +333,7 @@ func (s *server) handle(
 		s.channels,
 		msgID,
 		req,
-		replyType(msg.ReplyTo),
+		unpackReplyMode(msg),
 	)
 
 	if s.logger.IsDebug() {
@@ -363,24 +362,6 @@ func (s *server) handle(
 	} else {
 		msg.Reject(false) // false = don't requeue
 		logRequestRejected(ctx, s.logger, s.peerID, msgID, req, ctx.Err().Error())
-	}
-}
-
-// unpackNamespace extracts and validates the namespace in a command request.
-func (s *server) unpackNamespace(msg *amqp.Delivery) (string, error) {
-	switch msg.Exchange {
-	case balancedExchange, multicastExchange:
-		return msg.RoutingKey, nil
-
-	case unicastExchange:
-		if namespace, ok := msg.Headers[namespaceHeader].(string); ok {
-			return namespace, nil
-		}
-
-		return "", errors.New("malformed request, namespace is not a string")
-
-	default:
-		return "", fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
 	}
 }
 

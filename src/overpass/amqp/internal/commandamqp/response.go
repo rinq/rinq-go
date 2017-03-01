@@ -18,7 +18,7 @@ type response struct {
 	request  overpass.Request
 
 	mutex     sync.RWMutex
-	replyType replyType
+	replyMode replyMode
 	isClosed  bool
 }
 
@@ -27,14 +27,14 @@ func newResponse(
 	channels amqputil.ChannelPool,
 	msgID overpass.MessageID,
 	request overpass.Request,
-	replyType replyType,
+	replyMode replyMode,
 ) (overpass.Response, func() bool) {
 	r := &response{
 		context:   ctx,
 		channels:  channels,
 		msgID:     msgID,
 		request:   request,
-		replyType: replyType,
+		replyMode: replyMode,
 	}
 
 	return r, r.finalize
@@ -48,7 +48,7 @@ func (r *response) IsRequired() bool {
 		return false
 	}
 
-	if r.replyType == replyNone {
+	if r.replyMode == replyNone {
 		return false
 	}
 
@@ -75,10 +75,9 @@ func (r *response) Done(payload *overpass.Payload) {
 		panic("responder is already closed")
 	}
 
-	r.respond(&amqp.Publishing{
-		Type: successResponse,
-		Body: payload.Bytes(),
-	})
+	msg := &amqp.Publishing{}
+	packSuccessResponse(msg, payload)
+	r.respond(msg)
 }
 
 func (r *response) Error(err error) {
@@ -89,25 +88,9 @@ func (r *response) Error(err error) {
 		panic("responder is already closed")
 	}
 
-	if f, ok := err.(overpass.Failure); ok {
-		if f.Type == "" {
-			panic("failure type is empty")
-		}
-
-		r.respond(&amqp.Publishing{
-			Type: failureResponse,
-			Headers: amqp.Table{
-				failureTypeHeader:    f.Type,
-				failureMessageHeader: f.Message,
-			},
-			Body: f.Payload.Bytes(),
-		})
-	} else {
-		r.respond(&amqp.Publishing{
-			Type: errorResponse,
-			Body: []byte(err.Error()),
-		})
-	}
+	msg := &amqp.Publishing{}
+	packErrorResponse(msg, err)
+	r.respond(msg)
 }
 
 func (r *response) Fail(failureType, message string) overpass.Failure {
@@ -124,7 +107,9 @@ func (r *response) Close() bool {
 		return false
 	}
 
-	r.respond(&amqp.Publishing{Type: successResponse})
+	msg := &amqp.Publishing{}
+	packSuccessResponse(msg, nil)
+	r.respond(msg)
 
 	return true
 }
@@ -143,37 +128,34 @@ func (r *response) finalize() bool {
 }
 
 func (r *response) respond(msg *amqp.Publishing) {
-	if r.replyType != replyNone {
-		channel, err := r.channels.Get()
-		if err != nil {
-			panic(err)
-		}
-		defer r.channels.Put(channel)
+	r.isClosed = true
 
-		amqputil.PackTrace(r.context, msg)
-		amqputil.PackDeadline(r.context, msg)
-
-		if r.replyType == replyUncorrelated {
-			if msg.Headers == nil {
-				msg.Headers = amqp.Table{}
-			}
-
-			msg.Headers[namespaceHeader] = r.request.Namespace
-			msg.Headers[commandHeader] = r.request.Command
-			msg.ReplyTo = string(r.replyType)
-		}
-
-		err = channel.Publish(
-			responseExchange,
-			r.msgID.String(),
-			false, // mandatory,
-			false, // immediate,
-			*msg,
-		)
-		if err != nil {
-			panic(err)
-		}
+	if r.replyMode == replyNone {
+		return
 	}
 
-	r.isClosed = true
+	channel, err := r.channels.Get()
+	if err != nil {
+		panic(err)
+	}
+	defer r.channels.Put(channel)
+
+	amqputil.PackTrace(r.context, msg)
+	amqputil.PackDeadline(r.context, msg)
+
+	if r.replyMode == replyUncorrelated {
+		packNamespaceAndCommand(msg, r.request.Namespace, r.request.Command)
+		packReplyMode(msg, r.replyMode)
+	}
+
+	err = channel.Publish(
+		responseExchange,
+		r.msgID.String(),
+		false, // mandatory,
+		false, // immediate,
+		*msg,
+	)
+	if err != nil {
+		panic(err)
+	}
 }
