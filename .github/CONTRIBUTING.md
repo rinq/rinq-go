@@ -6,7 +6,7 @@ before submitting changes.
 
 ## Requirements
 
-- [Go 1.7](https://golang.org/)
+- [Go 1.8](https://golang.org/)
 - [GNU make](https://www.gnu.org/software/make/) (or equivalent)
 
 ## Running the tests
