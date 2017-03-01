@@ -1,2 +1,2 @@
-// Package amqp provides an API for connecting to an AMQP-based Rinq network.
+// Package amqp provides an AMQP-based Rinq implementation.
 package amqp
