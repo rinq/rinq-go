@@ -6,12 +6,10 @@ matrix:
   fast_finish: true
   allow_failures:
   - go: tip
-env:
-  - RABBITMQ_VERSION=3.6.6
 before_install:
-  - wget https://www.rabbitmq.com/releases/rabbitmq-server/current/rabbitmq-server_${RABBITMQ_VERSION}-1_all.deb
+  - wget https://www.rabbitmq.com/releases/rabbitmq-server/v3.5.4/rabbitmq-server_3.5.4-1_all.deb
   - sudo apt-get remove rabbitmq-server
-  - sudo dpkg -i rabbitmq-server_${RABBITMQ_VERSION}-1_all.deb
+  - sudo dpkg -i rabbitmq-server_3.5.4-1_all.deb
   - sudo service rabbitmq-server start
 script: make ci
 after_script: bash <(curl -s https://codecov.io/bash)
