@@ -84,9 +84,9 @@ func (r *loggingResponse) Error(err error) {
 	}
 }
 
-func (r *loggingResponse) Fail(failureType, message string) rinq.Failure {
-	err := r.res.Fail(failureType, message)
-	r.logFailure(failureType, nil)
+func (r *loggingResponse) Fail(f, t string, v ...interface{}) rinq.Failure {
+	err := r.res.Fail(f, t, v...)
+	r.logFailure(f, nil)
 	return err
 }
 

@@ -37,8 +37,8 @@ func (r *debugResponse) Error(err error) {
 	}
 }
 
-func (r *debugResponse) Fail(failureType, message string) rinq.Failure {
-	err := r.res.Fail(failureType, message)
+func (r *debugResponse) Fail(t, f string, v ...interface{}) rinq.Failure {
+	err := r.res.Fail(t, f, v...)
 	r.Err = err
 	return err
 }

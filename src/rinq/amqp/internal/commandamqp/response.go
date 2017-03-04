@@ -2,6 +2,7 @@ package commandamqp
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/rinq/rinq-go/src/rinq"
@@ -94,9 +95,14 @@ func (r *response) Error(err error) {
 	r.respond(msg)
 }
 
-func (r *response) Fail(failureType, message string) rinq.Failure {
-	err := rinq.Failure{Type: failureType, Message: message}
+func (r *response) Fail(t, f string, v ...interface{}) rinq.Failure {
+	err := rinq.Failure{
+		Type:    t,
+		Message: fmt.Sprintf(f, v...),
+	}
+
 	r.Error(err)
+
 	return err
 }
 

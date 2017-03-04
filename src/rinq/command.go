@@ -69,9 +69,12 @@ type Response interface {
 	// Fail is a convenience method that creates a Failure and passes it to
 	// Error() method. The created failure is returned.
 	//
+	// The failure type t is used verbatim. The failure message is formatted
+	// according to the format specifier f, interpolated with values from v.
+	//
 	// A panic occurs if the response has already been closed or if failureType
 	// is empty.
-	Fail(failureType, message string) Failure
+	Fail(t, f string, v ...interface{}) Failure
 
 	// Close finalizes the response.
 	//
