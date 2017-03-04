@@ -57,7 +57,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Pe
 	if amqpCfg.Properties == nil {
 		amqpCfg.Properties = amqp.Table{
 			"product": path.Base(os.Args[0]),
-			"version": "rinq-go/0.0.0",
+			"version": "rinq-go/" + rinq.Version,
 		}
 	}
 
