@@ -36,5 +36,5 @@ func logClose(
 	logger rinq.Logger,
 	cat Catalog,
 ) {
-	logSessionClose(logger, cat, trace.Get(ctx))
+	logSessionDestroy(logger, cat, trace.Get(ctx))
 }

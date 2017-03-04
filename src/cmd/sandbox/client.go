@@ -11,10 +11,10 @@ import (
 
 func runClient(peer rinq.Peer) {
 	sess := peer.Session()
-	defer sess.Close()
+	defer sess.Destroy()
 
 	callAsync(sess)
-	// sess.Close()
+	// sess.Destroy()
 
 	<-sess.Done()
 }

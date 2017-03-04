@@ -132,7 +132,7 @@ func logAsyncResponse(
 	}
 }
 
-func logSessionClose(
+func logSessionDestroy(
 	logger rinq.Logger,
 	cat Catalog,
 	traceID string,

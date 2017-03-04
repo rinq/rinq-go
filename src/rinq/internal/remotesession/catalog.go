@@ -208,7 +208,7 @@ func (c *catalog) TryUpdate(
 	}, nil
 }
 
-func (c *catalog) TryClose(
+func (c *catalog) TryDestroy(
 	ctx context.Context,
 	rev ident.Revision,
 ) error {

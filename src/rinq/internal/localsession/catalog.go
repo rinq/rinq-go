@@ -45,11 +45,11 @@ type Catalog interface {
 		diff *bytes.Buffer,
 	) (rinq.Revision, error)
 
-	// TryClose closes the catalog, preventing further updates.
+	// TryDestroy closes the catalog, preventing further updates.
 	//
 	// The operation fails if ref is not the current session-ref. It is not an
 	// error to close an already-closed catalog.
-	TryClose(ref ident.Ref) error
+	TryDestroy(ref ident.Ref) error
 
 	// Close forcefully closes the catalog, preventing further updates.
 	// It is not an error to close an already-closed catalog.
@@ -190,7 +190,7 @@ func (c *catalog) TryUpdate(
 	}, nil
 }
 
-func (c *catalog) TryClose(ref ident.Ref) error {
+func (c *catalog) TryDestroy(ref ident.Ref) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 

@@ -10,7 +10,7 @@ import (
 
 func runNotifier(peer rinq.Peer) {
 	sess := peer.Session()
-	defer sess.Close()
+	defer sess.Destroy()
 
 	go notify(sess)
 

@@ -90,12 +90,12 @@ type Revision interface {
 	// existing variable without first checking for errors.
 	Update(ctx context.Context, attrs ...Attr) (rev Revision, err error)
 
-	// Close destroys the session.
+	// Destroy terminates the session.
 	//
 	// The session revision represented by this instance must be the latest
-	// revision. If Ref().Rev is not the latest revision the closure fails;
+	// revision. If Ref().Rev is not the latest revision the destroy fails;
 	// ShouldRetry(err) returns true.
-	Close(ctx context.Context) (err error)
+	Destroy(ctx context.Context) (err error)
 }
 
 // ShouldRetry returns true if a call to Revision.Get(), GetMany(), Update() or

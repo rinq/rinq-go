@@ -10,7 +10,7 @@ import (
 
 func runListener(peer rinq.Peer) {
 	sess := peer.Session()
-	defer sess.Close()
+	defer sess.Destroy()
 
 	sess.Listen(handle)
 

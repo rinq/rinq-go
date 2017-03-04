@@ -22,7 +22,7 @@ func ExampleRevision_get() {
 	defer peer.Stop()
 
 	sess := peer.Session()
-	defer sess.Close()
+	defer sess.Destroy()
 
 	rev, err := sess.CurrentRevision()
 	if err != nil {
@@ -67,7 +67,7 @@ func ExampleRevision_update() {
 	defer peer.Stop()
 
 	sess := peer.Session()
-	defer sess.Close()
+	defer sess.Destroy()
 
 	rev, err := sess.CurrentRevision()
 	if err != nil {

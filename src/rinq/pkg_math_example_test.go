@@ -74,7 +74,7 @@ func Example_mathService() {
 	defer clientPeer.Stop()
 
 	sess := clientPeer.Session()
-	defer sess.Close()
+	defer sess.Destroy()
 
 	// call the "math::add" command
 	ctx := context.Background()

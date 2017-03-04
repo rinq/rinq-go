@@ -70,6 +70,6 @@ func (r *revision) Update(ctx context.Context, attrs ...rinq.Attr) (rinq.Revisio
 	return rev, nil
 }
 
-func (r *revision) Close(ctx context.Context) error {
-	return r.catalog.TryClose(ctx, r.ref.Rev)
+func (r *revision) Destroy(ctx context.Context) error {
+	return r.catalog.TryDestroy(ctx, r.ref.Rev)
 }

@@ -14,8 +14,8 @@ import (
 // to. See Peer.Listen() to start listening.
 //
 // The handler MUST close the response by calling r.Done(), r.Error() or
-// r.Close(); otherwise the request may be redelivered, possibly to a different
-// peer.
+// r.Destroy(); otherwise the request may be redelivered, possibly to a
+// different peer.
 type CommandHandler func(
 	ctx context.Context,
 	req Request,

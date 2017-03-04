@@ -157,8 +157,10 @@ type Session interface {
 	// returned immediately.
 	Unlisten() error
 
-	// Close destroys the session after any pending calls have completed.
-	Close()
+	// Destroy terminates the session.
+	//
+	// Destroy waits for pending calls to complete then destroys the session.
+	Destroy()
 
 	// Done returns a channel that is closed when the session is closed.
 	//

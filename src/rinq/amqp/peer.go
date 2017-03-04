@@ -203,7 +203,7 @@ func (p *peer) finalize(err error) error {
 	p.listener.Stop()
 
 	p.localStore.Each(func(sess rinq.Session, _ localsession.Catalog) {
-		sess.Close()
+		sess.Destroy()
 	})
 
 	<-syncutil.Group(

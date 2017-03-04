@@ -171,7 +171,7 @@ func (s *server) close(
 
 	ref := sessID.At(args.Rev)
 
-	if err := cat.TryClose(ref); err != nil {
+	if err := cat.TryDestroy(ref); err != nil {
 		switch err.(type) {
 		case rinq.NotFoundError:
 			res.Fail(notFoundFailure, "")

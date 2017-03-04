@@ -19,7 +19,7 @@ func ExamplePeer_session() {
 	defer peer.Stop()
 
 	sess := peer.Session()
-	defer sess.Close()
+	defer sess.Destroy()
 
 	fmt.Printf("created session #%d\n", sess.ID().Seq)
 	// Output: created session #1

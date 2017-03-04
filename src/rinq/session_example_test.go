@@ -18,7 +18,7 @@ func ExampleSession_notify() {
 
 	// create a session to receive the notification
 	recv := peer.Session()
-	defer recv.Close()
+	defer recv.Destroy()
 
 	if err := recv.Listen(func(
 		ctx context.Context,
@@ -35,7 +35,7 @@ func ExampleSession_notify() {
 
 	// create a session to send the notification to recv
 	send := peer.Session()
-	defer send.Close()
+	defer send.Destroy()
 
 	payload := NewPayload("<payload>")
 	defer payload.Close()

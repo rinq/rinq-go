@@ -54,7 +54,7 @@ func NewSession(
 
 	go func() {
 		<-catalog.Done()
-		sess.close()
+		sess.destroy()
 	}()
 
 	return sess
@@ -338,13 +338,13 @@ func (s *session) Unlisten() error {
 	return nil
 }
 
-func (s *session) Close() {
-	if s.close() {
-		logSessionClose(s.logger, s.catalog, "")
+func (s *session) Destroy() {
+	if s.destroy() {
+		logSessionDestroy(s.logger, s.catalog, "")
 	}
 }
 
-func (s *session) close() bool {
+func (s *session) destroy() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

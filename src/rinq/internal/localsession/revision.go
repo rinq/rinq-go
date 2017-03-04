@@ -87,8 +87,8 @@ func (r *revision) Update(ctx context.Context, attrs ...rinq.Attr) (rinq.Revisio
 	return rev, nil
 }
 
-func (r *revision) Close(ctx context.Context) error {
-	err := r.catalog.TryClose(r.ref)
+func (r *revision) Destroy(ctx context.Context) error {
+	err := r.catalog.TryDestroy(r.ref)
 	if err != nil {
 		return err
 	}
