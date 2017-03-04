@@ -209,7 +209,7 @@ func (l *listener) run() (service.State, error) {
 func (l *listener) graceful() (service.State, error) {
 	logListenerStopping(l.logger, l.peerID, l.pending)
 
-	if err := l.channel.Close(); err != nil {
+	if err := l.closeChannel(); err != nil {
 		return nil, err
 	}
 
@@ -228,7 +228,7 @@ func (l *listener) graceful() (service.State, error) {
 
 // forceful is the state entered when a stop is requested
 func (l *listener) forceful() (service.State, error) {
-	return nil, l.channel.Close()
+	return nil, l.closeChannel()
 }
 
 // finalize is the state-machine finalizer, it is called immediately before the
@@ -382,4 +382,11 @@ func (l *listener) handle(
 	} else {
 		handler(ctx, sess, n)
 	}
+}
+
+func (l *listener) closeChannel() error {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+
+	return l.channel.Close()
 }

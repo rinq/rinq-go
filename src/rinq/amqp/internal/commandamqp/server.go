@@ -229,7 +229,7 @@ func (s *server) run() (service.State, error) {
 func (s *server) graceful() (service.State, error) {
 	logServerStopping(s.logger, s.peerID, s.pending)
 
-	if err := s.channel.Close(); err != nil {
+	if err := s.closeChannel(); err != nil {
 		return nil, err
 	}
 
@@ -248,7 +248,7 @@ func (s *server) graceful() (service.State, error) {
 
 // forceful is the state entered when a stop is requested
 func (s *server) forceful() (service.State, error) {
-	return nil, s.channel.Close()
+	return nil, s.closeChannel()
 }
 
 // finalize is the state-machine finalizer, it is called immediately before the
@@ -373,4 +373,11 @@ func (s *server) pipe(messages <-chan amqp.Delivery) {
 		case <-s.sm.Finalized:
 		}
 	}
+}
+
+func (s *server) closeChannel() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.channel.Close()
 }
