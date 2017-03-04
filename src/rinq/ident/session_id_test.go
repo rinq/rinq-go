@@ -1,21 +1,21 @@
-package rinq_test
+package ident_test
 
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"github.com/rinq/rinq-go/src/rinq"
+	. "github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 var _ = Describe("SessionID", func() {
-	peerID := rinq.PeerID{
+	peerID := PeerID{
 		Clock: 0x0123456789abcdef,
 		Rand:  0x0bad,
 	}
 
 	Describe("ParseSessionID", func() {
 		It("parses a human readable ID", func() {
-			id, err := rinq.ParseSessionID("123456789ABCDEF-0BAD.123")
+			id, err := ParseSessionID("123456789ABCDEF-0BAD.123")
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(id.String()).To(Equal("123456789ABCDEF-0BAD.123"))
@@ -24,7 +24,7 @@ var _ = Describe("SessionID", func() {
 		DescribeTable(
 			"returns an error if the string is malformed",
 			func(id string) {
-				_, err := rinq.ParseSessionID(id)
+				_, err := ParseSessionID(id)
 
 				Expect(err).Should(HaveOccurred())
 			},
@@ -39,36 +39,36 @@ var _ = Describe("SessionID", func() {
 
 	DescribeTable(
 		"Validate",
-		func(subject rinq.SessionID, isValid bool) {
+		func(subject SessionID, isValid bool) {
 			if isValid {
 				Expect(subject.Validate()).To(Succeed())
 			} else {
 				Expect(subject.Validate()).Should(HaveOccurred())
 			}
 		},
-		Entry("zero struct", rinq.SessionID{}, false),
-		Entry("zero peer", rinq.SessionID{Seq: 1}, false),
-		Entry("non-zero struct", rinq.SessionID{Peer: peerID, Seq: 1}, true),
+		Entry("zero struct", SessionID{}, false),
+		Entry("zero peer", SessionID{Seq: 1}, false),
+		Entry("non-zero struct", SessionID{Peer: peerID, Seq: 1}, true),
 	)
 
 	Describe("At", func() {
 		It("creates a ref at the given version", func() {
-			subject := rinq.SessionID{Peer: peerID, Seq: 123}
+			subject := SessionID{Peer: peerID, Seq: 123}
 			ref := subject.At(456)
-			Expect(ref).To(Equal(rinq.SessionRef{ID: subject, Rev: 456}))
+			Expect(ref).To(Equal(Ref{ID: subject, Rev: 456}))
 		})
 	})
 
 	Describe("ShortString", func() {
 		It("returns a human readable ID", func() {
-			subject := rinq.SessionID{Peer: peerID, Seq: 123}
+			subject := SessionID{Peer: peerID, Seq: 123}
 			Expect(subject.ShortString()).To(Equal("0BAD.123"))
 		})
 	})
 
 	Describe("String", func() {
 		It("returns a human readable ID", func() {
-			subject := rinq.SessionID{Peer: peerID, Seq: 123}
+			subject := SessionID{Peer: peerID, Seq: 123}
 			Expect(subject.String()).To(Equal("123456789ABCDEF-0BAD.123"))
 		})
 	})

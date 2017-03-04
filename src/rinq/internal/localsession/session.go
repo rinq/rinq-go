@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
 	"github.com/rinq/rinq-go/src/rinq/internal/trace"
 )
 
 type session struct {
-	id       rinq.SessionID
+	id       ident.SessionID
 	catalog  Catalog
 	invoker  command.Invoker
 	notifier notify.Notifier
@@ -29,7 +30,7 @@ type session struct {
 
 // NewSession returns a new local session.
 func NewSession(
-	id rinq.SessionID,
+	id ident.SessionID,
 	catalog Catalog,
 	invoker command.Invoker,
 	notifier notify.Notifier,
@@ -59,7 +60,7 @@ func NewSession(
 	return sess
 }
 
-func (s *session) ID() rinq.SessionID {
+func (s *session) ID() ident.SessionID {
 	return s.id
 }
 
@@ -97,8 +98,8 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 	return in, err
 }
 
-func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Payload) (rinq.MessageID, error) {
-	var msgID rinq.MessageID
+func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Payload) (ident.MessageID, error) {
+	var msgID ident.MessageID
 
 	if err := rinq.ValidateNamespace(ns); err != nil {
 		return msgID, err
@@ -143,7 +144,7 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 		s.id,
 		func(
 			ctx context.Context,
-			msgID rinq.MessageID,
+			msgID ident.MessageID,
 			ns string,
 			cmd string,
 			in *rinq.Payload,
@@ -213,7 +214,7 @@ func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *rinq.Paylo
 	return err
 }
 
-func (s *session) Notify(ctx context.Context, target rinq.SessionID, typ string, p *rinq.Payload) error {
+func (s *session) Notify(ctx context.Context, target ident.SessionID, typ string, p *rinq.Payload) error {
 	if err := target.Validate(); err != nil || target.Seq == 0 {
 		return fmt.Errorf("session ID %s is invalid", target)
 	}

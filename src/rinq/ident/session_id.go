@@ -1,4 +1,4 @@
-package rinq
+package ident
 
 import (
 	"fmt"
@@ -68,9 +68,9 @@ func (id SessionID) Validate() error {
 	return fmt.Errorf("session ID %s is invalid", id)
 }
 
-// At returns a SessionRef for this session ID.
-func (id SessionID) At(rev RevisionNumber) SessionRef {
-	return SessionRef{ID: id, Rev: rev}
+// At returns a Ref for this session ID.
+func (id SessionID) At(rev Revision) Ref {
+	return Ref{ID: id, Rev: rev}
 }
 
 // ShortString returns a string representation of the session ID based on the

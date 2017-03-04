@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
 
@@ -14,10 +15,10 @@ import (
 type Catalog interface {
 	// Ref returns the most recent session-ref.
 	// The ref's revision increments each time a call to TryUpdate() succeeds.
-	Ref() rinq.SessionRef
+	Ref() ident.Ref
 
 	// NextMessageID generates a unique message ID from the current session-ref.
-	NextMessageID() rinq.MessageID
+	NextMessageID() ident.MessageID
 
 	// Head returns the most recent revision.
 	// It is conceptually equivalent to catalog.At(catalog.Ref().Rev).
@@ -25,10 +26,10 @@ type Catalog interface {
 
 	// At returns a revision representing the catalog at a specific revision
 	// number. The revision can not be newer than the current session-ref.
-	At(rinq.RevisionNumber) (rinq.Revision, error)
+	At(ident.Revision) (rinq.Revision, error)
 
 	// Attrs returns all attributes at the most recent revision.
-	Attrs() (rinq.SessionRef, attrmeta.Table)
+	Attrs() (ident.Ref, attrmeta.Table)
 
 	// TryUpdate adds or updates attributes in the attribute table and returns
 	// the new head revision.
@@ -39,7 +40,7 @@ type Catalog interface {
 	// A human-readable representation of the changes is written to diff, if it
 	// is non-nil.
 	TryUpdate(
-		ref rinq.SessionRef,
+		ref ident.Ref,
 		attrs []rinq.Attr,
 		diff *bytes.Buffer,
 	) (rinq.Revision, error)
@@ -48,7 +49,7 @@ type Catalog interface {
 	//
 	// The operation fails if ref is not the current session-ref. It is not an
 	// error to close an already-closed catalog.
-	TryClose(ref rinq.SessionRef) error
+	TryClose(ref ident.Ref) error
 
 	// Close forcefully closes the catalog, preventing further updates.
 	// It is not an error to close an already-closed catalog.
@@ -60,7 +61,7 @@ type Catalog interface {
 
 type catalog struct {
 	mutex  sync.RWMutex
-	ref    rinq.SessionRef
+	ref    ident.Ref
 	attrs  attrmeta.Table
 	seq    uint32
 	done   chan struct{}
@@ -69,7 +70,7 @@ type catalog struct {
 
 // NewCatalog returns a catalog for the given session.
 func NewCatalog(
-	id rinq.SessionID,
+	id ident.SessionID,
 	logger rinq.Logger,
 ) Catalog {
 	return &catalog{
@@ -79,19 +80,19 @@ func NewCatalog(
 	}
 }
 
-func (c *catalog) Ref() rinq.SessionRef {
+func (c *catalog) Ref() ident.Ref {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
 	return c.ref
 }
 
-func (c *catalog) NextMessageID() rinq.MessageID {
+func (c *catalog) NextMessageID() ident.MessageID {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	c.seq++
-	return rinq.MessageID{Session: c.ref, Seq: c.seq}
+	return ident.MessageID{Ref: c.ref, Seq: c.seq}
 }
 
 func (c *catalog) Head() rinq.Revision {
@@ -106,7 +107,7 @@ func (c *catalog) Head() rinq.Revision {
 	}
 }
 
-func (c *catalog) At(rev rinq.RevisionNumber) (rinq.Revision, error) {
+func (c *catalog) At(rev ident.Revision) (rinq.Revision, error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
@@ -122,7 +123,7 @@ func (c *catalog) At(rev rinq.RevisionNumber) (rinq.Revision, error) {
 	}, nil
 }
 
-func (c *catalog) Attrs() (rinq.SessionRef, attrmeta.Table) {
+func (c *catalog) Attrs() (ident.Ref, attrmeta.Table) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
@@ -130,7 +131,7 @@ func (c *catalog) Attrs() (rinq.SessionRef, attrmeta.Table) {
 }
 
 func (c *catalog) TryUpdate(
-	ref rinq.SessionRef,
+	ref ident.Ref,
 	attrs []rinq.Attr,
 	diff *bytes.Buffer,
 ) (rinq.Revision, error) {
@@ -189,7 +190,7 @@ func (c *catalog) TryUpdate(
 	}, nil
 }
 
-func (c *catalog) TryClose(ref rinq.SessionRef) error {
+func (c *catalog) TryClose(ref ident.Ref) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 

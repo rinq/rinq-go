@@ -1,11 +1,14 @@
 package remotesession
 
-import "github.com/rinq/rinq-go/src/rinq"
+import (
+	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
+)
 
 func logCacheAdd(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	sessID rinq.SessionID,
+	peerID ident.PeerID,
+	sessID ident.SessionID,
 ) {
 	if !logger.IsDebug() {
 		return
@@ -20,8 +23,8 @@ func logCacheAdd(
 
 func logCacheMark(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	sessID rinq.SessionID,
+	peerID ident.PeerID,
+	sessID ident.SessionID,
 ) {
 	if !logger.IsDebug() {
 		return
@@ -36,8 +39,8 @@ func logCacheMark(
 
 func logCacheRemove(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	sessID rinq.SessionID,
+	peerID ident.PeerID,
+	sessID ident.SessionID,
 ) {
 	if !logger.IsDebug() {
 		return

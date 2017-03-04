@@ -11,6 +11,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/commandamqp"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/notifyamqp"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/remotesession"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
@@ -137,7 +138,7 @@ func (d *Dialer) establishIdentity(
 	ctx context.Context,
 	channels amqputil.ChannelPool,
 	logger rinq.Logger,
-) (id rinq.PeerID, err error) {
+) (id ident.PeerID, err error) {
 	var channel *amqp.Channel
 
 	for {
@@ -146,7 +147,7 @@ func (d *Dialer) establishIdentity(
 			return
 		}
 
-		id = rinq.NewPeerID()
+		id = ident.NewPeerID()
 		_, err = channel.QueueDeclare(
 			id.ShortString(), // this queue is used purely to reserve the peer ID
 			false,            // durable

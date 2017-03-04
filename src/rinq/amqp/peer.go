@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
@@ -20,7 +21,7 @@ type peer struct {
 	service.Service
 	sm *service.StateMachine
 
-	id          rinq.PeerID
+	id          ident.PeerID
 	broker      *amqp.Connection
 	localStore  localsession.Store
 	remoteStore remotesession.Store
@@ -35,7 +36,7 @@ type peer struct {
 }
 
 func newPeer(
-	id rinq.PeerID,
+	id ident.PeerID,
 	broker *amqp.Connection,
 	localStore localsession.Store,
 	remoteStore remotesession.Store,
@@ -69,12 +70,12 @@ func newPeer(
 	return p
 }
 
-func (p *peer) ID() rinq.PeerID {
+func (p *peer) ID() ident.PeerID {
 	return p.id
 }
 
 func (p *peer) Session() rinq.Session {
-	id := rinq.SessionID{
+	id := ident.SessionID{
 		Peer: p.id,
 		Seq:  atomic.AddUint32(&p.seq, 1),
 	}

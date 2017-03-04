@@ -1,5 +1,7 @@
 package rinq
 
+import "github.com/rinq/rinq-go/src/rinq/ident"
+
 // Peer represents a connection to a Rinq network.
 //
 // Peers can act as a server, responding to application-defined commands.
@@ -14,7 +16,7 @@ package rinq
 // the peer ID, so that they can be traced to their origin easily.
 type Peer interface {
 	// ID returns the peer's unique identifier.
-	ID() PeerID
+	ID() ident.PeerID
 
 	// Session creates and returns a new session owned by this peer.
 	//

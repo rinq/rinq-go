@@ -7,6 +7,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
 	"github.com/rinq/rinq-go/src/rinq/internal/trace"
@@ -18,7 +19,7 @@ type invoker struct {
 	service.Service
 	sm *service.StateMachine
 
-	peerID         rinq.PeerID
+	peerID         ident.PeerID
 	preFetch       int
 	defaultTimeout time.Duration
 	queues         *queueSet
@@ -27,7 +28,7 @@ type invoker struct {
 	logger         rinq.Logger
 
 	mutex    sync.RWMutex
-	handlers map[rinq.SessionID]rinq.AsyncHandler
+	handlers map[ident.SessionID]rinq.AsyncHandler
 
 	track      chan call            // add information about a call to pending
 	cancel     chan call            // remove call information from pending
@@ -47,7 +48,7 @@ type call struct {
 
 // newInvoker creates, initializes and returns a new invoker.
 func newInvoker(
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	preFetch int,
 	defaultTimeout time.Duration,
 	queues *queueSet,
@@ -62,7 +63,7 @@ func newInvoker(
 		channels:       channels,
 		logger:         logger,
 
-		handlers: map[rinq.SessionID]rinq.AsyncHandler{},
+		handlers: map[ident.SessionID]rinq.AsyncHandler{},
 
 		track:      make(chan call),
 		cancel:     make(chan call),
@@ -85,8 +86,8 @@ func newInvoker(
 
 func (i *invoker) CallUnicast(
 	ctx context.Context,
-	msgID rinq.MessageID,
-	target rinq.PeerID,
+	msgID ident.MessageID,
+	target ident.PeerID,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
@@ -107,7 +108,7 @@ func (i *invoker) CallUnicast(
 
 func (i *invoker) CallBalanced(
 	ctx context.Context,
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
@@ -130,7 +131,7 @@ func (i *invoker) CallBalanced(
 // available peer, instructs it to send a response, but does not block.
 func (i *invoker) CallBalancedAsync(
 	ctx context.Context,
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
@@ -150,7 +151,7 @@ func (i *invoker) CallBalancedAsync(
 
 // SetAsyncHandler sets the asynchronous handler to use for a specific
 // session.
-func (i *invoker) SetAsyncHandler(sessID rinq.SessionID, h rinq.AsyncHandler) {
+func (i *invoker) SetAsyncHandler(sessID ident.SessionID, h rinq.AsyncHandler) {
 	i.mutex.Lock()
 	defer i.mutex.Unlock()
 
@@ -163,7 +164,7 @@ func (i *invoker) SetAsyncHandler(sessID rinq.SessionID, h rinq.AsyncHandler) {
 
 func (i *invoker) ExecuteBalanced(
 	ctx context.Context,
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
@@ -184,7 +185,7 @@ func (i *invoker) ExecuteBalanced(
 
 func (i *invoker) ExecuteMulticast(
 	ctx context.Context,
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
@@ -463,7 +464,7 @@ func (i *invoker) replySync(msg *amqp.Delivery) bool {
 }
 
 func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
-	msgID, err := rinq.ParseMessageID(msg.RoutingKey)
+	msgID, err := ident.ParseMessageID(msg.RoutingKey)
 	if err != nil {
 		logInvokerInvalidMessageID(i.logger, i.peerID, msg.RoutingKey)
 		return false
@@ -476,7 +477,7 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 	}
 
 	i.mutex.RLock()
-	handler := i.handlers[msgID.Session.ID]
+	handler := i.handlers[msgID.Ref.ID]
 	i.mutex.RUnlock()
 
 	if handler == nil {

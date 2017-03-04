@@ -4,18 +4,19 @@ import (
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 )
 
 type revision struct {
-	ref     rinq.SessionRef
+	ref     ident.Ref
 	catalog Catalog
 	attrs   attrmeta.Table
 	logger  rinq.Logger
 }
 
-func (r *revision) Ref() rinq.SessionRef {
+func (r *revision) Ref() ident.Ref {
 	return r.ref
 }
 

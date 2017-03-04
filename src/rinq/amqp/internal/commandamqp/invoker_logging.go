@@ -1,10 +1,13 @@
 package commandamqp
 
-import "github.com/rinq/rinq-go/src/rinq"
+import (
+	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
+)
 
 func logInvokerInvalidMessageID(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	msgID string,
 ) {
 	if !logger.IsDebug() {
@@ -20,8 +23,8 @@ func logInvokerInvalidMessageID(
 
 func logInvokerIgnoredMessage(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	err error,
 ) {
 	if !logger.IsDebug() {
@@ -38,9 +41,9 @@ func logInvokerIgnoredMessage(
 
 func logUnicastCallBegin(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
-	target rinq.PeerID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
+	target ident.PeerID,
 	ns string,
 	cmd string,
 	traceID string,
@@ -64,8 +67,8 @@ func logUnicastCallBegin(
 
 func logBalancedCallBegin(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	traceID string,
@@ -88,8 +91,8 @@ func logBalancedCallBegin(
 
 func logCallEnd(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	traceID string,
@@ -143,8 +146,8 @@ func logCallEnd(
 
 func logAsyncRequest(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	traceID string,
@@ -168,8 +171,8 @@ func logAsyncRequest(
 
 func logAsyncResponse(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	traceID string,
@@ -193,8 +196,8 @@ func logAsyncResponse(
 
 func logBalancedExecute(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	traceID string,
@@ -218,8 +221,8 @@ func logBalancedExecute(
 
 func logMulticastExecute(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	traceID string,
@@ -243,7 +246,7 @@ func logMulticastExecute(
 
 func logInvokerStart(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	preFetch int,
 ) {
 	if !logger.IsDebug() {
@@ -259,7 +262,7 @@ func logInvokerStart(
 
 func logInvokerStopping(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	pending int,
 ) {
 	if !logger.IsDebug() {
@@ -275,7 +278,7 @@ func logInvokerStopping(
 
 func logInvokerStop(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	err error,
 ) {
 	if !logger.IsDebug() {

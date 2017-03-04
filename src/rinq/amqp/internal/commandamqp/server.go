@@ -6,6 +6,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
@@ -16,7 +17,7 @@ type server struct {
 	service.Service
 	sm *service.StateMachine
 
-	peerID    rinq.PeerID
+	peerID    ident.PeerID
 	preFetch  int
 	revisions revision.Store
 	queues    *queueSet
@@ -40,7 +41,7 @@ type server struct {
 
 // newServer creates, starts and returns a new server.
 func newServer(
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	preFetch int,
 	revisions revision.Store,
 	queues *queueSet,
@@ -271,7 +272,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 	}()
 
 	// validate message ID
-	msgID, err := rinq.ParseMessageID(msg.MessageId)
+	msgID, err := ident.ParseMessageID(msg.MessageId)
 	if err != nil {
 		msg.Reject(false)
 		logServerInvalidMessageID(s.logger, s.peerID, msg.MessageId)
@@ -297,7 +298,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 	}
 
 	// find the source session revision
-	source, err := s.revisions.GetRevision(msgID.Session)
+	source, err := s.revisions.GetRevision(msgID.Ref)
 	if err != nil {
 		msg.Reject(false)
 		logIgnoredMessage(s.logger, s.peerID, msgID, err)
@@ -309,7 +310,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 
 // handle invokes the command handler for request.
 func (s *server) handle(
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	msg *amqp.Delivery,
 	ns string,
 	cmd string,

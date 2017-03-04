@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	revisionpkg "github.com/rinq/rinq-go/src/rinq/internal/revision"
 )
 
@@ -12,20 +13,20 @@ type Store interface {
 	revisionpkg.Store
 
 	Add(rinq.Session, Catalog)
-	Remove(rinq.SessionID)
-	Get(rinq.SessionID) (rinq.Session, Catalog, bool)
+	Remove(ident.SessionID)
+	Get(ident.SessionID) (rinq.Session, Catalog, bool)
 	Each(fn func(rinq.Session, Catalog))
 }
 
 type store struct {
 	mutex   sync.RWMutex
-	entries map[rinq.SessionID]storeEntry
+	entries map[ident.SessionID]storeEntry
 }
 
 // NewStore returns a new session store.
 func NewStore() Store {
 	return &store{
-		entries: map[rinq.SessionID]storeEntry{},
+		entries: map[ident.SessionID]storeEntry{},
 	}
 }
 
@@ -41,14 +42,14 @@ func (s *store) Add(sess rinq.Session, cat Catalog) {
 	s.entries[sess.ID()] = storeEntry{sess, cat}
 }
 
-func (s *store) Remove(id rinq.SessionID) {
+func (s *store) Remove(id ident.SessionID) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	delete(s.entries, id)
 }
 
-func (s *store) Get(id rinq.SessionID) (rinq.Session, Catalog, bool) {
+func (s *store) Get(id ident.SessionID) (rinq.Session, Catalog, bool) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -65,7 +66,7 @@ func (s *store) Each(fn func(rinq.Session, Catalog)) {
 	}
 }
 
-func (s *store) GetRevision(ref rinq.SessionRef) (rinq.Revision, error) {
+func (s *store) GetRevision(ref ident.Ref) (rinq.Revision, error) {
 	_, cat, ok := s.Get(ref.ID)
 	if ok {
 		return cat.At(ref.Rev)

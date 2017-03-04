@@ -6,13 +6,14 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 var _ = Describe("NotFoundError", func() {
 	Describe("Error", func() {
 		It("includes the session ID", func() {
-			id := rinq.SessionID{
-				Peer: rinq.PeerID{Clock: 1, Rand: 2},
+			id := ident.SessionID{
+				Peer: ident.PeerID{Clock: 1, Rand: 2},
 				Seq:  3,
 			}
 			err := rinq.NotFoundError{ID: id}

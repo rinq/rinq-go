@@ -1,4 +1,4 @@
-package rinq
+package ident
 
 import (
 	"fmt"

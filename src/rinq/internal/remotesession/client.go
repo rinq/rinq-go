@@ -5,19 +5,20 @@ import (
 	"sync/atomic"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 )
 
 type client struct {
-	peerID  rinq.PeerID
+	peerID  ident.PeerID
 	invoker command.Invoker
 	logger  rinq.Logger
 	seq     uint32
 }
 
 func newClient(
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	invoker command.Invoker,
 	logger rinq.Logger,
 ) *client {
@@ -30,10 +31,10 @@ func newClient(
 
 func (c *client) Fetch(
 	ctx context.Context,
-	sessID rinq.SessionID,
+	sessID ident.SessionID,
 	keys []string,
 ) (
-	rinq.RevisionNumber,
+	ident.Revision,
 	[]attrmeta.Attr,
 	error,
 ) {
@@ -72,10 +73,10 @@ func (c *client) Fetch(
 
 func (c *client) Update(
 	ctx context.Context,
-	ref rinq.SessionRef,
+	ref ident.Ref,
 	attrs []rinq.Attr,
 ) (
-	rinq.RevisionNumber,
+	ident.Revision,
 	[]attrmeta.Attr,
 	error,
 ) {
@@ -135,7 +136,7 @@ func (c *client) Update(
 
 func (c *client) Close(
 	ctx context.Context,
-	ref rinq.SessionRef,
+	ref ident.Ref,
 ) error {
 	out := rinq.NewPayload(closeRequest{
 		Seq: ref.ID.Seq,
@@ -168,10 +169,10 @@ func (c *client) Close(
 	return nil
 }
 
-func (c *client) nextMessageID() rinq.MessageID {
-	return rinq.MessageID{
-		Session: rinq.SessionRef{
-			ID: rinq.SessionID{Peer: c.peerID},
+func (c *client) nextMessageID() ident.MessageID {
+	return ident.MessageID{
+		Ref: ident.Ref{
+			ID: ident.SessionID{Peer: c.peerID},
 		},
 		Seq: atomic.AddUint32(&c.seq, 1),
 	}

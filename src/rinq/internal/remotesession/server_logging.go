@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
@@ -14,8 +15,8 @@ import (
 func logRemoteUpdate(
 	ctx context.Context,
 	logger rinq.Logger,
-	ref rinq.SessionRef,
-	peerID rinq.PeerID,
+	ref ident.Ref,
+	peerID ident.PeerID,
 	diff *bytes.Buffer,
 ) {
 	logger.Log(
@@ -31,7 +32,7 @@ func logRemoteClose(
 	ctx context.Context,
 	logger rinq.Logger,
 	cat localsession.Catalog,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 ) {
 	ref, attrs := cat.Attrs()
 

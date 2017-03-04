@@ -3,6 +3,7 @@ package notifyamqp
 import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
@@ -10,7 +11,7 @@ import (
 
 // New returns a pair of notifier and listener.
 func New(
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	config rinq.Config,
 	sessions localsession.Store,
 	revisions revision.Store,

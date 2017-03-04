@@ -5,13 +5,14 @@ import (
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/trace"
 )
 
 func logUpdate(
 	ctx context.Context,
 	logger rinq.Logger,
-	ref rinq.SessionRef,
+	ref ident.Ref,
 	diff *bytes.Buffer,
 ) {
 	if traceID := trace.Get(ctx); traceID != "" {

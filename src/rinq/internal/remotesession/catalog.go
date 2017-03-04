@@ -5,22 +5,23 @@ import (
 	"sync"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	revisionpkg "github.com/rinq/rinq-go/src/rinq/internal/revision"
 	"github.com/rinq/rinq-go/src/rinq/internal/syncutil"
 )
 
 type catalog struct {
-	id     rinq.SessionID
+	id     ident.SessionID
 	client *client
 
 	mutex      sync.RWMutex
-	highestRev rinq.RevisionNumber
+	highestRev ident.Revision
 	cache      map[string]attrCacheEntry
 	isClosed   bool
 }
 
-func newCatalog(id rinq.SessionID, client *client) *catalog {
+func newCatalog(id ident.SessionID, client *client) *catalog {
 	return &catalog{
 		id:     id,
 		client: client,
@@ -31,7 +32,7 @@ func newCatalog(id rinq.SessionID, client *client) *catalog {
 
 type attrCacheEntry struct {
 	Attr      attrmeta.Attr
-	FetchedAt rinq.RevisionNumber
+	FetchedAt ident.Revision
 }
 
 func (c *catalog) Head(ctx context.Context) (rinq.Revision, error) {
@@ -61,7 +62,7 @@ func (c *catalog) Head(ctx context.Context) (rinq.Revision, error) {
 	}, nil
 }
 
-func (c *catalog) At(rev rinq.RevisionNumber) rinq.Revision {
+func (c *catalog) At(rev ident.Revision) rinq.Revision {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -81,7 +82,7 @@ func (c *catalog) At(rev rinq.RevisionNumber) rinq.Revision {
 
 func (c *catalog) Fetch(
 	ctx context.Context,
-	rev rinq.RevisionNumber,
+	rev ident.Revision,
 	keys ...string,
 ) ([]rinq.Attr, error) {
 	solvedAttrs, unsolvedKeys, err := c.fetchLocal(rev, keys)
@@ -145,7 +146,7 @@ func (c *catalog) Fetch(
 
 func (c *catalog) TryUpdate(
 	ctx context.Context,
-	rev rinq.RevisionNumber,
+	rev ident.Revision,
 	attrs []rinq.Attr,
 ) (rinq.Revision, error) {
 	unlock := syncutil.RLock(&c.mutex)
@@ -209,7 +210,7 @@ func (c *catalog) TryUpdate(
 
 func (c *catalog) TryClose(
 	ctx context.Context,
-	rev rinq.RevisionNumber,
+	rev ident.Revision,
 ) error {
 	unlock := syncutil.RLock(&c.mutex)
 	defer unlock()
@@ -240,7 +241,7 @@ func (c *catalog) TryClose(
 }
 
 func (c *catalog) fetchLocal(
-	rev rinq.RevisionNumber,
+	rev ident.Revision,
 	keys []string,
 ) (
 	solved []rinq.Attr,
@@ -288,7 +289,7 @@ func (c *catalog) fetchLocal(
 	return
 }
 
-func (c *catalog) updateState(rev rinq.RevisionNumber, err error) {
+func (c *catalog) updateState(rev ident.Revision, err error) {
 	if err != nil {
 		if rinq.IsNotFound(err) {
 			c.isClosed = true

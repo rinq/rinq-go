@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/trace"
 )
 
 func logServerInvalidMessageID(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	msgID string,
 ) {
 	if !logger.IsDebug() {
@@ -25,8 +26,8 @@ func logServerInvalidMessageID(
 
 func logIgnoredMessage(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	err error,
 ) {
 	if !logger.IsDebug() {
@@ -44,8 +45,8 @@ func logIgnoredMessage(
 func logRequestBegin(
 	ctx context.Context,
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	req rinq.Request,
 ) {
 	if !logger.IsDebug() {
@@ -66,8 +67,8 @@ func logRequestBegin(
 func logRequestEnd(
 	ctx context.Context,
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	req rinq.Request,
 	payload *rinq.Payload,
 	err error,
@@ -119,8 +120,8 @@ func logRequestEnd(
 
 func logNoLongerListening(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	ns string,
 ) {
 	if !logger.IsDebug() {
@@ -138,8 +139,8 @@ func logNoLongerListening(
 func logRequestRequeued(
 	ctx context.Context,
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	req rinq.Request,
 ) {
 	if !logger.IsDebug() {
@@ -159,8 +160,8 @@ func logRequestRequeued(
 func logRequestRejected(
 	ctx context.Context,
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	req rinq.Request,
 	reason string,
 ) {
@@ -177,7 +178,7 @@ func logRequestRejected(
 
 func logServerStart(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	preFetch int,
 ) {
 	if !logger.IsDebug() {
@@ -193,7 +194,7 @@ func logServerStart(
 
 func logServerStopping(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	pending uint,
 ) {
 	if !logger.IsDebug() {
@@ -209,7 +210,7 @@ func logServerStopping(
 
 func logServerStop(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	err error,
 ) {
 	if !logger.IsDebug() {

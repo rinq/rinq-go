@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
@@ -12,7 +13,7 @@ import (
 )
 
 type server struct {
-	peerID   rinq.PeerID
+	peerID   ident.PeerID
 	sessions localsession.Store
 	logger   rinq.Logger
 }
@@ -20,7 +21,7 @@ type server struct {
 // Listen attaches a new remote session service to the given command server.
 func Listen(
 	svr command.Server,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	sessions localsession.Store,
 	logger rinq.Logger,
 ) error {
@@ -65,7 +66,7 @@ func (s *server) fetch(
 		return
 	}
 
-	sessID := rinq.SessionID{Peer: s.peerID, Seq: args.Seq}
+	sessID := ident.SessionID{Peer: s.peerID, Seq: args.Seq}
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		res.Fail(notFoundFailure, "")
@@ -103,7 +104,7 @@ func (s *server) update(
 		return
 	}
 
-	sessID := rinq.SessionID{Peer: s.peerID, Seq: args.Seq}
+	sessID := ident.SessionID{Peer: s.peerID, Seq: args.Seq}
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		res.Fail(notFoundFailure, "")
@@ -133,7 +134,7 @@ func (s *server) update(
 
 	rsp := updateResponse{
 		Rev:         rev.Ref().Rev,
-		CreatedRevs: make([]rinq.RevisionNumber, 0, len(args.Attrs)),
+		CreatedRevs: make([]ident.Revision, 0, len(args.Attrs)),
 	}
 	_, attrs := cat.Attrs()
 
@@ -161,7 +162,7 @@ func (s *server) close(
 		return
 	}
 
-	sessID := rinq.SessionID{Peer: s.peerID, Seq: args.Seq}
+	sessID := ident.SessionID{Peer: s.peerID, Seq: args.Seq}
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		res.Fail(notFoundFailure, "")

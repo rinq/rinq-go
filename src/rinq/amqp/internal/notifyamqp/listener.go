@@ -7,6 +7,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
@@ -18,7 +19,7 @@ type listener struct {
 	service.Service
 	sm *service.StateMachine
 
-	peerID    rinq.PeerID
+	peerID    ident.PeerID
 	preFetch  int
 	sessions  localsession.Store
 	revisions revision.Store
@@ -29,7 +30,7 @@ type listener struct {
 
 	mutex    sync.RWMutex
 	channel  *amqp.Channel // channel used for consuming
-	handlers map[rinq.SessionID]rinq.NotificationHandler
+	handlers map[ident.SessionID]rinq.NotificationHandler
 
 	deliveries <-chan amqp.Delivery // incoming notifications
 	handled    chan struct{}        // signals a notification has been handled
@@ -41,7 +42,7 @@ type listener struct {
 
 // newListener creates, starts and returns a new listener.
 func newListener(
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	preFetch int,
 	sessions localsession.Store,
 	revisions revision.Store,
@@ -56,7 +57,7 @@ func newListener(
 		logger:    logger,
 		channel:   channel,
 
-		handlers: map[rinq.SessionID]rinq.NotificationHandler{},
+		handlers: map[ident.SessionID]rinq.NotificationHandler{},
 
 		handled:    make(chan struct{}, preFetch),
 		amqpClosed: make(chan *amqp.Error, 1),
@@ -74,7 +75,7 @@ func newListener(
 	return l, nil
 }
 
-func (l *listener) Listen(id rinq.SessionID, handler rinq.NotificationHandler) (bool, error) {
+func (l *listener) Listen(id ident.SessionID, handler rinq.NotificationHandler) (bool, error) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
@@ -108,7 +109,7 @@ func (l *listener) Listen(id rinq.SessionID, handler rinq.NotificationHandler) (
 	return !exists, nil
 }
 
-func (l *listener) Unlisten(id rinq.SessionID) (bool, error) {
+func (l *listener) Unlisten(id ident.SessionID) (bool, error) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
@@ -249,7 +250,7 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 		}
 	}()
 
-	msgID, err := rinq.ParseMessageID(msg.MessageId)
+	msgID, err := ident.ParseMessageID(msg.MessageId)
 	if err != nil {
 		msg.Reject(false)
 		logInvalidMessageID(l.logger, l.peerID, msg.MessageId)
@@ -257,7 +258,7 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 	}
 
 	// find the source session revision
-	source, err := l.revisions.GetRevision(msgID.Session)
+	source, err := l.revisions.GetRevision(msgID.Ref)
 	if err != nil {
 		msg.Reject(false)
 		logIgnoredMessage(l.logger, l.peerID, msgID, err)
@@ -284,11 +285,11 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 // handleUnicast finds the target session for a unicast notification and
 // invokes the handler.
 func (l *listener) handleUnicast(
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	msg *amqp.Delivery,
 	source rinq.Revision,
 ) error {
-	sessID, err := rinq.ParseSessionID(msg.RoutingKey)
+	sessID, err := ident.ParseSessionID(msg.RoutingKey)
 	if err != nil {
 		return err
 	}
@@ -317,7 +318,7 @@ func (l *listener) handleUnicast(
 // handleUnicast finds the target sessions for a multicast notification and
 // invokes the handlers.
 func (l *listener) handleMulticast(
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	msg *amqp.Delivery,
 	source rinq.Revision,
 ) error {
@@ -369,7 +370,7 @@ func (l *listener) handleMulticast(
 // present.
 func (l *listener) handle(
 	ctx context.Context,
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	sess rinq.Session,
 	n rinq.Notification,
 ) {

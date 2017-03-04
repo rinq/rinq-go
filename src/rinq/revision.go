@@ -3,6 +3,8 @@ package rinq
 import (
 	"context"
 	"fmt"
+
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 // Revision represents a specific revision of session.
@@ -17,7 +19,7 @@ import (
 type Revision interface {
 	// Ref returns the session reference, which holds the session ID and the
 	// revision number represented by this instance.
-	Ref() SessionRef
+	Ref() ident.Ref
 
 	// Refresh returns the latest revision of the session.
 	//
@@ -113,7 +115,7 @@ func ShouldRetry(err error) bool {
 // StaleFetchError indicates a failure to fetch an attribute for a specific
 // revision because it has been modified after that revision.
 type StaleFetchError struct {
-	Ref SessionRef
+	Ref ident.Ref
 }
 
 func (err StaleFetchError) Error() string {
@@ -126,7 +128,7 @@ func (err StaleFetchError) Error() string {
 // StaleUpdateError indicates a failure to update or close a session revision
 // because the session has been modified after that revision.
 type StaleUpdateError struct {
-	Ref SessionRef
+	Ref ident.Ref
 }
 
 func (err StaleUpdateError) Error() string {
@@ -139,7 +141,7 @@ func (err StaleUpdateError) Error() string {
 // FrozenAttributesError indicates a failure to apply a change-set because one
 // or more attributes in the change-set are frozen.
 type FrozenAttributesError struct {
-	Ref SessionRef
+	Ref ident.Ref
 }
 
 func (err FrozenAttributesError) Error() string {

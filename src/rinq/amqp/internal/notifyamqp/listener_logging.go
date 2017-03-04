@@ -1,10 +1,13 @@
 package notifyamqp
 
-import "github.com/rinq/rinq-go/src/rinq"
+import (
+	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
+)
 
 func logInvalidMessageID(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	msgID string,
 ) {
 	if !logger.IsDebug() {
@@ -20,8 +23,8 @@ func logInvalidMessageID(
 
 func logIgnoredMessage(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	msgID rinq.MessageID,
+	peerID ident.PeerID,
+	msgID ident.MessageID,
 	err error,
 ) {
 	if !logger.IsDebug() {
@@ -38,7 +41,7 @@ func logIgnoredMessage(
 
 func logListenerStart(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	preFetch int,
 ) {
 	if !logger.IsDebug() {
@@ -54,7 +57,7 @@ func logListenerStart(
 
 func logListenerStopping(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	pending uint,
 ) {
 	if !logger.IsDebug() {
@@ -70,7 +73,7 @@ func logListenerStopping(
 
 func logListenerStop(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	err error,
 ) {
 	if !logger.IsDebug() {

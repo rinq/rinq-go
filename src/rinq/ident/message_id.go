@@ -1,4 +1,4 @@
-package rinq
+package ident
 
 import (
 	"fmt"
@@ -8,8 +8,8 @@ import (
 
 // MessageID uniquely identifies a message that originated from a session.
 type MessageID struct {
-	Session SessionRef
-	Seq     uint32
+	Ref Ref
+	Seq uint32
 }
 
 // ParseMessageID parses a string representation of a message ID.
@@ -23,28 +23,28 @@ func ParseMessageID(str string) (id MessageID, err error) {
 		if err != nil {
 			return
 		}
-		id.Session.ID.Peer.Clock = value
+		id.Ref.ID.Peer.Clock = value
 
 		// Read the peer ID random component ...
 		value, err = strconv.ParseUint(matches[2], 16, 16)
 		if err != nil {
 			return
 		}
-		id.Session.ID.Peer.Rand = uint16(value)
+		id.Ref.ID.Peer.Rand = uint16(value)
 
 		// Read the session ID sequence component ...
 		value, err = strconv.ParseUint(matches[3], 10, 32)
 		if err != nil {
 			return
 		}
-		id.Session.ID.Seq = uint32(value)
+		id.Ref.ID.Seq = uint32(value)
 
 		// Read the session version ...
 		value, err = strconv.ParseUint(matches[4], 10, 32)
 		if err != nil {
 			return
 		}
-		id.Session.Rev = RevisionNumber(value)
+		id.Ref.Rev = Revision(value)
 
 		// Read the message ID sequence component ...
 		value, err = strconv.ParseUint(matches[5], 10, 32)
@@ -60,7 +60,7 @@ func ParseMessageID(str string) (id MessageID, err error) {
 
 // Validate returns nil if the ID is valid.
 func (id MessageID) Validate() error {
-	if id.Session.Validate() == nil && id.Seq != 0 {
+	if id.Ref.Validate() == nil && id.Seq != 0 {
 		return nil
 	}
 
@@ -70,11 +70,11 @@ func (id MessageID) Validate() error {
 // ShortString returns a string representation based on the session's short
 // string representation.
 func (id MessageID) ShortString() string {
-	return fmt.Sprintf("%s#%d", id.Session.ShortString(), id.Seq)
+	return fmt.Sprintf("%s#%d", id.Ref.ShortString(), id.Seq)
 }
 
 func (id MessageID) String() string {
-	return fmt.Sprintf("%s#%d", id.Session, id.Seq)
+	return fmt.Sprintf("%s#%d", id.Ref, id.Seq)
 }
 
 var messageIDPattern *regexp.Regexp

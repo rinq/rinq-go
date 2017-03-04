@@ -1,16 +1,16 @@
-package rinq_test
+package ident_test
 
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"github.com/rinq/rinq-go/src/rinq"
+	. "github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 var _ = Describe("MessageID", func() {
-	var sessionRef = rinq.SessionRef{
-		ID: rinq.SessionID{
-			Peer: rinq.PeerID{
+	var sessionRef = Ref{
+		ID: SessionID{
+			Peer: PeerID{
 				Clock: 0x0123456789abcdef,
 				Rand:  0x0bad,
 			},
@@ -21,7 +21,7 @@ var _ = Describe("MessageID", func() {
 
 	Describe("ParseMessageID", func() {
 		It("parses a human readable ID", func() {
-			id, err := rinq.ParseMessageID("123456789ABCDEF-0BAD.123@456#789")
+			id, err := ParseMessageID("123456789ABCDEF-0BAD.123@456#789")
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(id.String()).To(Equal("123456789ABCDEF-0BAD.123@456#789"))
@@ -30,7 +30,7 @@ var _ = Describe("MessageID", func() {
 		DescribeTable(
 			"returns an error if the string is malformed",
 			func(id string) {
-				_, err := rinq.ParseMessageID(id)
+				_, err := ParseMessageID(id)
 
 				Expect(err).Should(HaveOccurred())
 			},
@@ -48,29 +48,29 @@ var _ = Describe("MessageID", func() {
 
 	DescribeTable(
 		"Validate",
-		func(subject rinq.MessageID, isValid bool) {
+		func(subject MessageID, isValid bool) {
 			if isValid {
 				Expect(subject.Validate()).To(Succeed())
 			} else {
 				Expect(subject.Validate()).Should(HaveOccurred())
 			}
 		},
-		Entry("zero struct", rinq.MessageID{}, false),
-		Entry("zero session", rinq.MessageID{Seq: 1}, false),
-		Entry("zero seq", rinq.MessageID{Session: sessionRef}, false),
-		Entry("non-zero struct", rinq.MessageID{Session: sessionRef, Seq: 1}, true),
+		Entry("zero struct", MessageID{}, false),
+		Entry("zero session", MessageID{Seq: 1}, false),
+		Entry("zero seq", MessageID{Ref: sessionRef}, false),
+		Entry("non-zero struct", MessageID{Ref: sessionRef, Seq: 1}, true),
 	)
 
 	Describe("ShortString", func() {
 		It("returns a human readable ID", func() {
-			subject := rinq.MessageID{Session: sessionRef, Seq: 789}
+			subject := MessageID{Ref: sessionRef, Seq: 789}
 			Expect(subject.ShortString()).To(Equal("0BAD.123@456#789"))
 		})
 	})
 
 	Describe("String", func() {
 		It("returns a human readable ID", func() {
-			subject := rinq.MessageID{Session: sessionRef, Seq: 789}
+			subject := MessageID{Ref: sessionRef, Seq: 789}
 			Expect(subject.String()).To(Equal("123456789ABCDEF-0BAD.123@456#789"))
 		})
 	})

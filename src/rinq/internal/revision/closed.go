@@ -4,18 +4,19 @@ import (
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 // Closed returns an revision that behaves as though its session has
 // been closed.
-func Closed(ref rinq.SessionRef) rinq.Revision {
+func Closed(ref ident.Ref) rinq.Revision {
 	return closedRevision(ref)
 }
 
-type closedRevision rinq.SessionRef
+type closedRevision ident.Ref
 
-func (r closedRevision) Ref() rinq.SessionRef {
-	return rinq.SessionRef(r)
+func (r closedRevision) Ref() ident.Ref {
+	return ident.Ref(r)
 }
 
 func (r closedRevision) Refresh(context.Context) (rinq.Revision, error) {

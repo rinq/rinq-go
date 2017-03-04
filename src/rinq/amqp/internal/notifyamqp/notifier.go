@@ -5,6 +5,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
 	"github.com/streadway/amqp"
 )
@@ -27,8 +28,8 @@ func newNotifier(
 
 func (n *notifier) NotifyUnicast(
 	ctx context.Context,
-	msgID rinq.MessageID,
-	target rinq.SessionID,
+	msgID ident.MessageID,
+	target ident.SessionID,
 	notificationType string,
 	payload *rinq.Payload,
 ) (string, error) {
@@ -48,7 +49,7 @@ func (n *notifier) NotifyUnicast(
 
 func (n *notifier) NotifyMulticast(
 	ctx context.Context,
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	constraint rinq.Constraint,
 	notificationType string,
 	payload *rinq.Payload,

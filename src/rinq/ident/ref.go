@@ -1,20 +1,20 @@
-package rinq
+package ident
 
 import "fmt"
 
-// RevisionNumber holds the "version" of a session. A session's revision is
+// Revision holds the "version" of a session. A session's revision is
 // incremented when a change is made to its attribute table. A session that has
 // never been modified, and hence has no attributes always has a revision of 0.
-type RevisionNumber uint32
+type Revision uint32
 
-// SessionRef refers to a session at a specific revision.
-type SessionRef struct {
+// Ref refers to a session at a specific revision.
+type Ref struct {
 	ID  SessionID
-	Rev RevisionNumber
+	Rev Revision
 }
 
 // Validate returns nil if the Ref is valid.
-func (ref SessionRef) Validate() error {
+func (ref Ref) Validate() error {
 	if ref.ID.Validate() == nil {
 		return nil
 	}
@@ -23,7 +23,7 @@ func (ref SessionRef) Validate() error {
 }
 
 // Before returns true if this ref's revision is before r.
-func (ref SessionRef) Before(r SessionRef) bool {
+func (ref Ref) Before(r Ref) bool {
 	if ref.ID != r.ID {
 		panic("can not compare references from different sessions")
 	}
@@ -32,7 +32,7 @@ func (ref SessionRef) Before(r SessionRef) bool {
 }
 
 // After returns true if this ref's revision is after r.
-func (ref SessionRef) After(r SessionRef) bool {
+func (ref Ref) After(r Ref) bool {
 	if ref.ID != r.ID {
 		panic("can not compare references from different sessions")
 	}
@@ -42,10 +42,10 @@ func (ref SessionRef) After(r SessionRef) bool {
 
 // ShortString returns a string representation based on the session's short
 // string representation.
-func (ref SessionRef) ShortString() string {
+func (ref Ref) ShortString() string {
 	return fmt.Sprintf("%s@%d", ref.ID.ShortString(), ref.Rev)
 }
 
-func (ref SessionRef) String() string {
+func (ref Ref) String() string {
 	return fmt.Sprintf("%s@%d", ref.ID, ref.Rev)
 }

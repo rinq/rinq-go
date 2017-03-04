@@ -4,14 +4,15 @@ import (
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 type revision struct {
-	ref     rinq.SessionRef
+	ref     ident.Ref
 	catalog *catalog
 }
 
-func (r *revision) Ref() rinq.SessionRef {
+func (r *revision) Ref() ident.Ref {
 	return r.ref
 }
 

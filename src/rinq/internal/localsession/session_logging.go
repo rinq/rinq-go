@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 	"github.com/rinq/rinq-go/src/rinq/internal/trace"
@@ -12,7 +13,7 @@ import (
 
 func logCall(
 	logger rinq.Logger,
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	elapsed time.Duration,
@@ -74,7 +75,7 @@ func logCall(
 
 func logAsyncRequest(
 	logger rinq.Logger,
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
@@ -93,7 +94,7 @@ func logAsyncRequest(
 func logAsyncResponse(
 	ctx context.Context,
 	logger rinq.Logger,
-	msgID rinq.MessageID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	in *rinq.Payload,

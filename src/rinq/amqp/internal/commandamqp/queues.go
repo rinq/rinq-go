@@ -3,7 +3,7 @@ package commandamqp
 import (
 	"sync"
 
-	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/streadway/amqp"
 )
 
@@ -15,12 +15,12 @@ func balancedRequestQueue(namespace string) string {
 
 // requestQueue returns the name of the queue used for unicast and multicast
 // command requests.
-func requestQueue(id rinq.PeerID) string {
+func requestQueue(id ident.PeerID) string {
 	return id.ShortString() + ".req"
 }
 
 // responseQueue returns the name of the queue used for command responses.
-func responseQueue(id rinq.PeerID) string {
+func responseQueue(id ident.PeerID) string {
 	return id.ShortString() + ".rsp"
 }
 

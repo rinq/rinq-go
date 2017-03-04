@@ -4,11 +4,12 @@ import (
 	"time"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 func logStartedListening(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	namespace string,
 ) {
 	logger.Log(
@@ -20,7 +21,7 @@ func logStartedListening(
 
 func logStoppedListening(
 	logger rinq.Logger,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	namespace string,
 ) {
 	logger.Log(
@@ -36,7 +37,7 @@ type loggingResponse struct {
 	req rinq.Request
 	res rinq.Response
 
-	peerID    rinq.PeerID
+	peerID    ident.PeerID
 	traceID   string
 	logger    rinq.Logger
 	startedAt time.Time
@@ -45,7 +46,7 @@ type loggingResponse struct {
 func newLoggingResponse(
 	req rinq.Request,
 	res rinq.Response,
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	traceID string,
 	logger rinq.Logger,
 ) rinq.Response {

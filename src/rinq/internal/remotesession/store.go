@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	revisionpkg "github.com/rinq/rinq-go/src/rinq/internal/revision"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
@@ -20,18 +21,18 @@ type store struct {
 	service.Service
 	sm *service.StateMachine
 
-	peerID   rinq.PeerID
+	peerID   ident.PeerID
 	client   *client
 	interval time.Duration
 	logger   rinq.Logger
 
 	mutex sync.Mutex
-	cache map[rinq.SessionID]*catalogCacheEntry
+	cache map[ident.SessionID]*catalogCacheEntry
 }
 
 // NewStore returns a new store for revisions of remote sessions.
 func NewStore(
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	invoker command.Invoker,
 	pruneInterval time.Duration,
 	logger rinq.Logger,
@@ -41,7 +42,7 @@ func NewStore(
 		client:   newClient(peerID, invoker, logger),
 		interval: pruneInterval,
 		logger:   logger,
-		cache:    map[rinq.SessionID]*catalogCacheEntry{},
+		cache:    map[ident.SessionID]*catalogCacheEntry{},
 	}
 
 	s.sm = service.NewStateMachine(s.run, nil)
@@ -57,12 +58,12 @@ type catalogCacheEntry struct {
 	Marked  bool
 }
 
-func (s *store) GetRevision(ref rinq.SessionRef) (rinq.Revision, error) {
+func (s *store) GetRevision(ref ident.Ref) (rinq.Revision, error) {
 	cat := s.getCatalog(ref.ID)
 	return cat.At(ref.Rev), nil
 }
 
-func (s *store) getCatalog(id rinq.SessionID) *catalog {
+func (s *store) getCatalog(id ident.SessionID) *catalog {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

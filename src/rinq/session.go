@@ -3,6 +3,8 @@ package rinq
 import (
 	"context"
 	"fmt"
+
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 // Session is an interface representing a "local" session, that is, a session
@@ -30,7 +32,7 @@ import (
 // changes to that attribute.
 type Session interface {
 	// ID returns the session's unique identifier.
-	ID() SessionID
+	ID() ident.SessionID
 
 	// CurrentRevision returns the current revision of this session.
 	//
@@ -87,7 +89,7 @@ type Session interface {
 	//
 	// If IsNotFound(err) returns true, the session has been closed and the
 	// command request can not be sent.
-	CallAsync(ctx context.Context, ns, cmd string, out *Payload) (id MessageID, err error)
+	CallAsync(ctx context.Context, ns, cmd string, out *Payload) (id ident.MessageID, err error)
 
 	// SetAsyncHandler sets the asynchronous call handler.
 	//
@@ -129,7 +131,7 @@ type Session interface {
 	//
 	// If IsNotFound(err) returns true, this session has been closed and the
 	// notification can not be sent.
-	Notify(ctx context.Context, s SessionID, t string, out *Payload) (err error)
+	Notify(ctx context.Context, s ident.SessionID, t string, out *Payload) (err error)
 
 	// NotifyMany sends a message to multiple sessions.
 	//
@@ -179,7 +181,7 @@ type Session interface {
 // in.Close() must be called, even if err is non-nil.
 type AsyncHandler func(
 	ctx context.Context,
-	msgID MessageID,
+	msgID ident.MessageID,
 	ns string,
 	cmd string,
 	in *Payload,
@@ -189,7 +191,7 @@ type AsyncHandler func(
 // NotFoundError indicates that an operation failed because the session does
 // not exist.
 type NotFoundError struct {
-	ID SessionID
+	ID ident.SessionID
 }
 
 // IsNotFound returns true if err is a NotFoundError.

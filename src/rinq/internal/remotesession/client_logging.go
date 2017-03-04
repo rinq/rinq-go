@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 	"github.com/rinq/rinq-go/src/rinq/internal/trace"
@@ -12,8 +13,8 @@ import (
 func logUpdate(
 	ctx context.Context,
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	ref rinq.SessionRef,
+	peerID ident.PeerID,
+	ref ident.Ref,
 	attrs []attrmeta.Attr,
 ) {
 	buffer := bufferpool.Get()
@@ -39,8 +40,8 @@ func logUpdate(
 func logClose(
 	ctx context.Context,
 	logger rinq.Logger,
-	peerID rinq.PeerID,
-	ref rinq.SessionRef,
+	peerID ident.PeerID,
+	ref ident.Ref,
 ) {
 	logger.Log(
 		"%s destroyed remote session %s [%s]",

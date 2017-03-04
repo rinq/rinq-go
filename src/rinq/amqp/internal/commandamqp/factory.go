@@ -3,13 +3,14 @@ package commandamqp
 import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
 )
 
 // New returns a pair of invoker and server.
 func New(
-	peerID rinq.PeerID,
+	peerID ident.PeerID,
 	config rinq.Config,
 	revisions revision.Store,
 	channels amqputil.ChannelPool,

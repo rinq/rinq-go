@@ -4,12 +4,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 var _ = Describe("Revision", func() {
-	var sessionRef = rinq.SessionRef{
-		ID: rinq.SessionID{
-			Peer: rinq.PeerID{
+	var sessionRef = ident.Ref{
+		ID: ident.SessionID{
+			Peer: ident.PeerID{
 				Clock: 1,
 				Rand:  2,
 			},

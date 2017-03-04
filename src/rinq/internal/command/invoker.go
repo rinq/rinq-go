@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
 )
 
@@ -19,8 +20,8 @@ type Invoker interface {
 	// until a response is received or the context deadline is met.
 	CallUnicast(
 		ctx context.Context,
-		msgID rinq.MessageID,
-		target rinq.PeerID,
+		msgID ident.MessageID,
+		target ident.PeerID,
 		namespace string,
 		command string,
 		payload *rinq.Payload,
@@ -30,7 +31,7 @@ type Invoker interface {
 	// peer and blocks until a response is received or the context deadline is met.
 	CallBalanced(
 		ctx context.Context,
-		msgID rinq.MessageID,
+		msgID ident.MessageID,
 		namespace string,
 		command string,
 		payload *rinq.Payload,
@@ -40,7 +41,7 @@ type Invoker interface {
 	// available peer, instructs it to send a response, but does not block.
 	CallBalancedAsync(
 		ctx context.Context,
-		msgID rinq.MessageID,
+		msgID ident.MessageID,
 		namespace string,
 		command string,
 		payload *rinq.Payload,
@@ -48,13 +49,13 @@ type Invoker interface {
 
 	// SetAsyncHandler sets the asynchronous handler to use for a specific
 	// session.
-	SetAsyncHandler(sessID rinq.SessionID, h rinq.AsyncHandler)
+	SetAsyncHandler(sessID ident.SessionID, h rinq.AsyncHandler)
 
 	// ExecuteBalanced sends a load-balanced command request to the first
 	// available peer and returns immediately.
 	ExecuteBalanced(
 		ctx context.Context,
-		msgID rinq.MessageID,
+		msgID ident.MessageID,
 		namespace string,
 		command string,
 		payload *rinq.Payload,
@@ -64,7 +65,7 @@ type Invoker interface {
 	// peers and returns immediately.
 	ExecuteMulticast(
 		ctx context.Context,
-		msgID rinq.MessageID,
+		msgID ident.MessageID,
 		namespace string,
 		command string,
 		payload *rinq.Payload,

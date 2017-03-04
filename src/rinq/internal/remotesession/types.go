@@ -2,6 +2,7 @@ package remotesession
 
 import (
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
 
@@ -27,22 +28,22 @@ type fetchRequest struct {
 }
 
 type fetchResponse struct {
-	Rev   rinq.RevisionNumber `json:"r"`
-	Attrs []attrmeta.Attr     `json:"a,omitempty"`
+	Rev   ident.Revision  `json:"r"`
+	Attrs []attrmeta.Attr `json:"a,omitempty"`
 }
 
 type updateRequest struct {
-	Seq   uint32              `json:"s"`
-	Rev   rinq.RevisionNumber `json:"r"`
-	Attrs []rinq.Attr         `json:"a,omitempty"`
+	Seq   uint32         `json:"s"`
+	Rev   ident.Revision `json:"r"`
+	Attrs []rinq.Attr    `json:"a,omitempty"`
 }
 
 type updateResponse struct {
-	Rev         rinq.RevisionNumber   `json:"r"`
-	CreatedRevs []rinq.RevisionNumber `json:"cr"`
+	Rev         ident.Revision   `json:"r"`
+	CreatedRevs []ident.Revision `json:"cr"`
 }
 
 type closeRequest struct {
-	Seq uint32              `json:"s"`
-	Rev rinq.RevisionNumber `json:"r"`
+	Seq uint32         `json:"s"`
+	Rev ident.Revision `json:"r"`
 }

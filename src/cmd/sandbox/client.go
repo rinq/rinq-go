@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 func runClient(peer rinq.Peer) {
@@ -37,7 +38,7 @@ func call(sess rinq.Session) {
 func callAsync(sess rinq.Session) {
 	err := sess.SetAsyncHandler(func(
 		ctx context.Context,
-		msgID rinq.MessageID,
+		msgID ident.MessageID,
 		ns string,
 		cmd string,
 		in *rinq.Payload,
