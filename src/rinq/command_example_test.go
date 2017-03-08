@@ -10,8 +10,8 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/amqp"
 )
 
-// This example illustrates how to a command request with an application-defined
-// failure.
+// This example illustrates how to respond to a command request with an
+// application-defined failure.
 func ExampleResponse_fail() {
 	peer, err := amqp.Dial("")
 	if err != nil {

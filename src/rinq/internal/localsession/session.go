@@ -144,6 +144,7 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 		s.id,
 		func(
 			ctx context.Context,
+			sess rinq.Session,
 			msgID ident.MessageID,
 			ns string,
 			cmd string,
@@ -151,7 +152,7 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 			err error,
 		) {
 			logAsyncResponse(ctx, s.logger, msgID, ns, cmd, in, err)
-			h(ctx, msgID, ns, cmd, in, err)
+			h(ctx, sess, msgID, ns, cmd, in, err)
 		},
 	)
 
