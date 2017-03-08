@@ -9,14 +9,13 @@ var buffers sync.Pool
 
 // Get fetches a buffer from the buffer pool.
 func Get() *bytes.Buffer {
-	buf := buffers.Get().(*bytes.Buffer)
-	buf.Reset()
-	return buf
+	return buffers.Get().(*bytes.Buffer)
 }
 
 // Put returns a buffer to the buffer pool.
 func Put(buf *bytes.Buffer) {
 	if buf != nil {
+		buf.Reset()
 		buffers.Put(buf)
 	}
 }

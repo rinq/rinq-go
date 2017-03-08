@@ -5,35 +5,33 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+	. "github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 )
 
-var _ = Describe("bufferpool", func() {
-	Describe("Get", func() {
-		It("returns a bytes.Buffer pointer", func() {
-			buffer := bufferpool.Get()
-			Expect(buffer).ShouldNot(BeNil())
-		})
-
-		It("recycles buffers", func() {
-			buffer := bufferpool.Get()
-			bufferpool.Put(buffer)
-
-			Expect(bufferpool.Get()).To(Equal(buffer))
-		})
+var _ = Describe("Get", func() {
+	It("returns a bytes.Buffer pointer", func() {
+		buffer := Get()
+		Expect(buffer).ShouldNot(BeNil())
 	})
 
-	Describe("Put", func() {
-		It("accepts a buffer pointer", func() {
-			var buffer bytes.Buffer
-			bufferpool.Put(&buffer)
-		})
+	It("recycles buffers", func() {
+		buffer := Get()
+		Put(buffer)
 
-		It("accepts a nil pointer", func() {
-			var buffer *bytes.Buffer
-			bufferpool.Put(buffer)
+		Expect(Get()).To(Equal(buffer))
+	})
+})
 
-			Expect(bufferpool.Get()).ShouldNot(BeNil())
-		})
+var _ = Describe("Put", func() {
+	It("accepts a buffer pointer", func() {
+		var buffer bytes.Buffer
+		Put(&buffer)
+	})
+
+	It("accepts a nil pointer", func() {
+		var buffer *bytes.Buffer
+		Put(buffer)
+
+		Expect(Get()).ShouldNot(BeNil())
 	})
 })
