@@ -5,6 +5,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
+	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
 )
 
@@ -12,6 +13,7 @@ import (
 func New(
 	peerID ident.PeerID,
 	config rinq.Config,
+	sessions localsession.Store,
 	revisions revision.Store,
 	channels amqputil.ChannelPool,
 ) (command.Invoker, command.Server, error) {
@@ -31,6 +33,7 @@ func New(
 		peerID,
 		config.SessionPreFetch,
 		config.DefaultTimeout,
+		sessions,
 		queues,
 		channels,
 		config.Logger,

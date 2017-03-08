@@ -9,6 +9,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
+	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/streadway/amqp"
@@ -22,6 +23,7 @@ type invoker struct {
 	peerID         ident.PeerID
 	preFetch       int
 	defaultTimeout time.Duration
+	sessions       localsession.Store
 	queues         *queueSet
 	channels       amqputil.ChannelPool
 	channel        *amqp.Channel // channel used for consuming
@@ -51,6 +53,7 @@ func newInvoker(
 	peerID ident.PeerID,
 	preFetch int,
 	defaultTimeout time.Duration,
+	sessions localsession.Store,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
 	logger rinq.Logger,
@@ -59,6 +62,7 @@ func newInvoker(
 		peerID:         peerID,
 		preFetch:       preFetch,
 		defaultTimeout: defaultTimeout,
+		sessions:       sessions,
 		queues:         queues,
 		channels:       channels,
 		logger:         logger,
@@ -476,6 +480,14 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 		return false
 	}
 
+	sess, _, ok := i.sessions.Get(msgID.Ref.ID)
+	if !ok {
+		return false
+	} else if err != nil {
+		logInvokerIgnoredMessage(i.logger, i.peerID, msgID, err)
+		return false
+	}
+
 	i.mutex.RLock()
 	handler := i.handlers[msgID.Ref.ID]
 	i.mutex.RUnlock()
@@ -489,7 +501,7 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 
 	logAsyncResponse(i.logger, i.peerID, msgID, ns, cmd, trace.Get(ctx), payload, err)
 
-	go handler(ctx, msgID, ns, cmd, payload, err)
+	go handler(ctx, sess, msgID, ns, cmd, payload, err)
 
 	return true
 }

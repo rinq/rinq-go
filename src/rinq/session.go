@@ -183,11 +183,9 @@ type Session interface {
 // in.Close() must be called, even if err is non-nil.
 type AsyncHandler func(
 	ctx context.Context,
-	msgID ident.MessageID,
-	ns string,
-	cmd string,
-	in *Payload,
-	err error,
+	sess Session, msgID ident.MessageID,
+	ns, cmd string,
+	in *Payload, err error,
 )
 
 // NotFoundError indicates that an operation failed because the session does

@@ -105,7 +105,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Pe
 		// Remote revision store depends on invoker, created below
 	}
 
-	invoker, server, err := commandamqp.New(peerID, cfg, revStore, channels)
+	invoker, server, err := commandamqp.New(peerID, cfg, localStore, revStore, channels)
 	if err != nil {
 		return nil, err
 	}
