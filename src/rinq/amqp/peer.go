@@ -12,7 +12,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/remotesession"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
 	"github.com/rinq/rinq-go/src/rinq/internal/syncutil"
-	"github.com/rinq/rinq-go/src/rinq/internal/trace"
+	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/streadway/amqp"
 )
 

@@ -8,7 +8,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
-	"github.com/rinq/rinq-go/src/rinq/internal/trace"
+	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
 func logCall(

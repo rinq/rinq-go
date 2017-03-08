@@ -3,7 +3,7 @@ package amqputil
 import (
 	"context"
 
-	"github.com/rinq/rinq-go/src/rinq/internal/trace"
+	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/streadway/amqp"
 )
 
