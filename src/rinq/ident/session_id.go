@@ -8,7 +8,7 @@ import (
 
 // SessionID uniquely identifies a session within a network.
 //
-// Session IDs contain a peer component, and a 32-but sequence component.
+// Session IDs contain a peer component, and a 32-bit sequence component.
 // They are rendereds as a peer ID, followed by a period, then the sequence
 // component as a decimal, such as "58AEE146-191C.45".
 //
