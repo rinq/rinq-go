@@ -6,7 +6,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/trace"
+	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
 func logUpdate(
