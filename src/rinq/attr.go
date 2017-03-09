@@ -44,5 +44,5 @@ func (attr Attr) String() string {
 	return attr.Key + sep + attr.Value
 }
 
-// AttrTable is a map of of attribute key to Attr.
+// AttrTable is a map of attribute key to Attr.
 type AttrTable map[string]Attr
