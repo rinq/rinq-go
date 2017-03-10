@@ -12,7 +12,7 @@ import (
 // field of msg. The return value is true if a deadline is present.
 //
 // The context "done" error is returned if the deadline has already passed or
-// the context has been cancelled.
+// the context has been canceled.
 func PackDeadline(ctx context.Context, msg *amqp.Publishing) (bool, error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {

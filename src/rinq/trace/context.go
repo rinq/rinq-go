@@ -17,7 +17,7 @@ import "context"
 //
 // If an operation is performed with ctx that does not contain a trace ID,
 // the operation's message ID is used. This includes sufficient information to
-// identify the peer, session and revision of the intial operation.
+// identify the peer, session and revision of the initial operation.
 func With(parent context.Context, t string) context.Context {
 	return context.WithValue(parent, key, t)
 }
