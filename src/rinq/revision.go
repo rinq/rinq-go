@@ -45,7 +45,7 @@ type Revision interface {
 	// revision can not be queried.
 	Get(ctx context.Context, k string) (attr Attr, err error)
 
-	// GetMany the attributes with keys in k from the attribute table.
+	// GetMany returns the attributes with keys in k from the attribute table.
 	//
 	// The returned attributes are guaranteed to be correct as of Ref().Rev.
 	// Non-existent attributes are equivalent to empty attributes, therefore it
@@ -54,7 +54,7 @@ type Revision interface {
 	// Peers do not always have a copy of the complete attribute table. If any
 	// of the attribute values are unknown they are fetched from the owning peer.
 	//
-	// If any of the attributes can not be retreived because they hav already
+	// If any of the attributes can not be retreived because they have already
 	// been modified, ShouldRetry(err) returns true. To fetch the attribute
 	// values at the later revision, first call Refresh() then retry the
 	// GetMany() on the newer revision.
