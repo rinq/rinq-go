@@ -45,7 +45,7 @@ type Revision interface {
 	// revision can not be queried.
 	Get(ctx context.Context, k string) (attr Attr, err error)
 
-	// GetMany the attributes with keys in k from the attribute table.
+	// GetMany returns the attributes with keys in k from the attribute table.
 	//
 	// The returned attributes are guaranteed to be correct as of Ref().Rev.
 	// Non-existent attributes are equivalent to empty attributes, therefore it
