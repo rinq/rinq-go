@@ -11,5 +11,5 @@ before_install:
   - sudo apt-get remove rabbitmq-server
   - sudo dpkg -i rabbitmq-server_3.5.4-1_all.deb
   - sudo service rabbitmq-server start
-script: make ci
+script: make ci -j 8
 after_script: bash <(curl -s https://codecov.io/bash)
