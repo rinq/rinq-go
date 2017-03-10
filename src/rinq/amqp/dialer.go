@@ -118,7 +118,9 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Pe
 	remoteStore := remotesession.NewStore(peerID, invoker, cfg.PruneInterval, cfg.Logger)
 	revStore.Remote = remoteStore
 
-	remotesession.Listen(server, peerID, localStore, cfg.Logger)
+	if err := remotesession.Listen(server, peerID, localStore, cfg.Logger); err != nil {
+		return nil, err
+	}
 
 	return newPeer(
 		peerID,

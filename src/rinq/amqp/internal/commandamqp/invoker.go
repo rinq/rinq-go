@@ -250,11 +250,8 @@ func (i *invoker) initialize() error {
 		false, // noWait
 		nil,   // args
 	)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 // run is the state entered when the service starts

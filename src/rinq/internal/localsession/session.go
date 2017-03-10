@@ -91,7 +91,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 
 	start := time.Now()
 	traceID, in, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, out)
-	elapsed := time.Now().Sub(start) / time.Millisecond
+	elapsed := time.Since(start) / time.Millisecond
 
 	logCall(s.logger, msgID, ns, cmd, elapsed, out, in, err, traceID)
 
