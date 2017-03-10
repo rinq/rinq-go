@@ -274,7 +274,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 	// validate message ID
 	msgID, err := ident.ParseMessageID(msg.MessageId)
 	if err != nil {
-		msg.Reject(false)
+		_ = msg.Reject(false) // false = don't requeue
 		logServerInvalidMessageID(s.logger, s.peerID, msg.MessageId)
 		return
 	}
@@ -282,7 +282,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 	// determine namespace + command
 	ns, cmd, err := unpackNamespaceAndCommand(msg)
 	if err != nil {
-		msg.Reject(false)
+		_ = msg.Reject(false) // false = don't requeue
 		logIgnoredMessage(s.logger, s.peerID, msgID, err)
 		return
 	}
@@ -292,7 +292,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 	h, ok := s.handlers[ns]
 	s.mutex.RUnlock()
 	if !ok {
-		msg.Reject(msg.Exchange == balancedExchange) // requeue if "balanced"
+		_ = msg.Reject(msg.Exchange == balancedExchange) // requeue if "balanced"
 		logNoLongerListening(s.logger, s.peerID, msgID, ns)
 		return
 	}
@@ -300,7 +300,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 	// find the source session revision
 	source, err := s.revisions.GetRevision(msgID.Ref)
 	if err != nil {
-		msg.Reject(false)
+		_ = msg.Reject(false) // false = don't requeue
 		logIgnoredMessage(s.logger, s.peerID, msgID, err)
 		return
 	}
@@ -345,7 +345,7 @@ func (s *server) handle(
 	handler(ctx, req, res)
 
 	if finalize() {
-		msg.Ack(false) // false = single message
+		_ = msg.Ack(false) // false = single message
 
 		if dr, ok := res.(*debugResponse); ok {
 			defer dr.Payload.Close()
@@ -354,14 +354,14 @@ func (s *server) handle(
 	} else if msg.Exchange == balancedExchange {
 		select {
 		case <-ctx.Done():
-			msg.Reject(false) // false = don't requeue
+			_ = msg.Reject(false) // false = don't requeue
 			logRequestRejected(ctx, s.logger, s.peerID, msgID, req, ctx.Err().Error())
 		default:
-			msg.Reject(true) // true = requeue
+			_ = msg.Reject(true) // true = requeue
 			logRequestRequeued(ctx, s.logger, s.peerID, msgID, req)
 		}
 	} else {
-		msg.Reject(false) // false = don't requeue
+		_ = msg.Reject(false) // false = don't requeue
 		logRequestRejected(ctx, s.logger, s.peerID, msgID, req, ctx.Err().Error())
 	}
 }

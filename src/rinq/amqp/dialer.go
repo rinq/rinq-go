@@ -72,7 +72,7 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Pe
 		// if an error has occurred when the function exits, close the
 		// broker connection immediately, otherwise it is given to the peer
 		if err != nil {
-			broker.Close()
+			_ = broker.Close()
 		}
 	}()
 

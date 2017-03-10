@@ -356,7 +356,7 @@ func (s *session) destroy() bool {
 		close(s.done)
 		s.catalog.Close()
 		s.invoker.SetAsyncHandler(s.id, nil)
-		s.listener.Unlisten(s.id)
+		_, _ = s.listener.Unlisten(s.id)
 		return true
 	}
 }

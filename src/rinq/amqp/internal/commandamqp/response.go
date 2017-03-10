@@ -141,6 +141,11 @@ func (r *response) respond(msg *amqp.Publishing) {
 		return
 	}
 
+	if _, err := amqputil.PackDeadline(r.context, msg); err != nil {
+		// the context deadline has already passed
+		return
+	}
+
 	channel, err := r.channels.Get()
 	if err != nil {
 		panic(err)
@@ -148,7 +153,6 @@ func (r *response) respond(msg *amqp.Publishing) {
 	defer r.channels.Put(channel)
 
 	amqputil.PackTrace(r.context, msg)
-	amqputil.PackDeadline(r.context, msg)
 
 	if r.replyMode == replyUncorrelated {
 		packNamespaceAndCommand(msg, r.request.Namespace, r.request.Command)

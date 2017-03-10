@@ -75,6 +75,6 @@ func (p *channelPool) Put(channel *amqp.Channel) {
 	select {
 	case p.channels <- channel: // return to the pool
 	default: // pool is full, close channel
-		channel.Close()
+		_ = channel.Close()
 	}
 }

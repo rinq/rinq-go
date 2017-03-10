@@ -445,9 +445,9 @@ func (i *invoker) reply(msg *amqp.Delivery) {
 	}
 
 	if ack {
-		msg.Ack(false)
+		_ = msg.Ack(false) // false = single message
 	} else {
-		msg.Reject(false)
+		_ = msg.Reject(false) // false = don't requeue
 	}
 }
 

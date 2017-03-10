@@ -249,7 +249,7 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 
 	msgID, err := ident.ParseMessageID(msg.MessageId)
 	if err != nil {
-		msg.Reject(false)
+		_ = msg.Reject(false) // false = don't requeue
 		logInvalidMessageID(l.logger, l.peerID, msg.MessageId)
 		return
 	}
@@ -257,7 +257,7 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 	// find the source session revision
 	source, err := l.revisions.GetRevision(msgID.Ref)
 	if err != nil {
-		msg.Reject(false)
+		_ = msg.Reject(false) // false = don't requeue
 		logIgnoredMessage(l.logger, l.peerID, msgID, err)
 		return
 	}
@@ -272,9 +272,9 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 	}
 
 	if err == nil {
-		msg.Ack(false)
+		_ = msg.Ack(false) // false = single message
 	} else {
-		msg.Reject(false)
+		_ = msg.Reject(false) // false = don't requeue
 		logIgnoredMessage(l.logger, l.peerID, msgID, err)
 	}
 }
