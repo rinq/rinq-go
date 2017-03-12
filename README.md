@@ -6,7 +6,7 @@
 [![GoDoc](https://godoc.org/github.com/rinq/rinq-go?status.svg)](https://godoc.org/github.com/rinq/rinq-go/src/rinq)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rinq/rinq-go)](https://goreportcard.com/report/github.com/rinq/rinq-go)
 
-[Rinq](https://rinq.io) is a cross-language command bus and distributed ephemeral data store. This
+[Rinq](http://rinq.io) is a cross-language command bus and distributed ephemeral data store. This
 repository provides an implementation of Rinq in Go.
 
 ## Building and testing
