@@ -5,7 +5,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
-// Store is an interface for retreiving session revisions.
+// Store is an interface for retrieving session revisions.
 type Store interface {
 	// GetRevision returns the session revision for the given ref.
 	GetRevision(ident.Ref) (rinq.Revision, error)

@@ -54,7 +54,7 @@ type Revision interface {
 	// Peers do not always have a copy of the complete attribute table. If any
 	// of the attribute values are unknown they are fetched from the owning peer.
 	//
-	// If any of the attributes can not be retreived because they have already
+	// If any of the attributes can not be retrieved because they have already
 	// been modified, ShouldRetry(err) returns true. To fetch the attribute
 	// values at the later revision, first call Refresh() then retry the
 	// GetMany() on the newer revision.
@@ -102,7 +102,7 @@ type Revision interface {
 // Close() failed because the revision is out of date.
 //
 // The operation should be retried on the latest revision of the session,
-// which can be retreived with Revision.Refresh().
+// which can be retrieved with Revision.Refresh().
 func ShouldRetry(err error) bool {
 	switch err.(type) {
 	case StaleFetchError, StaleUpdateError:
