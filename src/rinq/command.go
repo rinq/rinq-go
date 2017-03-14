@@ -16,6 +16,9 @@ import (
 // The handler MUST close the response by calling r.Done(), r.Error() or
 // r.Destroy(); otherwise the request may be redelivered, possibly to a
 // different peer.
+//
+// The handler is responsible for closing the req.Payload, though it may remain
+// open longer than the execution of the handler.
 type CommandHandler func(
 	ctx context.Context,
 	req Request,
@@ -29,7 +32,7 @@ type Request struct {
 	Source Revision
 
 	// Namespace is the command namespace. Namespaces are used to route command
-	// requests to the appropriate peer and comand handler.
+	// requests to the appropriate peer and command handler.
 	Namespace string
 
 	// Command is the application-defined command name for the request. The
