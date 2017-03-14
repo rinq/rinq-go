@@ -36,7 +36,7 @@ type Revision interface {
 	// Peers do not always have a copy of the complete attribute table. If the
 	// attribute value is unknown it is fetched from the owning peer.
 	//
-	// If the attribute can not be retreived because it has already been
+	// If the attribute can not be retrieved because it has already been
 	// modified, ShouldRetry(err) returns true. To fetch the attribute value at
 	// the later revision, first call Refresh() then retry the Get() on the
 	// newer revision.
