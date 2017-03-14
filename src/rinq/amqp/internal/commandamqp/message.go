@@ -141,10 +141,12 @@ func unpackResponse(msg *amqp.Delivery) (*rinq.Payload, error) {
 			return nil, errors.New("malformed response, failure type must be a non-empty string")
 		}
 
+		failureMessage, _ := msg.Headers[failureMessageHeader].(string)
+
 		payload := rinq.NewPayloadFromBytes(msg.Body)
 		return payload, rinq.Failure{
 			Type:    failureType,
-			Message: msg.Headers[failureMessageHeader].(string),
+			Message: failureMessage,
 			Payload: payload,
 		}
 
