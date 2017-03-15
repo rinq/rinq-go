@@ -80,7 +80,7 @@ func (s *StateMachine) Stop() {
 	defer s.mutex.Unlock()
 
 	select {
-	case <-s.Finalized:
+	case <-s.Forceful:
 		return
 	default:
 		close(s.Forceful)
