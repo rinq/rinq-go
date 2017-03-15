@@ -2,7 +2,11 @@ package testutil
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp"
@@ -26,28 +30,72 @@ func NewPeer() rinq.Peer {
 	return peer
 }
 
+var (
+	mutex   sync.Mutex
+	broker  *amqplib.Connection
+	nsCount int
+	nsClean int
+)
+
+// Namespace returns a unique namespace name.
+func Namespace() string {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	nsCount++
+
+	return namespace(nsCount)
+}
+
+func namespace(i int) string {
+	return fmt.Sprintf("rinq-test-%d-%d", os.Getpid(), i)
+}
+
 // TearDown cleans up any AMQP resources that should not persist between tests.
 func TearDown() {
-	dsn := os.Getenv("RINQ_AMQP_DSN")
-	if dsn == "" {
-		dsn = "amqp://localhost"
-	}
+	mutex.Lock()
+	defer mutex.Unlock()
 
-	broker, err := amqplib.Dial(dsn)
-	if err != nil {
-		return
+	if broker == nil {
+		dsn := os.Getenv("RINQ_AMQP_DSN")
+		if dsn == "" {
+			dsn = "amqp://localhost"
+		}
+
+		var err error
+		broker, err = amqplib.Dial(dsn)
+		if err != nil {
+			broker = nil
+			fmt.Println(err)
+			return
+		}
 	}
 
 	channel, err := broker.Channel()
+	defer channel.Close()
+
 	if err != nil {
+		broker = nil
+		fmt.Println(err)
 		return
 	}
 
-	// see commandamqp.balancedRequestQueue()
-	_, _ = channel.QueueDelete(
-		"cmd.rinq-func-test",
-		false, // ifUnused,
-		false, // ifEmpty,
-		false, // noWait
-	)
+	for nsClean <= nsCount {
+		_, err = channel.QueueDelete(
+			"cmd."+namespace(nsClean), // see commandamqp.balancedRequestQueue()
+			false, // ifUnused,
+			false, // ifEmpty,
+			false, // noWait
+		)
+		if err != nil {
+			broker = nil
+			fmt.Println(err)
+			return
+		}
+		nsClean++
+	}
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
 }
