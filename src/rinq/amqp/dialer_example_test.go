@@ -1,4 +1,4 @@
-// +build !nobroker
+// +build !without_amqp,!without_examples
 
 package amqp_test
 

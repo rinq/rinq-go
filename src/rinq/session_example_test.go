@@ -1,3 +1,5 @@
+// +build !without_amqp,!without_examples
+
 package rinq_test
 
 import (
