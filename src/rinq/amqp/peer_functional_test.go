@@ -191,8 +191,8 @@ var _ = Describe("peer (functional)", func() {
 				subject.Listen(ns, testutil.Barrier(barrier))
 
 				go func() {
-					subject.GracefulStop()
 					<-barrier
+					subject.GracefulStop()
 					subject.Stop()
 					<-barrier
 				}()
