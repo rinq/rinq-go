@@ -100,12 +100,10 @@ var _ = Describe("peer (functional)", func() {
 
 		It("changes the handler when invoked a second time", func() {
 			subject := testutil.SharedPeer()
-
-			err := subject.Listen(ns, testutil.AlwaysPanic())
-			Expect(err).Should(BeNil())
+			testutil.Must(subject.Listen(ns, testutil.AlwaysPanic()))
 
 			nonce := rand.Int63()
-			err = subject.Listen(ns, testutil.AlwaysReturn(nonce))
+			err := subject.Listen(ns, testutil.AlwaysReturn(nonce))
 			Expect(err).Should(BeNil())
 
 			sess := subject.Session()
@@ -139,11 +137,9 @@ var _ = Describe("peer (functional)", func() {
 	Describe("Unlisten", func() {
 		It("stops accepting command requests", func() {
 			subject := testutil.SharedPeer()
+			testutil.Must(subject.Listen(ns, testutil.AlwaysPanic()))
 
-			err := subject.Listen(ns, testutil.AlwaysPanic())
-			Expect(err).Should(BeNil())
-
-			err = subject.Unlisten(ns)
+			err := subject.Unlisten(ns)
 			Expect(err).Should(BeNil())
 
 			sess := subject.Session()
@@ -172,14 +168,12 @@ var _ = Describe("peer (functional)", func() {
 
 		It("returns an error if the peer is stopped", func() {
 			subject := testutil.NewPeer()
-
-			err := subject.Listen(ns, testutil.AlwaysPanic())
-			Expect(err).Should(BeNil())
+			testutil.Must(subject.Listen(ns, testutil.AlwaysPanic()))
 
 			subject.Stop()
 			<-subject.Done()
 
-			err = subject.Unlisten(ns)
+			err := subject.Unlisten(ns)
 			Expect(err).Should(HaveOccurred())
 		})
 	})
@@ -187,10 +181,11 @@ var _ = Describe("peer (functional)", func() {
 	Describe("Stop", func() {
 		Context("when running normally", func() {
 			It("cancels pending calls", func() {
-				subject := testutil.NewPeer()
-
+				server := testutil.SharedPeer()
 				barrier := make(chan struct{})
-				subject.Listen(ns, testutil.Barrier(barrier))
+				testutil.Must(server.Listen(ns, testutil.Barrier(barrier)))
+
+				subject := testutil.NewPeer()
 
 				go func() {
 					<-barrier
@@ -208,10 +203,11 @@ var _ = Describe("peer (functional)", func() {
 
 		Context("when stopping gracefully", func() {
 			It("cancels pending calls", func() {
-				subject := testutil.NewPeer()
-
+				server := testutil.SharedPeer()
 				barrier := make(chan struct{})
-				subject.Listen(ns, testutil.Barrier(barrier))
+				testutil.Must(server.Listen(ns, testutil.Barrier(barrier)))
+
+				subject := testutil.NewPeer()
 
 				go func() {
 					<-barrier
@@ -231,10 +227,11 @@ var _ = Describe("peer (functional)", func() {
 
 	Describe("GracefulStop", func() {
 		It("waits for pending calls", func() {
-			subject := testutil.NewPeer()
-
+			server := testutil.SharedPeer()
 			barrier := make(chan struct{})
-			subject.Listen(ns, testutil.Barrier(barrier))
+			testutil.Must(server.Listen(ns, testutil.Barrier(barrier)))
+
+			subject := testutil.NewPeer()
 
 			go func() {
 				<-barrier
