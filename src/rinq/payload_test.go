@@ -8,25 +8,6 @@ import (
 )
 
 var _ = Describe("Payload", func() {
-	Describe("NewPayload", func() {
-		DescribeTable(
-			"returns nil when the value is nil",
-			func(v interface{}) {
-				p := rinq.NewPayload(v)
-				defer p.Close()
-
-				Expect(p).To(BeNil())
-			},
-			Entry("nil", nil),
-			Entry("nil channel", (*int)(nil)),
-			Entry("nil function", (func())(nil)),
-			Entry("nil map", (map[int]int)(nil)),
-			Entry("nil pointer", (*int)(nil)),
-			Entry("nil interface", (interface{})(nil)),
-			Entry("nil slice", ([]int)(nil)),
-		)
-	})
-
 	Describe("Clone", func() {
 		DescribeTable(
 			"returns a nil pointer",
@@ -173,4 +154,23 @@ var _ = Describe("Payload", func() {
 			Expect(p.String()).To(Equal(`{"foo":"bar"}`))
 		})
 	})
+})
+
+var _ = Describe("NewPayload", func() {
+	DescribeTable(
+		"returns nil when the value is nil",
+		func(v interface{}) {
+			p := rinq.NewPayload(v)
+			defer p.Close()
+
+			Expect(p).To(BeNil())
+		},
+		Entry("nil", nil),
+		Entry("nil channel", (*int)(nil)),
+		Entry("nil function", (func())(nil)),
+		Entry("nil map", (map[int]int)(nil)),
+		Entry("nil pointer", (*int)(nil)),
+		Entry("nil interface", (interface{})(nil)),
+		Entry("nil slice", ([]int)(nil)),
+	)
 })

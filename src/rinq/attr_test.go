@@ -7,22 +7,6 @@ import (
 )
 
 var _ = Describe("Attr", func() {
-	Describe("Set", func() {
-		It("returns a non-frozen attribute", func() {
-			attr := rinq.Set("foo", "bar")
-			expected := rinq.Attr{Key: "foo", Value: "bar"}
-			Expect(attr).To(Equal(expected))
-		})
-	})
-
-	Describe("Freeze", func() {
-		It("returns a frozen attribute", func() {
-			attr := rinq.Freeze("foo", "bar")
-			expected := rinq.Attr{Key: "foo", Value: "bar", IsFrozen: true}
-			Expect(attr).To(Equal(expected))
-		})
-	})
-
 	Describe("String", func() {
 		It("uses 'equals' syntax", func() {
 			attr := rinq.Attr{Key: "foo", Value: "bar"}
@@ -38,5 +22,21 @@ var _ = Describe("Attr", func() {
 			attr := rinq.Attr{Key: "foo", Value: "", IsFrozen: true}
 			Expect(attr.String()).To(Equal("!foo"))
 		})
+	})
+})
+
+var _ = Describe("Set", func() {
+	It("returns a non-frozen attribute", func() {
+		attr := rinq.Set("foo", "bar")
+		expected := rinq.Attr{Key: "foo", Value: "bar"}
+		Expect(attr).To(Equal(expected))
+	})
+})
+
+var _ = Describe("Freeze", func() {
+	It("returns a frozen attribute", func() {
+		attr := rinq.Freeze("foo", "bar")
+		expected := rinq.Attr{Key: "foo", Value: "bar", IsFrozen: true}
+		Expect(attr).To(Equal(expected))
 	})
 })
