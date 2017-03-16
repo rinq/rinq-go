@@ -1,5 +1,5 @@
-hash: 9af6840633affb5ca27c315723251db603301e43ccc882e2bed707a9fffe84a5
-updated: 2017-03-16T09:47:10.358676966+10:00
+hash: 6d4cbacf95e7ff18d7893a74d43948b4cceb10626ce24784b7905931a4f314df
+updated: 2017-03-16T13:35:54.343029489+10:00
 imports:
 - name: github.com/hashicorp/go-version
   version: 03c5bf6be031b6dd45afec16b1cf94fc8938bc77
@@ -39,7 +39,8 @@ imports:
   - matchers/support/goraph/util
   - types
 - name: github.com/streadway/amqp
-  version: afe8eee29a74d213b1f3fb2586058157c397da60
+  version: c9ca2babe66404f2bf2c8c51b7c5c2aba79825ae
+  repo: https://github.com/rinq/amqp.git
 - name: github.com/ugorji/go
   version: 708a42d246822952f38190a8d8c4e6b16a0e600c
   subpackages:

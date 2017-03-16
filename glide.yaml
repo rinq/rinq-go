@@ -2,6 +2,7 @@ package: github.com/rinq/rinq-go
 import:
 - package: github.com/streadway/amqp
   version: master
+  repo: https://github.com/rinq/amqp.git
 - package: github.com/onsi/ginkgo
   version: master
 - package: github.com/onsi/gomega
