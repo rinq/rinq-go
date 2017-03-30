@@ -13,12 +13,12 @@ const (
 	// responses.
 	successResponse = "s"
 
-	// successResponse is the AMQP message type used for call responses
+	// failureResponse is the AMQP message type used for call responses
 	// indicating failure for an "expected" application-defined reason.
 	failureResponse = "f"
 
-	// successResponse is the AMQP message type used for call responses
-	// indicating unepected error or internal error.
+	// errorResponse is the AMQP message type used for call responses indicating
+	// unepected error or internal error.
 	errorResponse = "e"
 )
 
