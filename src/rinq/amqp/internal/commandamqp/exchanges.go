@@ -3,7 +3,7 @@ package commandamqp
 import "github.com/streadway/amqp"
 
 const (
-	// exchanceUnicast is the exchange used to publish internal command requests
+	// unicastExchange is the exchange used to publish internal command requests
 	// directly to a specific peer.
 	unicastExchange = "cmd.uc"
 
