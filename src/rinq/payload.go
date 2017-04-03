@@ -76,7 +76,7 @@ func (p *Payload) Clone() *Payload {
 // payload.
 //
 // If the payload was created from a non-empty byte-slice, the return value is
-// always that same byte-slic, unless the payload has been closed.
+// always that same byte-slice, unless the payload has been closed.
 //
 // If the payload was created from a nil value, the returned byte-slice is nil.
 func (p *Payload) Bytes() []byte {
