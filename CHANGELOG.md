@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.1.0 (2017-02-24)
+## 0.3.0 (2017-04-07)
 
-- Initial release
+- **[BC]** `AsyncResponseHandler` is now passed the session
+- **[NEW]** `Session.Execute[Many]` now supports context deadlines
+- **[NEW]** Promote `trace` module to public API
+- **[FIX]** Allow empty messages in failure responses
+- **[FIX]** Fix panic when when stopping a peer repeatedly
 
 ## 0.2.0 (2017-03-04)
 
@@ -18,3 +22,7 @@
 - **[IMPROVED]** AMQP broker capabilities are checked on connect
 - **[IMPROVED]** `Response.Fail()` accepts sprintf-style format specifier
 - **[IMPROVED]** Log all payload values when debug logging is enabled
+
+## 0.1.0 (2017-02-24)
+
+- Initial release
