@@ -373,7 +373,7 @@ func (i *invoker) call(
 		}
 	}()
 
-	err := i.publish(exchange, key, msg)
+	err := i.publish(ctx, exchange, key, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +398,7 @@ func (i *invoker) send(
 ) error {
 	select {
 	default:
-		return i.publish(exchange, key, msg)
+		return i.publish(ctx, exchange, key, msg)
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-i.sm.Graceful:
@@ -410,10 +410,15 @@ func (i *invoker) send(
 
 // publish sends an command request to the broker
 func (i *invoker) publish(
+	ctx context.Context,
 	exchange string,
 	key string,
 	msg *amqp.Publishing,
 ) error {
+	if _, err := amqputil.PackDeadline(ctx, msg); err != nil {
+		return err
+	}
+
 	channel, err := i.channels.Get()
 	if err != nil {
 		return err
