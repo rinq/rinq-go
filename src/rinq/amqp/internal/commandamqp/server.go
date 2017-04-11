@@ -362,7 +362,7 @@ func (s *server) handle(
 		}
 	} else {
 		_ = msg.Reject(false) // false = don't requeue
-		logRequestRejected(ctx, s.logger, s.peerID, msgID, req, ctx.Err().Error())
+		logRequestRejected(ctx, s.logger, s.peerID, msgID, req, "handler did not respond")
 	}
 }
 
