@@ -1,10 +1,10 @@
 hash: 23bf79b715ca3a7a2108de4884e8cd8c5d18060fb0959ef4045483c8e27b92a7
-updated: 2017-03-29T17:04:49.031145268+10:00
+updated: 2017-04-20T07:51:12.219087897+10:00
 imports:
 - name: github.com/hashicorp/go-version
   version: 03c5bf6be031b6dd45afec16b1cf94fc8938bc77
 - name: github.com/onsi/ginkgo
-  version: 5ca121185e255e5041d7727d77992618545a93d2
+  version: 6adbc2648389a46e8ff0e96d07a07a9a9eb432de
   subpackages:
   - config
   - extensions/table
@@ -25,7 +25,7 @@ imports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: 1de7ab2df9105aa5c15c4d7e14a8a514e3cb8d4b
+  version: 9b8c753e8dfb382618ba8fa19b4197b5dcb0434c
   subpackages:
   - format
   - internal/assertion
@@ -39,7 +39,7 @@ imports:
   - matchers/support/goraph/util
   - types
 - name: github.com/streadway/amqp
-  version: 645418e5f0725c09ab98fde517e45865a369d352
+  version: 15912e66f832ac41d6b0bbc8fb436b16dc1f0f55
   repo: https://github.com/domodwyer/amqp.git
 - name: github.com/ugorji/go
   version: 708a42d246822952f38190a8d8c4e6b16a0e600c
@@ -47,8 +47,8 @@ imports:
   - codec
 testImports:
 - name: golang.org/x/sys
-  version: 99f16d856c9836c42d24e7ab64ea72916925fa97
+  version: d9157a9621b69ad1d8d77a1933590c416593f24f
   subpackages:
   - unix
 - name: gopkg.in/yaml.v2
-  version: a3f3340b5840cee44f372bddb5880fcbc419b46a
+  version: bef53efd0c76e49e6de55ead051f886bea7e9420
