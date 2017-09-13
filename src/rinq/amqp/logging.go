@@ -101,7 +101,7 @@ func (r *loggingResponse) Close() bool {
 
 func (r *loggingResponse) logSuccess(payload *rinq.Payload) {
 	r.logger.Log(
-		"%s handled %s '%s' command from %s successfully (%dms %d/i %d/o) [%s]",
+		"%s handled '%s::%s' command from %s successfully (%dms %d/i %d/o) [%s]",
 		r.peerID.ShortString(),
 		r.req.Namespace,
 		r.req.Command,
@@ -114,7 +114,7 @@ func (r *loggingResponse) logSuccess(payload *rinq.Payload) {
 }
 func (r *loggingResponse) logFailure(failureType string, payload *rinq.Payload) {
 	r.logger.Log(
-		"%s handled %s '%s' command from %s: '%s' failure (%dms %d/i %d/o) [%s]",
+		"%s handled '%s::%s' command from %s: '%s' failure (%dms %d/i %d/o) [%s]",
 		r.peerID.ShortString(),
 		r.req.Namespace,
 		r.req.Command,
@@ -129,7 +129,7 @@ func (r *loggingResponse) logFailure(failureType string, payload *rinq.Payload) 
 
 func (r *loggingResponse) logError(err error) {
 	r.logger.Log(
-		"%s handled %s '%s' command from %s: '%s' error (%dms %d/i 0/o) [%s]",
+		"%s handled '%s::%s' command from %s: '%s' error (%dms %d/i 0/o) [%s]",
 		r.peerID.ShortString(),
 		r.req.Namespace,
 		r.req.Command,
