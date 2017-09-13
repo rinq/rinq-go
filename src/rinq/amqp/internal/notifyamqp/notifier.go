@@ -53,12 +53,10 @@ func (n *notifier) NotifyMulticast(
 	msg := amqp.Publishing{
 		MessageId: msgID.String(),
 		Type:      notificationType,
-		Headers:   amqp.Table{},
 		Body:      payload.Bytes(),
 	}
-	for key, value := range constraint {
-		msg.Headers[key] = value
-	}
+
+	packConstraint(&msg, constraint)
 
 	traceID = amqputil.PackTrace(ctx, &msg)
 	err = n.send(multicastExchange, "", msg)

@@ -319,13 +319,9 @@ func (l *listener) handleMulticast(
 	msg *amqp.Delivery,
 	source rinq.Revision,
 ) error {
-	constraint := rinq.Constraint{}
-	for key, value := range msg.Headers {
-		if v, ok := value.(string); ok {
-			constraint[key] = v
-		} else {
-			return fmt.Errorf("constraint key %s contains non-string value", key)
-		}
+	constraint, err := unpackConstraint(msg)
+	if err != nil {
+		return err
 	}
 
 	var sessions []rinq.Session
