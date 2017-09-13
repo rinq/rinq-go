@@ -1,4 +1,6 @@
 language: go
+services:
+- rabbitmq
 go:
 - '1.8'
 - tip
@@ -6,10 +8,10 @@ matrix:
   fast_finish: true
   allow_failures:
   - go: tip
-before_install:
-  - wget https://www.rabbitmq.com/releases/rabbitmq-server/v3.5.4/rabbitmq-server_3.5.4-1_all.deb
-  - sudo apt-get remove rabbitmq-server
-  - sudo dpkg -i rabbitmq-server_3.5.4-1_all.deb
-  - sudo service rabbitmq-server start
+# before_install:
+#   - wget https://www.rabbitmq.com/releases/rabbitmq-server/v3.5.4/rabbitmq-server_3.5.4-1_all.deb
+#   - sudo apt-get remove rabbitmq-server
+#   - sudo dpkg -i rabbitmq-server_3.5.4-1_all.deb
+#   - sudo service rabbitmq-server start
 script: make ci -j 8
 after_script: bash <(curl -s https://codecov.io/bash)
