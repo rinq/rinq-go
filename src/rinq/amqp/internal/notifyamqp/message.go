@@ -1,31 +1,45 @@
 package notifyamqp
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/streadway/amqp"
 )
 
+const (
+	// constraintHeader specifies the constraint for multicast notifications.
+	constraintHeader = "c"
+)
+
 func packConstraint(msg *amqp.Publishing, con rinq.Constraint) {
+	t := amqp.Table{}
+	for key, value := range con {
+		t[key] = value
+	}
+
 	if msg.Headers == nil {
 		msg.Headers = amqp.Table{}
 	}
 
-	for key, value := range con {
-		msg.Headers[key] = value
-	}
+	msg.Headers[constraintHeader] = t
 }
 
 func unpackConstraint(msg *amqp.Delivery) (rinq.Constraint, error) {
-	constraint := rinq.Constraint{}
-	for key, value := range msg.Headers {
-		if v, ok := value.(string); ok {
-			constraint[key] = v
-		} else {
-			return nil, fmt.Errorf("constraint key %s contains non-string value", key)
+	if t, ok := msg.Headers[constraintHeader].(amqp.Table); ok {
+		con := rinq.Constraint{}
+
+		for key, value := range t {
+			if v, ok := value.(string); ok {
+				con[key] = v
+			} else {
+				return nil, fmt.Errorf("constraint key %s contains non-string value", key)
+			}
 		}
+
+		return con, nil
 	}
 
-	return constraint, nil
+	return nil, errors.New("constraint header is not a table")
 }

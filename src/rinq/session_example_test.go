@@ -109,3 +109,88 @@ func ExampleSession_notify() {
 	<-peer.Done()
 	// Output: received <type> with <payload> payload
 }
+
+// This example shows how to send a notification from one session to several
+// sessions that constraint a specific attribute value.
+func ExampleSession_notifyMany() {
+	peer, err := amqp.Dial("")
+	if err != nil {
+		panic(err)
+	}
+	defer peer.Stop()
+
+	// setup a command handler that sets an attribute on the source session
+	if err := peer.Listen(
+		"my-api",
+		func(ctx context.Context, req Request, res Response) {
+			if _, err := req.Source.Update(ctx, Freeze("foo", "bar")); err != nil {
+				res.Error(err)
+			}
+			res.Close()
+		},
+	); err != nil {
+		panic(err)
+	}
+
+	// create three sessions, two of which will match the constraint and hence
+	// receive the notification
+	//
+	// note that all three sessions are listening, but only two of them invoke
+	// the command above to set the "foo" attribute
+	var recv []Session
+	defer func() {
+		for _, s := range recv {
+			s.Destroy()
+		}
+	}()
+
+	handler := func(ctx context.Context, target Session, n Notification) {
+		defer n.Payload.Close()
+		peer.Stop()
+
+		if target == recv[2] {
+			panic("session received unexpected notification")
+		}
+
+		fmt.Printf("received %s with %s payload\n", n.Type, n.Payload.Value())
+	}
+
+	for i := 0; i < 3; i++ {
+		s := peer.Session()
+		recv = append(recv, s)
+
+		if err := s.Listen(handler); err != nil {
+			panic(err)
+		}
+
+		if i < 2 {
+			if _, err := s.Call(context.Background(), "my-api", "set-attr", nil); err != nil {
+				panic(err)
+			}
+		}
+	}
+
+	// create a session to send the notification to recv
+	send := peer.Session()
+	defer send.Destroy()
+
+	payload := NewPayload("<payload>")
+	defer payload.Close()
+
+	con := Constraint{
+		"foo": "bar",
+	}
+
+	if err := send.NotifyMany(
+		context.Background(),
+		con,
+		"<type>",
+		payload,
+	); err != nil {
+		panic(err)
+	}
+
+	<-peer.Done()
+	// Output: received <type> with <payload> payload
+	// received <type> with <payload> payload
+}
