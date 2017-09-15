@@ -38,5 +38,5 @@ func New(
 		return nil, nil, err
 	}
 
-	return newNotifier(channels, config.Logger), listener, nil
+	return newNotifier(peerID, channels, config.Logger), listener, nil
 }

@@ -7,23 +7,37 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
+	"github.com/rinq/rinq-go/src/rinq/internal/service"
 	"github.com/streadway/amqp"
 )
 
 type notifier struct {
+	service.Service
+	sm *service.StateMachine
+
+	peerID   ident.PeerID
 	channels amqputil.ChannelPool
 	logger   rinq.Logger
 }
 
 // newNotifier creates, initializes and returns a new notifier.
 func newNotifier(
+	peerID ident.PeerID,
 	channels amqputil.ChannelPool,
 	logger rinq.Logger,
 ) notify.Notifier {
-	return &notifier{
+	n := &notifier{
+		peerID:   peerID,
 		channels: channels,
 		logger:   logger,
 	}
+
+	n.sm = service.NewStateMachine(n.run, n.finalize)
+	n.Service = n.sm
+
+	go n.sm.Run()
+
+	return n
 }
 
 func (n *notifier) NotifyUnicast(
@@ -67,6 +81,15 @@ func (n *notifier) NotifyMulticast(
 }
 
 func (n *notifier) send(exchange, key string, msg amqp.Publishing) error {
+	select {
+	case <-n.sm.Graceful:
+		return context.Canceled
+	case <-n.sm.Forceful:
+		return context.Canceled
+	default:
+		// ready to publish
+	}
+
 	channel, err := n.channels.Get()
 	if err != nil {
 		return err
@@ -80,4 +103,21 @@ func (n *notifier) send(exchange, key string, msg amqp.Publishing) error {
 		false, // immediate
 		msg,
 	)
+}
+
+func (n *notifier) run() (service.State, error) {
+	logNotifierStart(n.logger, n.peerID)
+
+	select {
+	case <-n.sm.Graceful:
+		return nil, nil
+
+	case <-n.sm.Forceful:
+		return nil, nil
+	}
+}
+
+func (n *notifier) finalize(err error) error {
+	logNotifierStop(n.logger, n.peerID, err)
+	return err
 }

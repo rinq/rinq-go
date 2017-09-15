@@ -9,6 +9,7 @@ broker before starting a peer.
 - **[BC]** Remove `Session.ExecuteMany()`
 - **[BC]** Add namespaces to session notifications
 - **[FIX]** Fix race-condition caused by payload buffer "double-free"
+- **[IMPROVED]** `Session.NotifyMany()` and `NotifyMany()` now return `context.Canceled` when the peer is stopping
 
 ## 0.3.0 (2017-04-07)
 
