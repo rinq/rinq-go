@@ -11,6 +11,7 @@ broker before starting a peer.
 - **[BC]** Rename `Config.CommandPreFetch` to `CommandWorkers`
 - **[BC]** Rename `Config.SessionPreFetch` to `SessionWorkers`
 - **[FIX]** Fix race-condition caused by payload buffer "double-free"
+- **[NEW]** Add `NewConfigFromEnv()` which returns a Rinq configuration described by environment variables
 - **[NEW]** Add `Config.Product` which is passed to the broker in the AMQP handshake
 - **[IMPROVED]** `Session.NotifyMany()` and `NotifyMany()` now return `context.Canceled` when the peer is stopping
 
