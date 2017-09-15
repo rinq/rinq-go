@@ -1,5 +1,13 @@
 # Changelog
 
+## Next release
+
+Please note that this release includes changes to the definition of AMQP
+exchanges. The `ntf.uc` and `ntf.mc` exchanges will need to be deleted on the
+broker before starting a peer.
+
+- **[BC]** Add namespaces to session notifications
+
 ## 0.3.0 (2017-04-07)
 
 - **[BC]** `AsyncResponseHandler` is now passed the session
