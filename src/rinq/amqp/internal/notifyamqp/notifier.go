@@ -30,16 +30,19 @@ func (n *notifier) NotifyUnicast(
 	ctx context.Context,
 	msgID ident.MessageID,
 	target ident.SessionID,
+	ns string,
 	notificationType string,
 	payload *rinq.Payload,
 ) (traceID string, err error) {
 	msg := amqp.Publishing{
 		MessageId: msgID.String(),
-		Type:      notificationType,
-		Body:      payload.Bytes(),
 	}
+
+	packCommonAttributes(&msg, ns, notificationType, payload)
+	packTarget(&msg, target)
+
 	traceID = amqputil.PackTrace(ctx, &msg)
-	err = n.send(unicastExchange, target.String(), msg)
+	err = n.send(unicastExchange, unicastRoutingKey(ns, target.Peer), msg)
 	return
 }
 
@@ -47,19 +50,19 @@ func (n *notifier) NotifyMulticast(
 	ctx context.Context,
 	msgID ident.MessageID,
 	constraint rinq.Constraint,
+	ns string,
 	notificationType string,
 	payload *rinq.Payload,
 ) (traceID string, err error) {
 	msg := amqp.Publishing{
 		MessageId: msgID.String(),
-		Type:      notificationType,
-		Body:      payload.Bytes(),
 	}
 
+	packCommonAttributes(&msg, ns, notificationType, payload)
 	packConstraint(&msg, constraint)
 
 	traceID = amqputil.PackTrace(ctx, &msg)
-	err = n.send(multicastExchange, "", msg)
+	err = n.send(multicastExchange, ns, msg)
 	return
 }
 

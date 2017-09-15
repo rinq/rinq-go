@@ -131,7 +131,7 @@ type Session interface {
 	//
 	// If IsNotFound(err) returns true, this session has been closed and the
 	// notification can not be sent.
-	Notify(ctx context.Context, s ident.SessionID, t string, out *Payload) (err error)
+	Notify(ctx context.Context, s ident.SessionID, ns, t string, out *Payload) (err error)
 
 	// NotifyMany sends a message to multiple sessions.
 	//
@@ -144,18 +144,21 @@ type Session interface {
 	//
 	// If IsNotFound(err) returns true, this session has been closed and the
 	// notification can not be sent.
-	NotifyMany(ctx context.Context, c Constraint, t string, out *Payload) error
+	NotifyMany(ctx context.Context, c Constraint, ns, t string, out *Payload) error
 
-	// Listen begins listening for notifications sent to this session.
+	// Listen begins listening for notifications sent to this session in the given
+	// namespace.
+	//
+	// When a notification is received with a namespace equal to ns, h is invoked.
 	//
 	// h is invoked on its own goroutine for each notification.
-	Listen(h NotificationHandler) error
+	Listen(ns string, h NotificationHandler) error
 
-	// Unlisten stops listening for notifications.
+	// Unlisten stops listening for notifications from the given namespace.
 	//
 	// If the session is not currently listening for notifications, nil is
 	// returned immediately.
-	Unlisten() error
+	Unlisten(ns string) error
 
 	// Destroy terminates the session.
 	//

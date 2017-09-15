@@ -77,16 +77,19 @@ func ExampleSession_notify() {
 	recv := peer.Session()
 	defer recv.Destroy()
 
-	if err := recv.Listen(func(
-		ctx context.Context,
-		target Session,
-		n Notification,
-	) {
-		defer n.Payload.Close()
-		peer.Stop()
+	if err := recv.Listen(
+		"my-api",
+		func(
+			ctx context.Context,
+			target Session,
+			n Notification,
+		) {
+			defer n.Payload.Close()
+			peer.Stop()
 
-		fmt.Printf("received %s with %s payload\n", n.Type, n.Payload.Value())
-	}); err != nil {
+			fmt.Printf("received %s::%s with %s payload\n", n.Namespace, n.Type, n.Payload.Value())
+		},
+	); err != nil {
 		panic(err)
 	}
 
@@ -100,6 +103,7 @@ func ExampleSession_notify() {
 	if err := send.Notify(
 		context.Background(),
 		recv.ID(),
+		"my-api",
 		"<type>",
 		payload,
 	); err != nil {
@@ -107,11 +111,11 @@ func ExampleSession_notify() {
 	}
 
 	<-peer.Done()
-	// Output: received <type> with <payload> payload
+	// Output: received my-api::<type> with <payload> payload
 }
 
 // This example shows how to send a notification from one session to several
-// sessions that constraint a specific attribute value.
+// sessions that contain a specific attribute value.
 func ExampleSession_notifyMany() {
 	peer, err := amqp.Dial("")
 	if err != nil {
@@ -144,22 +148,28 @@ func ExampleSession_notifyMany() {
 		}
 	}()
 
+	count := 0
 	handler := func(ctx context.Context, target Session, n Notification) {
 		defer n.Payload.Close()
-		peer.Stop()
 
 		if target == recv[2] {
 			panic("session received unexpected notification")
 		}
 
-		fmt.Printf("received %s with %s payload\n", n.Type, n.Payload.Value())
+		fmt.Printf("received %s::%s with %s payload\n", n.Namespace, n.Type, n.Payload.Value())
+
+		count++
+
+		if count == 2 {
+			peer.Stop()
+		}
 	}
 
 	for i := 0; i < 3; i++ {
 		s := peer.Session()
 		recv = append(recv, s)
 
-		if err := s.Listen(handler); err != nil {
+		if err := s.Listen("my-api", handler); err != nil {
 			panic(err)
 		}
 
@@ -184,6 +194,7 @@ func ExampleSession_notifyMany() {
 	if err := send.NotifyMany(
 		context.Background(),
 		con,
+		"my-api",
 		"<type>",
 		payload,
 	); err != nil {
@@ -191,6 +202,6 @@ func ExampleSession_notifyMany() {
 	}
 
 	<-peer.Done()
-	// Output: received <type> with <payload> payload
-	// received <type> with <payload> payload
+	// Output: received my-api::<type> with <payload> payload
+	// received my-api::<type> with <payload> payload
 }

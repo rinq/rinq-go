@@ -50,7 +50,8 @@ func NewPayloadFromBytes(buf []byte) *Payload {
 
 	return &Payload{
 		&payloadData{
-			buffer: bytes.NewBuffer(buf),
+			buffer:   bytes.NewBuffer(buf),
+			refCount: 1,
 		},
 	}
 }

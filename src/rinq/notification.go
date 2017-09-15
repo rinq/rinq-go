@@ -7,6 +7,10 @@ type Notification struct {
 	// Source refers to the session that sent the notification.
 	Source Revision
 
+	// Namespace is the notification namespace. Namespaces are used to route
+	// notifications to only those sessions that intend to handle them.
+	Namespace string
+
 	// Type is an application-defined notification type.
 	Type string
 

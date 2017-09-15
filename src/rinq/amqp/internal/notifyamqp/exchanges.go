@@ -15,7 +15,7 @@ const (
 func declareExchanges(channel *amqp.Channel) error {
 	if err := channel.ExchangeDeclare(
 		unicastExchange,
-		"topic",
+		"direct",
 		false, // durable
 		false, // autoDelete
 		false, // internal
@@ -27,7 +27,7 @@ func declareExchanges(channel *amqp.Channel) error {
 
 	if err := channel.ExchangeDeclare(
 		multicastExchange,
-		"fanout",
+		"direct",
 		false, // durable
 		false, // autoDelete
 		false, // internal

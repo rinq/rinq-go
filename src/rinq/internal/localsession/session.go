@@ -215,9 +215,13 @@ func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *rinq.Paylo
 	return err
 }
 
-func (s *session) Notify(ctx context.Context, target ident.SessionID, typ string, p *rinq.Payload) error {
+func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, typ string, p *rinq.Payload) error {
 	if err := target.Validate(); err != nil || target.Seq == 0 {
 		return fmt.Errorf("session ID %s is invalid", target)
+	}
+
+	if err := rinq.ValidateNamespace(ns); err != nil {
+		return err
 	}
 
 	select {
@@ -227,12 +231,13 @@ func (s *session) Notify(ctx context.Context, target ident.SessionID, typ string
 	}
 
 	msgID := s.catalog.NextMessageID()
-	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, typ, p)
+	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, typ, p)
 
 	if err == nil {
 		s.logger.Log(
-			"%s sent '%s' notification to %s (%d/o) [%s]",
+			"%s sent '%s::%s' notification to %s (%d/o) [%s]",
 			msgID.ShortString(),
+			ns,
 			typ,
 			target.ShortString(),
 			p.Len(),
@@ -243,7 +248,11 @@ func (s *session) Notify(ctx context.Context, target ident.SessionID, typ string
 	return err
 }
 
-func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, typ string, p *rinq.Payload) error {
+func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, ns, typ string, p *rinq.Payload) error {
+	if err := rinq.ValidateNamespace(ns); err != nil {
+		return err
+	}
+
 	select {
 	case <-s.done:
 		return rinq.NotFoundError{ID: s.id}
@@ -251,12 +260,13 @@ func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, typ strin
 	}
 
 	msgID := s.catalog.NextMessageID()
-	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, typ, p)
+	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, typ, p)
 
 	if err == nil {
 		s.logger.Log(
-			"%s sent '%s' notification to sessions matching {%s} (%d/o) [%s]",
+			"%s sent '%s::%s' notification to sessions matching {%s} (%d/o) [%s]",
 			msgID.ShortString(),
+			ns,
 			typ,
 			con,
 			p.Len(),
@@ -267,7 +277,11 @@ func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, typ strin
 	return err
 }
 
-func (s *session) Listen(handler rinq.NotificationHandler) error {
+func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
+	if err := rinq.ValidateNamespace(ns); err != nil {
+		return err
+	}
+
 	if handler == nil {
 		panic("handler must not be nil")
 	}
@@ -283,6 +297,7 @@ func (s *session) Listen(handler rinq.NotificationHandler) error {
 
 	changed, err := s.listener.Listen(
 		s.id,
+		ns,
 		func(
 			ctx context.Context,
 			target rinq.Session,
@@ -291,8 +306,9 @@ func (s *session) Listen(handler rinq.NotificationHandler) error {
 			rev := s.catalog.Head()
 
 			s.logger.Log(
-				"%s received '%s' notification from %s (%d/i) [%s]",
+				"%s received '%s::%s' notification from %s (%d/i) [%s]",
 				rev.Ref().ShortString(),
+				n.Namespace,
 				n.Type,
 				n.Source.Ref().ShortString(),
 				n.Payload.Len(),
@@ -307,15 +323,20 @@ func (s *session) Listen(handler rinq.NotificationHandler) error {
 		return err
 	} else if changed && s.logger.IsDebug() {
 		s.logger.Log(
-			"%s started listening for notifications",
+			"%s started listening for notifications in '%s' namespace",
 			s.catalog.Ref().ShortString(),
+			ns,
 		)
 	}
 
 	return nil
 }
 
-func (s *session) Unlisten() error {
+func (s *session) Unlisten(ns string) error {
+	if err := rinq.ValidateNamespace(ns); err != nil {
+		return err
+	}
+
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -325,14 +346,15 @@ func (s *session) Unlisten() error {
 	default:
 	}
 
-	changed, err := s.listener.Unlisten(s.id)
+	changed, err := s.listener.Unlisten(s.id, ns)
 
 	if err != nil {
 		return err
 	} else if changed && s.logger.IsDebug() {
 		s.logger.Log(
-			"%s stopped listening for notifications",
+			"%s stopped listening for notifications in '%s' namespace",
 			s.catalog.Ref().ShortString(),
+			ns,
 		)
 	}
 
@@ -356,7 +378,7 @@ func (s *session) destroy() bool {
 		close(s.done)
 		s.catalog.Close()
 		s.invoker.SetAsyncHandler(s.id, nil)
-		_, _ = s.listener.Unlisten(s.id)
+		_ = s.listener.UnlistenAll(s.id)
 		return true
 	}
 }
