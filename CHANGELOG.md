@@ -11,6 +11,7 @@ broker before starting a peer.
 - **[BC]** Rename `Config.CommandPreFetch` to `CommandWorkers`
 - **[BC]** Rename `Config.SessionPreFetch` to `SessionWorkers`
 - **[FIX]** Fix race-condition caused by payload buffer "double-free"
+- **[NEW]** Add `Config.Product`
 - **[IMPROVED]** `Session.NotifyMany()` and `NotifyMany()` now return `context.Canceled` when the peer is stopping
 
 ## 0.3.0 (2017-04-07)

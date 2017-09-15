@@ -30,6 +30,11 @@ type Config struct {
 	// PruneInterval specifies how often the cache of remote session information
 	// is purged of unused data.
 	PruneInterval time.Duration
+
+	// Product is an application-defined string that identifies the application.
+	// It is recommended that the product take the form "<product>/<version>"
+	// such as "my-app/1.3.0".
+	Product string
 }
 
 func init() {

@@ -17,6 +17,7 @@ var _ = Describe("DefaultConfig", func() {
 			SessionWorkers: runtime.GOMAXPROCS(0) * 10,
 			Logger:         rinq.NewLogger(false),
 			PruneInterval:  3 * time.Minute,
+			Product:        "",
 		}))
 	})
 })
