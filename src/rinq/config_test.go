@@ -12,11 +12,11 @@ import (
 var _ = Describe("DefaultConfig", func() {
 	It("uses the correct defaults", func() {
 		Expect(rinq.DefaultConfig).To(Equal(rinq.Config{
-			DefaultTimeout:  5 * time.Second,
-			CommandPreFetch: runtime.GOMAXPROCS(0),
-			SessionPreFetch: runtime.GOMAXPROCS(0) * 10,
-			Logger:          rinq.NewLogger(false),
-			PruneInterval:   3 * time.Minute,
+			DefaultTimeout: 5 * time.Second,
+			CommandWorkers: runtime.GOMAXPROCS(0),
+			SessionWorkers: runtime.GOMAXPROCS(0) * 10,
+			Logger:         rinq.NewLogger(false),
+			PruneInterval:  3 * time.Minute,
 		}))
 	})
 })

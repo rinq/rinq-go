@@ -31,7 +31,7 @@ func New(
 
 	invoker, err := newInvoker(
 		peerID,
-		config.SessionPreFetch,
+		config.SessionWorkers,
 		config.DefaultTimeout,
 		sessions,
 		queues,
@@ -44,7 +44,7 @@ func New(
 
 	server, err := newServer(
 		peerID,
-		config.CommandPreFetch,
+		config.CommandWorkers,
 		revisions,
 		queues,
 		channels,

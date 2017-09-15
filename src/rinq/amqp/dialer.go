@@ -220,12 +220,12 @@ func withDefaults(cfg rinq.Config) rinq.Config {
 		cfg.DefaultTimeout = rinq.DefaultConfig.DefaultTimeout
 	}
 
-	if cfg.CommandPreFetch == 0 {
-		cfg.CommandPreFetch = rinq.DefaultConfig.CommandPreFetch
+	if cfg.CommandWorkers == 0 {
+		cfg.CommandWorkers = rinq.DefaultConfig.CommandWorkers
 	}
 
-	if cfg.SessionPreFetch == 0 {
-		cfg.SessionPreFetch = rinq.DefaultConfig.SessionPreFetch
+	if cfg.SessionWorkers == 0 {
+		cfg.SessionWorkers = rinq.DefaultConfig.SessionWorkers
 	}
 
 	if cfg.Logger == nil {

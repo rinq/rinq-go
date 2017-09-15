@@ -18,14 +18,14 @@ type Config struct {
 	// Logger defines the target for all of the peer's logs.
 	Logger Logger
 
-	// CommandPreFetch is the number of incoming command REQUESTS that are
+	// CommandWorkers is the number of incoming command REQUESTS that are
 	// accepted at any given time. A new goroutine is started to service each
 	// command request.
-	CommandPreFetch int
+	CommandWorkers int
 
-	// SessionPreFetch is the number of command RESPONSES or notifications that
+	// SessionWorkers is the number of command RESPONSES or notifications that
 	// are buffered in memory at any given time.
-	SessionPreFetch int
+	SessionWorkers int
 
 	// PruneInterval specifies how often the cache of remote session information
 	// is purged of unused data.
@@ -34,10 +34,10 @@ type Config struct {
 
 func init() {
 	DefaultConfig = Config{
-		DefaultTimeout:  5 * time.Second,
-		CommandPreFetch: runtime.GOMAXPROCS(0),
-		SessionPreFetch: runtime.GOMAXPROCS(0) * 10,
-		Logger:          NewLogger(false),
-		PruneInterval:   3 * time.Minute,
+		DefaultTimeout: 5 * time.Second,
+		CommandWorkers: runtime.GOMAXPROCS(0),
+		SessionWorkers: runtime.GOMAXPROCS(0) * 10,
+		Logger:         NewLogger(false),
+		PruneInterval:  3 * time.Minute,
 	}
 }

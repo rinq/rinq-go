@@ -17,7 +17,7 @@ func New(
 	revisions revision.Store,
 	channels amqputil.ChannelPool,
 ) (notify.Notifier, notify.Listener, error) {
-	channel, err := channels.GetQOS(config.SessionPreFetch) // do not return to pool, use for listener
+	channel, err := channels.GetQOS(config.SessionWorkers) // do not return to pool, use for listener
 	if err != nil {
 		return nil, nil, err
 	}
@@ -28,7 +28,7 @@ func New(
 
 	listener, err := newListener(
 		peerID,
-		config.SessionPreFetch,
+		config.SessionWorkers,
 		sessions,
 		revisions,
 		channel,

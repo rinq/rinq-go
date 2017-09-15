@@ -14,21 +14,21 @@ var _ = Describe("Dialer", func() {
 			config := withDefaults(rinq.Config{})
 
 			Expect(config).To(Equal(rinq.Config{
-				DefaultTimeout:  rinq.DefaultConfig.DefaultTimeout,
-				CommandPreFetch: rinq.DefaultConfig.CommandPreFetch,
-				SessionPreFetch: rinq.DefaultConfig.SessionPreFetch,
-				Logger:          rinq.DefaultConfig.Logger,
-				PruneInterval:   rinq.DefaultConfig.PruneInterval,
+				DefaultTimeout: rinq.DefaultConfig.DefaultTimeout,
+				CommandWorkers: rinq.DefaultConfig.CommandWorkers,
+				SessionWorkers: rinq.DefaultConfig.SessionWorkers,
+				Logger:         rinq.DefaultConfig.Logger,
+				PruneInterval:  rinq.DefaultConfig.PruneInterval,
 			}))
 		})
 
 		It("does not replace existing values", func() {
 			config := rinq.Config{
-				DefaultTimeout:  10 * time.Second,
-				CommandPreFetch: 10,
-				SessionPreFetch: 20,
-				Logger:          rinq.NewLogger(true),
-				PruneInterval:   20 * time.Second,
+				DefaultTimeout: 10 * time.Second,
+				CommandWorkers: 10,
+				SessionWorkers: 20,
+				Logger:         rinq.NewLogger(true),
+				PruneInterval:  20 * time.Second,
 			}
 
 			Expect(withDefaults(config)).To(Equal(config))
