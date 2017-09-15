@@ -322,11 +322,10 @@ func (s *server) handle(
 	defer cancel()
 
 	req := rinq.Request{
-		Source:      source,
-		Namespace:   ns,
-		Command:     cmd,
-		Payload:     rinq.NewPayloadFromBytes(msg.Body),
-		IsMulticast: msg.Exchange == multicastExchange,
+		Source:    source,
+		Namespace: ns,
+		Command:   cmd,
+		Payload:   rinq.NewPayloadFromBytes(msg.Body),
 	}
 
 	res, finalize := newResponse(

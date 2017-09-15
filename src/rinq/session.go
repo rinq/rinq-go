@@ -110,19 +110,6 @@ type Session interface {
 	// command request can not be sent.
 	Execute(ctx context.Context, ns, cmd string, out *Payload) (err error)
 
-	// Execute sends a command request to all peers listening to the ns
-	// namespace and returns immediately.
-	//
-	// Only those peers that are connected to the network at the time the
-	// request is sent will receive it. Requests are not queued for future peers.
-	//
-	// cmd and out are an application-defined command name and request payload,
-	// respectively. Both are passed to the command handler on the server.
-	//
-	// If IsNotFound(err) returns true, the session has been closed and the
-	// command request can not be sent.
-	ExecuteMany(ctx context.Context, ns, cmd string, out *Payload) (err error)
-
 	// Notify sends a message directly to another session.
 	//
 	// t and out are an application-defined notification type and payload,

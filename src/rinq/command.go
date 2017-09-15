@@ -42,10 +42,6 @@ type Request struct {
 	// Payload contains optional application-defined information about the
 	// request, such as arguments to the command.
 	Payload *Payload
-
-	// IsMulticast is true if the command request was (potentially) sent to more
-	// than one peer using Session.ExecuteMany().
-	IsMulticast bool
 }
 
 // Response sends a reply to incoming command requests.

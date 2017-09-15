@@ -6,8 +6,9 @@ Please note that this release includes changes to the definition of AMQP
 exchanges. The `ntf.uc` and `ntf.mc` exchanges will need to be deleted on the
 broker before starting a peer.
 
+- **[BC]** Remove `Session.ExecuteMany()`
 - **[BC]** Add namespaces to session notifications
-- **[FIX]** Fix race-condition caused by payload buffer "double-free" 
+- **[FIX]** Fix race-condition caused by payload buffer "double-free"
 
 ## 0.3.0 (2017-04-07)
 

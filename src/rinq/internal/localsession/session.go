@@ -187,34 +187,6 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 	return err
 }
 
-func (s *session) ExecuteMany(ctx context.Context, ns, cmd string, p *rinq.Payload) error {
-	if err := rinq.ValidateNamespace(ns); err != nil {
-		return err
-	}
-
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
-	}
-
-	msgID := s.catalog.NextMessageID()
-	traceID, err := s.invoker.ExecuteMulticast(ctx, msgID, ns, cmd, p)
-
-	if err == nil {
-		s.logger.Log(
-			"%s executed '%s::%s' command on multiple peers (%d/o) [%s]",
-			msgID.ShortString(),
-			ns,
-			cmd,
-			p.Len(),
-			traceID,
-		)
-	}
-
-	return err
-}
-
 func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, typ string, p *rinq.Payload) error {
 	if err := target.Validate(); err != nil || target.Seq == 0 {
 		return fmt.Errorf("session ID %s is invalid", target)
