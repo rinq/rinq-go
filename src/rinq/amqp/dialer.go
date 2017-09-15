@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	version "github.com/hashicorp/go-version"
 	"github.com/rinq/rinq-go/src/rinq"
@@ -12,6 +13,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/commandamqp"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/notifyamqp"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/env"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/remotesession"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
@@ -44,6 +46,51 @@ func Dial(dsn string) (rinq.Peer, error) {
 func DialConfig(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Peer, error) {
 	d := Dialer{}
 	return d.Dial(ctx, dsn, cfg)
+}
+
+// DialEnv connects to an AMQP-based Rinq network using the a dialer and
+// configuration described by environment variables.
+//
+// The AMQP-specific environment variables are listed below. If any variable is
+// undefined, the default value is used. Additionally, the Rinq configuration is
+// obtained by calling rinq.NewConfigFromEnv().
+//
+// - RINQ_AMQP_DSN
+// - RINQ_AMQP_HEARTBEAT (duration in milliseconds, non-zero)
+// - RINQ_AMQP_CHANNELS (channel pool size, positive integer, non-zero)
+//
+// Note that for consistency with other environment variables, RINQ_AMQP_HEARTBEAT
+// is specified in milliseconds, but AMQP only supports 1-second resolution for
+// heartbeats. The heartbeat value is ROUNDED UP to the nearest whole second.
+func DialEnv() (rinq.Peer, error) {
+	cfg, err := rinq.NewConfigFromEnv()
+	if err != nil {
+		return nil, err
+	}
+
+	d := Dialer{}
+
+	d.AMQPConfig.Heartbeat, err = env.Duration("RINQ_AMQP_HEARTBEAT", 0)
+	if err != nil {
+		return nil, err
+	}
+
+	// round up to the nearest second
+	if r := d.AMQPConfig.Heartbeat % time.Second; r != 0 {
+		d.AMQPConfig.Heartbeat += time.Second - r
+	}
+
+	chans, err := env.Int("RINQ_AMQP_CHANNELS", DefaultPoolSize)
+	if err != nil {
+		return nil, err
+	}
+	d.PoolSize = uint(chans)
+
+	return d.Dial(
+		context.Background(),
+		os.Getenv("RINQ_AMQP_DSN"),
+		cfg,
+	)
 }
 
 // Dial connects to an AMQP-based Rinq network using the specified context and

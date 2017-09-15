@@ -13,7 +13,7 @@ import (
 // This example illustrates how to respond to a command request with an
 // application-defined failure.
 func ExampleResponse_fail() {
-	peer, err := amqp.Dial("")
+	peer, err := amqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}

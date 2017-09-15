@@ -74,11 +74,11 @@ var _ = Describe("ConfigFromEnv", func() {
 			Expect(cfg.Logger).To(Equal(rinq.NewLogger(false)))
 		})
 
-		It("uses a non-debug logger when undefined", func() {
+		It("uses the default when undefined", func() {
 			cfg, err := rinq.NewConfigFromEnv()
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cfg.Logger).To(Equal(rinq.NewLogger(false)))
+			Expect(cfg.Logger).To(Equal(rinq.DefaultConfig.Logger))
 		})
 
 		It("returns an error if the value is not a boolean", func() {

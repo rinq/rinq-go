@@ -13,7 +13,7 @@ import (
 
 // This example shows how to make an asynchronous command call.
 func ExampleSession_callAsync() {
-	peer, err := amqp.Dial("")
+	peer, err := amqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
@@ -67,7 +67,7 @@ func ExampleSession_callAsync() {
 
 // This example shows how to send a notification from one session to another.
 func ExampleSession_notify() {
-	peer, err := amqp.Dial("")
+	peer, err := amqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
@@ -117,7 +117,7 @@ func ExampleSession_notify() {
 // This example shows how to send a notification from one session to several
 // sessions that contain a specific attribute value.
 func ExampleSession_notifyMany() {
-	peer, err := amqp.Dial("")
+	peer, err := amqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}

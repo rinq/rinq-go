@@ -60,7 +60,7 @@ func mathHandler(
 func Example_mathService() {
 	// create a new peer to act as the "server" and start listening for commands
 	// in the "math" namespace.
-	serverPeer, err := amqp.Dial("")
+	serverPeer, err := amqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
@@ -69,7 +69,7 @@ func Example_mathService() {
 
 	// create a new peer to act as the "client", and a session to make the
 	// call.
-	clientPeer, err := amqp.Dial("")
+	clientPeer, err := amqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}

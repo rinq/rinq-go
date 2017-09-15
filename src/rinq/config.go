@@ -1,12 +1,11 @@
 package rinq
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"runtime"
-	"strconv"
 	"time"
+
+	"github.com/rinq/rinq-go/src/rinq/internal/env"
 )
 
 // DefaultConfig is the default peer configuration.
@@ -43,85 +42,51 @@ type Config struct {
 
 // NewConfigFromEnv returns a peer configuration with values read from environment variables.
 //
-// The environment variables are listed below. If any variable is undefined, the
+// The environment variables are listed below. Each variable directly affects
+// one of the fields in the Config struct. If any variable is undefined, the
 // value from DefaultConfig is used.
 //
-// - RINQ_DEFAULT_TIMEOUT -> Config.DefaultTimeout - in milliseconds, must be a postive integer.
-// - RINQ_LOG_DEBUG       -> Enable debug logging  - must be "true" or "false".
-// - RINQ_COMMAND_WORKERS -> Config.CommandWorkers - must be a positive integer.
-// - RINQ_SESSION_WORKERS -> Config.SessionWorkers - must be a positive integer.
-// - RINQ_PRUNE_INTERVAL  -> Config.PruneInterval  - in milliseconds, must be a postive integer.
-// - RINQ_PRODUCT         -> Config.Product        - free-form string.
-func NewConfigFromEnv() (Config, error) {
-	cfg := DefaultConfig
-
-	t, ok, err := timeFromEnv("RINQ_DEFAULT_TIMEOUT")
+// - RINQ_DEFAULT_TIMEOUT (duration in milliseconds, non-zero)
+// - RINQ_LOG_DEBUG       (boolean 'true' or 'false')
+// - RINQ_COMMAND_WORKERS (positive integer, non-zero)
+// - RINQ_SESSION_WORKERS (positive integer, non-zero)
+// - RINQ_PRUNE_INTERVAL  (duration in milliseconds, non-zero)
+// - RINQ_PRODUCT         (string)
+func NewConfigFromEnv() (cfg Config, err error) {
+	cfg.DefaultTimeout, err = env.Duration("RINQ_DEFAULT_TIMEOUT", DefaultConfig.DefaultTimeout)
 	if err != nil {
-		return cfg, err
-	} else if ok {
-		cfg.DefaultTimeout = t
+		return
 	}
 
-	if v := os.Getenv("RINQ_LOG_DEBUG"); v != "" {
-		if v == "true" {
-			cfg.Logger = NewLogger(true)
-		} else if v == "false" {
-			cfg.Logger = NewLogger(false)
-		} else {
-			return cfg, errors.New("RINQ_LOG_DEBUG must be 'true' or 'false'")
-		}
+	debug, err := env.Bool("RINQ_LOG_DEBUG", false)
+	if err != nil {
+		return
 	}
 
-	n, ok, err := intFromEnv("RINQ_COMMAND_WORKERS")
-	if err != nil {
-		return cfg, err
-	} else if ok {
-		cfg.CommandWorkers = n
+	if debug == DefaultConfig.Logger.IsDebug() {
+		cfg.Logger = DefaultConfig.Logger
+	} else {
+		cfg.Logger = NewLogger(debug)
 	}
 
-	n, ok, err = intFromEnv("RINQ_SESSION_WORKERS")
+	cfg.CommandWorkers, err = env.Int("RINQ_COMMAND_WORKERS", DefaultConfig.CommandWorkers)
 	if err != nil {
-		return cfg, err
-	} else if ok {
-		cfg.SessionWorkers = n
+		return
 	}
 
-	t, ok, err = timeFromEnv("RINQ_PRUNE_INTERVAL")
+	cfg.SessionWorkers, err = env.Int("RINQ_SESSION_WORKERS", DefaultConfig.SessionWorkers)
 	if err != nil {
-		return cfg, err
-	} else if ok {
-		cfg.PruneInterval = t
+		return
+	}
+
+	cfg.PruneInterval, err = env.Duration("RINQ_PRUNE_INTERVAL", DefaultConfig.PruneInterval)
+	if err != nil {
+		return
 	}
 
 	cfg.Product = os.Getenv("RINQ_PRODUCT")
 
-	return cfg, nil
-}
-
-func intFromEnv(v string) (int, bool, error) {
-	if s := os.Getenv(v); s != "" {
-		n, err := strconv.ParseUint(s, 10, 31)
-		if err != nil {
-			return 0, false, fmt.Errorf("%s must be a non-zero integer", v)
-		}
-
-		return int(n), true, nil
-	}
-
-	return 0, false, nil
-}
-
-func timeFromEnv(v string) (time.Duration, bool, error) {
-	if s := os.Getenv(v); s != "" {
-		n, err := strconv.ParseUint(s, 10, 63)
-		if err != nil {
-			return 0, false, fmt.Errorf("%s must be a non-zero duration (in milliseconds)", v)
-		}
-
-		return time.Duration(n) * time.Millisecond, true, nil
-	}
-
-	return 0, false, nil
+	return
 }
 
 func init() {

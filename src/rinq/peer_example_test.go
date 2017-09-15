@@ -12,7 +12,7 @@ import (
 
 // This example illustrates how to establish a new session.
 func ExamplePeer_session() {
-	peer, err := amqp.Dial("")
+	peer, err := amqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
@@ -27,7 +27,7 @@ func ExamplePeer_session() {
 
 // This example illustrates how to listen for incoming command requests.
 func ExamplePeer_listen() {
-	peer, err := amqp.Dial("")
+	peer, err := amqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
