@@ -28,9 +28,10 @@ type listener struct {
 	parentCtx context.Context // parent of all contexts passed to handlers
 	cancelCtx func()          // cancels parentCtx when the server stops
 
-	mutex    sync.RWMutex
-	channel  *amqp.Channel // channel used for consuming
-	handlers map[ident.SessionID]rinq.NotificationHandler
+	mutex      sync.RWMutex
+	channel    *amqp.Channel   // channel used for consuming
+	namespaces map[string]uint // map of namespace to listener count
+	handlers   map[ident.SessionID]map[string]rinq.NotificationHandler
 
 	deliveries <-chan amqp.Delivery // incoming notifications
 	handled    chan struct{}        // signals a notification has been handled
@@ -57,7 +58,8 @@ func newListener(
 		logger:    logger,
 		channel:   channel,
 
-		handlers: map[ident.SessionID]rinq.NotificationHandler{},
+		namespaces: map[string]uint{},
+		handlers:   map[ident.SessionID]map[string]rinq.NotificationHandler{},
 
 		handled:    make(chan struct{}, preFetch),
 		amqpClosed: make(chan *amqp.Error, 1),
@@ -75,70 +77,135 @@ func newListener(
 	return l, nil
 }
 
-func (l *listener) Listen(id ident.SessionID, handler rinq.NotificationHandler) (bool, error) {
+func (l *listener) Listen(id ident.SessionID, ns string, handler rinq.NotificationHandler) (bool, error) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	if len(l.handlers) == 0 {
-		queue := notifyQueue(l.peerID)
+	count := l.namespaces[ns] + 1
 
-		if err := l.channel.QueueBind(
-			queue,
-			id.Peer.String()+".*",
-			unicastExchange,
-			false, // noWait
-			nil,   // args
-		); err != nil {
-			return false, err
-		}
-
-		if err := l.channel.QueueBind(
-			queue,
-			"",
-			multicastExchange,
-			false, // noWait
-			nil,   // args
-		); err != nil {
+	if count == 1 {
+		if err := l.bindQueues(ns); err != nil {
 			return false, err
 		}
 	}
 
-	_, exists := l.handlers[id]
-	l.handlers[id] = handler
+	handlers, ok := l.handlers[id]
+	if !ok {
+		handlers = map[string]rinq.NotificationHandler{}
+		l.handlers[id] = handlers
+	}
 
-	return !exists, nil
+	_, ok = handlers[ns]
+	handlers[ns] = handler
+
+	if ok {
+		return false, nil
+	}
+
+	l.namespaces[ns] = count
+
+	return true, nil
 }
 
-func (l *listener) Unlisten(id ident.SessionID) (bool, error) {
+func (l *listener) Unlisten(id ident.SessionID, ns string) (bool, error) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	_, exists := l.handlers[id]
-	delete(l.handlers, id)
+	handlers, ok := l.handlers[id]
+	if !ok {
+		return false, nil
+	}
 
-	if len(l.handlers) == 0 {
-		queue := notifyQueue(l.peerID)
+	_, ok = handlers[ns]
+	if !ok {
+		return false, nil
+	}
 
-		if err := l.channel.QueueUnbind(
-			queue,
-			id.Peer.String()+".*",
-			unicastExchange,
-			nil, // args
-		); err != nil {
-			return false, err
-		}
+	delete(handlers, ns)
 
-		if err := l.channel.QueueUnbind(
-			queue,
-			"",
-			multicastExchange,
-			nil, // args
-		); err != nil {
+	if len(handlers) == 0 {
+		delete(l.handlers, id)
+	}
+
+	count := l.namespaces[ns] - 1
+	l.namespaces[ns] = count
+
+	if count == 0 {
+		if err := l.unbindQueues(ns); err != nil {
 			return false, err
 		}
 	}
 
-	return exists, nil
+	return true, nil
+}
+
+func (l *listener) UnlistenAll(id ident.SessionID) error {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+
+	handlers := l.handlers[id]
+	delete(l.handlers, id)
+
+	var namespaces []string
+
+	for ns := range handlers {
+		count := l.namespaces[ns] - 1
+		l.namespaces[ns] = count
+
+		if count == 0 {
+			namespaces = append(namespaces, ns)
+		}
+	}
+
+	for _, ns := range namespaces {
+		if err := l.unbindQueues(ns); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (l *listener) bindQueues(ns string) error {
+	queue := notifyQueue(l.peerID)
+
+	if err := l.channel.QueueBind(
+		queue,
+		unicastRoutingKey(ns, l.peerID),
+		unicastExchange,
+		false, // noWait
+		nil,   // args
+	); err != nil {
+		return err
+	}
+
+	return l.channel.QueueBind(
+		queue,
+		ns,
+		multicastExchange,
+		false, // noWait
+		nil,   // args
+	)
+}
+
+func (l *listener) unbindQueues(ns string) error {
+	queue := notifyQueue(l.peerID)
+
+	if err := l.channel.QueueUnbind(
+		queue,
+		unicastRoutingKey(ns, l.peerID),
+		unicastExchange,
+		nil, // args
+	); err != nil {
+		return err
+	}
+
+	return l.channel.QueueUnbind(
+		queue,
+		ns,
+		multicastExchange,
+		nil, // args
+	)
 }
 
 // initialize prepares the AMQP channel
@@ -286,7 +353,12 @@ func (l *listener) handleUnicast(
 	msg *amqp.Delivery,
 	source rinq.Revision,
 ) error {
-	sessID, err := ident.ParseSessionID(msg.RoutingKey)
+	ns, t, p, err := unpackCommonAttributes(msg)
+	if err != nil {
+		return err
+	}
+
+	sessID, err := unpackTarget(msg)
 	if err != nil {
 		return err
 	}
@@ -303,9 +375,10 @@ func (l *listener) handleUnicast(
 		msgID,
 		sess,
 		rinq.Notification{
-			Source:  source,
-			Type:    msg.Type,
-			Payload: rinq.NewPayloadFromBytes(msg.Body),
+			Source:    source,
+			Namespace: ns,
+			Type:      t,
+			Payload:   p,
 		},
 	)
 
@@ -337,9 +410,13 @@ func (l *listener) handleMulticast(
 		return nil
 	}
 
+	ns, t, p, err := unpackCommonAttributes(msg)
+	if err != nil {
+		return err
+	}
+	defer p.Close()
+
 	ctx := amqputil.UnpackTrace(l.parentCtx, msg)
-	payload := rinq.NewPayloadFromBytes(msg.Body)
-	defer payload.Close()
 
 	for _, sess := range sessions {
 		l.handle(
@@ -348,8 +425,9 @@ func (l *listener) handleMulticast(
 			sess,
 			rinq.Notification{
 				Source:      source,
-				Type:        msg.Type,
-				Payload:     payload.Clone(),
+				Namespace:   ns,
+				Type:        t,
+				Payload:     p.Clone(),
 				IsMulticast: true,
 				Constraint:  constraint,
 			},
@@ -368,7 +446,7 @@ func (l *listener) handle(
 	n rinq.Notification,
 ) {
 	l.mutex.RLock()
-	handler := l.handlers[sess.ID()]
+	handler := l.handlers[sess.ID()][n.Namespace]
 	l.mutex.RUnlock()
 
 	if handler == nil {

@@ -10,6 +10,7 @@ import (
 type Listener interface {
 	service.Service
 
-	Listen(id ident.SessionID, h rinq.NotificationHandler) (bool, error)
-	Unlisten(id ident.SessionID) (bool, error)
+	Listen(id ident.SessionID, ns string, h rinq.NotificationHandler) (bool, error)
+	Unlisten(id ident.SessionID, ns string) (bool, error)
+	UnlistenAll(id ident.SessionID) error
 }

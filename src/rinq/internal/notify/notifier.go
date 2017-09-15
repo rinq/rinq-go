@@ -14,6 +14,7 @@ type Notifier interface {
 		ctx context.Context,
 		msgID ident.MessageID,
 		s ident.SessionID,
+		ns string,
 		t string,
 		out *rinq.Payload,
 	) (string, error)
@@ -23,6 +24,7 @@ type Notifier interface {
 		ctx context.Context,
 		msgID ident.MessageID,
 		c rinq.Constraint,
+		ns string,
 		t string,
 		out *rinq.Payload,
 	) (string, error)
