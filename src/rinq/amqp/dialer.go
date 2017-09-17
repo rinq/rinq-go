@@ -3,6 +3,7 @@ package amqp
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path"
 	"time"
@@ -58,6 +59,7 @@ func DialConfig(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Peer, er
 // - RINQ_AMQP_DSN
 // - RINQ_AMQP_HEARTBEAT (duration in milliseconds, non-zero)
 // - RINQ_AMQP_CHANNELS (channel pool size, positive integer, non-zero)
+// - RINQ_AMQP_CONNECTION_TIMEOUT (duration in milliseconds, non-zero)
 //
 // Note that for consistency with other environment variables, RINQ_AMQP_HEARTBEAT
 // is specified in milliseconds, but AMQP only supports 1-second resolution for
@@ -86,8 +88,21 @@ func DialEnv() (rinq.Peer, error) {
 	}
 	d.PoolSize = uint(chans)
 
+	timeout, err := env.Duration("RINQ_AMQP_CONNECTION_TIMEOUT", 0)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := context.Background()
+
+	if timeout != 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
 	return d.Dial(
-		context.Background(),
+		ctx,
 		os.Getenv("RINQ_AMQP_DSN"),
 		cfg,
 	)
@@ -114,6 +129,10 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Pe
 	}
 
 	cfg = withDefaults(cfg)
+
+	if amqpCfg.Dial == nil {
+		amqpCfg.Dial = makeDeadlineDialer(ctx)
+	}
 
 	broker, err := amqp.DialConfig(dsn, amqpCfg)
 	if err != nil {
@@ -263,6 +282,30 @@ func (d *Dialer) checkCapabilities(broker *amqp.Connection) error {
 	}
 
 	return nil
+}
+
+type amqpDialer func(network, addr string) (net.Conn, error)
+
+// makeDeadlineDialer returns a dial function suitable for use in amqp.Config.Dial
+// which honours the deadline in ctx.
+func makeDeadlineDialer(ctx context.Context) amqpDialer {
+	dl, ok := ctx.Deadline()
+	if !ok {
+		// if there is no deadline, return nil, thereby using the default
+		// dialer provided by the amqp package.
+		return nil
+	}
+
+	return func(network, addr string) (conn net.Conn, err error) {
+		d := net.Dialer{}
+		conn, err = d.DialContext(ctx, network, addr)
+
+		if err == nil {
+			err = conn.SetDeadline(dl)
+		}
+
+		return
+	}
 }
 
 // withDefaults returns a copy of cfg config with empty properties replaced
