@@ -14,6 +14,7 @@ broker before starting a peer.
 - **[NEW]** Add `amqp.DialEnv()` which connects to an AMQP Rinq network described by environment variables
 - **[NEW]** Add `NewConfigFromEnv()` which returns a Rinq configuration described by environment variables
 - **[NEW]** Add `Config.Product` which is passed to the broker in the AMQP handshake
+- **[FIX]** Honour the context deadline when dialing an AMQP broker
 - **[IMPROVED]** `Session.NotifyMany()` and `NotifyMany()` now return `context.Canceled` when the peer is stopping
 
 ## 0.3.0 (2017-04-07)
