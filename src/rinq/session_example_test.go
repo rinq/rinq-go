@@ -5,6 +5,7 @@ package rinq_test
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 
 	. "github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp"
@@ -115,78 +116,62 @@ func ExampleSession_notify() {
 }
 
 // This example shows how to send a notification from one session to several
-// sessions that contain a specific attribute value.
+// sessions that contain specific attribute values.
 func ExampleSession_notifyMany() {
 	peer, err := amqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
-	defer peer.Stop()
 
-	// setup a command handler that sets an attribute on the source session
-	if err := peer.Listen(
-		"my-api",
-		func(ctx context.Context, req Request, res Response) {
-			if _, err := req.Source.Update(ctx, Freeze("foo", "bar")); err != nil {
-				res.Error(err)
-			}
-			res.Close()
-		},
-	); err != nil {
-		panic(err)
-	}
+	// create three sessions for receiving notifications
+	recv1 := peer.Session()
+	recv2 := peer.Session()
+	recv3 := peer.Session()
 
-	// create three sessions, two of which will match the constraint and hence
-	// receive the notification
-	//
-	// note that all three sessions are listening, but only two of them invoke
-	// the command above to set the "foo" attribute
-	var recv []Session
-	defer func() {
-		for _, s := range recv {
-			s.Destroy()
-		}
-	}()
-
-	count := 0
+	// create a notification handler that stops the peer once TWO notifications
+	// have been received
+	var recvCount int32
 	handler := func(ctx context.Context, target Session, n Notification) {
 		defer n.Payload.Close()
 
-		if target == recv[2] {
-			panic("session received unexpected notification")
+		if target == recv3 {
+			panic("message delivered to unexpected session")
 		}
 
 		fmt.Printf("received %s::%s with %s payload\n", n.Namespace, n.Type, n.Payload.Value())
 
-		count++
-
-		if count == 2 {
+		if atomic.AddInt32(&recvCount, 1) == 2 {
 			peer.Stop()
 		}
 	}
 
-	for i := 0; i < 3; i++ {
-		s := peer.Session()
-		recv = append(recv, s)
-
+	// configure all three sessions to listen for notifications
+	for _, s := range []Session{recv1, recv2, recv3} {
 		if err := s.Listen("my-api", handler); err != nil {
 			panic(err)
 		}
+	}
 
-		if i < 2 {
-			if _, err := s.Call(context.Background(), "my-api", "set-attr", nil); err != nil {
-				panic(err)
-			}
+	// update the first TWO sessions with a "foo" attribute
+	for _, s := range []Session{recv1, recv2} {
+		rev, err := s.CurrentRevision()
+		if err != nil {
+			panic(err)
+		}
+
+		if _, err := rev.Update(context.Background(), Freeze("foo", "bar")); err != nil {
+			panic(err)
 		}
 	}
 
 	// create a session to send the notification to recv
 	send := peer.Session()
-	defer send.Destroy()
 
 	payload := NewPayload("<payload>")
 	defer payload.Close()
 
+	// constraint the notification to only those sessions that have a "foo"
+	// attribute with a value of "bar"
 	con := Constraint{
 		"foo": "bar",
 	}
