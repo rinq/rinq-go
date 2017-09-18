@@ -40,7 +40,7 @@ func (p *channelPool) Get() (channel *amqp.Channel, err error) {
 }
 
 // GetQOS fetches a channel from the pool and sets the pre-fetch count
-// before returning it. The pre-fetch is applied to across all consumers on
+// before returning it. The pre-fetch is applied across all consumers on
 // the channel.
 func (p *channelPool) GetQOS(preFetch int) (*amqp.Channel, error) {
 	channel, err := p.Get()

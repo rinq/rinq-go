@@ -287,7 +287,7 @@ func (d *Dialer) checkCapabilities(broker *amqp.Connection) error {
 type amqpDialer func(network, addr string) (net.Conn, error)
 
 // makeDeadlineDialer returns a dial function suitable for use in amqp.Config.Dial
-// which honours the deadline in ctx.
+// which honors the deadline in ctx.
 func makeDeadlineDialer(ctx context.Context) amqpDialer {
 	dl, ok := ctx.Deadline()
 	if !ok {
