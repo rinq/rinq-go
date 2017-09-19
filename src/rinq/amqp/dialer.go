@@ -64,14 +64,9 @@ func Dial(dsn string, opts ...options.Option) (rinq.Peer, error) {
 // is specified in milliseconds, but AMQP only supports 1-second resolution for
 // heartbeats. The heartbeat value is ROUNDED UP to the nearest whole second.
 //
-// Options described by environment variables to precedence of those in the opts
-// slice.
+// Options defined by environment variables take precedence over those in the
+// opts slice.
 func DialEnv(opts ...options.Option) (rinq.Peer, error) {
-	envOpts, err := options.FromEnv()
-	if err != nil {
-		return nil, err
-	}
-
 	d := Dialer{}
 
 	hb, ok, err := env.Duration("RINQ_AMQP_HEARTBEAT")
@@ -104,10 +99,15 @@ func DialEnv(opts ...options.Option) (rinq.Peer, error) {
 		defer cancel()
 	}
 
+	envOpts, err := options.FromEnv()
+	if err != nil {
+		return nil, err
+	}
+
 	return d.Dial(
 		ctx,
 		os.Getenv("RINQ_AMQP_DSN"),
-		append(envOpts, opts...)...,
+		append(opts, envOpts...)...,
 	)
 }
 
