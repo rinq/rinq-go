@@ -16,8 +16,10 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/env"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
+	"github.com/rinq/rinq-go/src/rinq/internal/optutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/remotesession"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
+	"github.com/rinq/rinq-go/src/rinq/options"
 	"github.com/streadway/amqp"
 )
 
@@ -32,29 +34,26 @@ type Dialer struct {
 	AMQPConfig amqp.Config
 }
 
-// DefaultPoolSize is the default size to use for channel pools.
-const DefaultPoolSize = 20
+const (
+	// DefaultDSN is the AMQP DSN to use when no other DSN is specified.
+	DefaultDSN = "amqp://localhost"
 
-// Dial connects to an AMQP-based Rinq network using the default dialer and
-// configuration.
-func Dial(dsn string) (rinq.Peer, error) {
-	d := Dialer{}
-	return d.Dial(context.Background(), dsn, rinq.DefaultConfig)
-}
+	// DefaultPoolSize is the default size to use for channel pools.
+	DefaultPoolSize = 20
+)
 
-// DialConfig connects to an AMQP-based Rinq network using the default
-// dialer and the specified context and configuration.
-func DialConfig(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Peer, error) {
+// Dial connects to an AMQP-based Rinq network using the default dialer.
+func Dial(dsn string, opts ...options.Option) (rinq.Peer, error) {
 	d := Dialer{}
-	return d.Dial(ctx, dsn, cfg)
+	return d.Dial(context.Background(), dsn, opts...)
 }
 
 // DialEnv connects to an AMQP-based Rinq network using the a dialer and
-// configuration described by environment variables.
+// peer options described by environment variables.
 //
 // The AMQP-specific environment variables are listed below. If any variable is
-// undefined, the default value is used. Additionally, the Rinq configuration is
-// obtained by calling rinq.NewConfigFromEnv().
+// undefined, the default value is used. Additionally, Rinq peer options are
+// obtained by calling options.FromEnv().
 //
 // - RINQ_AMQP_DSN
 // - RINQ_AMQP_HEARTBEAT (duration in milliseconds, non-zero)
@@ -64,38 +63,42 @@ func DialConfig(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Peer, er
 // Note that for consistency with other environment variables, RINQ_AMQP_HEARTBEAT
 // is specified in milliseconds, but AMQP only supports 1-second resolution for
 // heartbeats. The heartbeat value is ROUNDED UP to the nearest whole second.
-func DialEnv() (rinq.Peer, error) {
-	cfg, err := rinq.NewConfigFromEnv()
+//
+// Options described by environment variables to precedence of those in the opts
+// slice.
+func DialEnv(opts ...options.Option) (rinq.Peer, error) {
+	envOpts, err := options.FromEnv()
 	if err != nil {
 		return nil, err
 	}
 
 	d := Dialer{}
 
-	d.AMQPConfig.Heartbeat, err = env.Duration("RINQ_AMQP_HEARTBEAT", 0)
+	hb, ok, err := env.Duration("RINQ_AMQP_HEARTBEAT")
 	if err != nil {
 		return nil, err
+	} else if ok {
+		d.AMQPConfig.Heartbeat = hb
+
+		// round up to the nearest second
+		if r := d.AMQPConfig.Heartbeat % time.Second; r != 0 {
+			d.AMQPConfig.Heartbeat += time.Second - r
+		}
 	}
 
-	// round up to the nearest second
-	if r := d.AMQPConfig.Heartbeat % time.Second; r != 0 {
-		d.AMQPConfig.Heartbeat += time.Second - r
-	}
-
-	chans, err := env.Int("RINQ_AMQP_CHANNELS", DefaultPoolSize)
+	chans, ok, err := env.UInt("RINQ_AMQP_CHANNELS")
 	if err != nil {
 		return nil, err
-	}
-	d.PoolSize = uint(chans)
-
-	timeout, err := env.Duration("RINQ_AMQP_CONNECTION_TIMEOUT", 0)
-	if err != nil {
-		return nil, err
+	} else if ok {
+		d.PoolSize = chans
 	}
 
 	ctx := context.Background()
 
-	if timeout != 0 {
+	timeout, ok, err := env.Duration("RINQ_AMQP_CONNECTION_TIMEOUT")
+	if err != nil {
+		return nil, err
+	} else if ok {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
@@ -104,15 +107,24 @@ func DialEnv() (rinq.Peer, error) {
 	return d.Dial(
 		ctx,
 		os.Getenv("RINQ_AMQP_DSN"),
-		cfg,
+		append(envOpts, opts...)...,
 	)
 }
 
 // Dial connects to an AMQP-based Rinq network using the specified context and
 // configuration.
-func (d *Dialer) Dial(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Peer, error) {
+func (d *Dialer) Dial(
+	ctx context.Context,
+	dsn string,
+	opts ...options.Option,
+) (rinq.Peer, error) {
 	if dsn == "" {
-		dsn = "amqp://localhost"
+		dsn = DefaultDSN
+	}
+
+	cfg, err := optutil.NewConfig(opts...)
+	if err != nil {
+		return nil, err
 	}
 
 	amqpCfg := d.AMQPConfig
@@ -127,8 +139,6 @@ func (d *Dialer) Dial(ctx context.Context, dsn string, cfg rinq.Config) (rinq.Pe
 			"version": "rinq-go/" + rinq.Version,
 		}
 	}
-
-	cfg = withDefaults(cfg)
 
 	if amqpCfg.Dial == nil {
 		amqpCfg.Dial = makeDeadlineDialer(ctx)
@@ -306,30 +316,4 @@ func makeDeadlineDialer(ctx context.Context) amqpDialer {
 
 		return
 	}
-}
-
-// withDefaults returns a copy of cfg config with empty properties replaced
-// with their defaults.
-func withDefaults(cfg rinq.Config) rinq.Config {
-	if cfg.DefaultTimeout == 0 {
-		cfg.DefaultTimeout = rinq.DefaultConfig.DefaultTimeout
-	}
-
-	if cfg.CommandWorkers == 0 {
-		cfg.CommandWorkers = rinq.DefaultConfig.CommandWorkers
-	}
-
-	if cfg.SessionWorkers == 0 {
-		cfg.SessionWorkers = rinq.DefaultConfig.SessionWorkers
-	}
-
-	if cfg.Logger == nil {
-		cfg.Logger = rinq.DefaultConfig.Logger
-	}
-
-	if cfg.PruneInterval == 0 {
-		cfg.PruneInterval = rinq.DefaultConfig.PruneInterval
-	}
-
-	return cfg
 }

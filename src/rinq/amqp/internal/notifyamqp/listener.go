@@ -20,7 +20,7 @@ type listener struct {
 	sm *service.StateMachine
 
 	peerID    ident.PeerID
-	preFetch  int
+	preFetch  uint
 	sessions  localsession.Store
 	revisions revision.Store
 	logger    rinq.Logger
@@ -44,7 +44,7 @@ type listener struct {
 // newListener creates, starts and returns a new listener.
 func newListener(
 	peerID ident.PeerID,
-	preFetch int,
+	preFetch uint,
 	sessions localsession.Store,
 	revisions revision.Store,
 	channel *amqp.Channel,

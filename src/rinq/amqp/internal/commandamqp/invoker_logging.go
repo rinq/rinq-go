@@ -247,7 +247,7 @@ func logMulticastExecute(
 func logInvokerStart(
 	logger rinq.Logger,
 	peerID ident.PeerID,
-	preFetch int,
+	preFetch uint,
 ) {
 	if !logger.IsDebug() {
 		return

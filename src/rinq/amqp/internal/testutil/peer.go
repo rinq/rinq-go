@@ -1,12 +1,11 @@
 package testutil
 
 import (
-	"context"
-	"os"
 	"sync"
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp"
+	"github.com/rinq/rinq-go/src/rinq/options"
 )
 
 var sharedPeer struct {
@@ -28,12 +27,8 @@ func SharedPeer() rinq.Peer {
 
 // NewPeer returns a new peer for use in functional tests.
 func NewPeer() rinq.Peer {
-	peer, err := amqp.DialConfig(
-		context.Background(),
-		os.Getenv("RINQ_AMQP_DSN"),
-		rinq.Config{
-			Logger: rinq.NewLogger(true),
-		},
+	peer, err := amqp.DialEnv(
+		options.Logger(rinq.NewLogger(true)),
 	)
 
 	if err != nil {
