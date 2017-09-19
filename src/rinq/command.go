@@ -87,8 +87,8 @@ type Response interface {
 // Failure is an application-defined command error.
 //
 // Failures are used to indicate an error that is "expected" within the domain
-// of the command that produced it. The for part of the command's API and should
-// usually be handled by the caller.
+// of the command that produced it. Failures form part of the command's API and
+// should usually be handled by the caller.
 //
 // Failures can be produced by a command handler by calling Response.Fail() or
 // passing a Failure value to Response.Error().
