@@ -18,7 +18,7 @@ type server struct {
 	sm *service.StateMachine
 
 	peerID    ident.PeerID
-	preFetch  int
+	preFetch  uint
 	revisions revision.Store
 	queues    *queueSet
 	channels  amqputil.ChannelPool
@@ -42,7 +42,7 @@ type server struct {
 // newServer creates, starts and returns a new server.
 func newServer(
 	peerID ident.PeerID,
-	preFetch int,
+	preFetch uint,
 	revisions revision.Store,
 	queues *queueSet,
 	channels amqputil.ChannelPool,

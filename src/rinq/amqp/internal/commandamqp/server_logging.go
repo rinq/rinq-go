@@ -179,7 +179,7 @@ func logRequestRejected(
 func logServerStart(
 	logger rinq.Logger,
 	peerID ident.PeerID,
-	preFetch int,
+	preFetch uint,
 ) {
 	if !logger.IsDebug() {
 		return

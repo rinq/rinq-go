@@ -1,18 +1,18 @@
 package commandamqp
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
+	"github.com/rinq/rinq-go/src/rinq/internal/optutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
 )
 
 // New returns a pair of invoker and server.
 func New(
 	peerID ident.PeerID,
-	config rinq.Config,
+	cfg optutil.Config,
 	sessions localsession.Store,
 	revisions revision.Store,
 	channels amqputil.ChannelPool,
@@ -31,12 +31,12 @@ func New(
 
 	invoker, err := newInvoker(
 		peerID,
-		config.SessionWorkers,
-		config.DefaultTimeout,
+		cfg.SessionWorkers,
+		cfg.DefaultTimeout,
 		sessions,
 		queues,
 		channels,
-		config.Logger,
+		cfg.Logger,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -44,11 +44,11 @@ func New(
 
 	server, err := newServer(
 		peerID,
-		config.CommandWorkers,
+		cfg.CommandWorkers,
 		revisions,
 		queues,
 		channels,
-		config.Logger,
+		cfg.Logger,
 	)
 	if err != nil {
 		invoker.Stop()

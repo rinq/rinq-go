@@ -10,7 +10,7 @@ import (
 )
 
 // Payload is an application-defined value that is included in a command request,
-// command response, or intra-session notification.
+// command response, or inter-session notification.
 //
 // A nil-payload pointer is equivalent to a payload with a value of nil.
 //

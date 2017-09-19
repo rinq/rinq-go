@@ -1,6 +1,12 @@
 package amqputil
 
-import "github.com/streadway/amqp"
+import (
+	"errors"
+
+	"github.com/streadway/amqp"
+)
+
+const maxPreFetch = ^uint(0) >> 1 // largest int value as uint
 
 // ChannelPool provides a pool of reusable AMQP channels.
 type ChannelPool interface {
@@ -10,7 +16,7 @@ type ChannelPool interface {
 	// GetQOS fetches a channel from the pool and sets the pre-fetch count
 	// before returning it. The pre-fetch is applied to across all consumers on
 	// the channel.
-	GetQOS(preFetch int) (*amqp.Channel, error)
+	GetQOS(preFetch uint) (*amqp.Channel, error)
 
 	// Put returns a channel to the pool.
 	Put(*amqp.Channel)
@@ -42,7 +48,7 @@ func (p *channelPool) Get() (channel *amqp.Channel, err error) {
 // GetQOS fetches a channel from the pool and sets the pre-fetch count
 // before returning it. The pre-fetch is applied across all consumers on
 // the channel.
-func (p *channelPool) GetQOS(preFetch int) (*amqp.Channel, error) {
+func (p *channelPool) GetQOS(preFetch uint) (*amqp.Channel, error) {
 	channel, err := p.Get()
 	if err != nil {
 		return nil, err
@@ -53,7 +59,11 @@ func (p *channelPool) GetQOS(preFetch int) (*amqp.Channel, error) {
 	caps, _ := p.broker.Properties["capabilities"].(amqp.Table)
 	global, _ := caps["per_consumer_qos"].(bool)
 
-	err = channel.Qos(preFetch, 0, global)
+	if preFetch > maxPreFetch {
+		return nil, errors.New("pre-fetch is too large")
+	}
+
+	err = channel.Qos(int(preFetch), 0, global)
 	if err != nil {
 		return nil, err
 	}

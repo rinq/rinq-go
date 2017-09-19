@@ -7,47 +7,47 @@ import (
 	"time"
 )
 
-// Int parses and validates a non-zero integer from the environment
-// variable named v, or returns d if v is undefined.
-func Int(v string, d int) (int, error) {
+// UInt parses and validates a non-zero integer from the environment
+// variable named v.
+func UInt(v string) (uint, bool, error) {
 	if s := os.Getenv(v); s != "" {
 		n, err := strconv.ParseUint(s, 10, 31)
 		if err != nil || n == 0 {
-			return 0, fmt.Errorf("%s must be a non-zero integer", v)
+			return 0, false, fmt.Errorf("%s must be a non-zero integer", v)
 		}
 
-		return int(n), nil
+		return uint(n), true, nil
 	}
 
-	return d, nil
+	return 0, false, nil
 }
 
 // Duration parses and validates a non-zero duration in milliseconds
-// from the environment variable named v, or returns d if v is undefined.
-func Duration(v string, d time.Duration) (time.Duration, error) {
+// from the environment variable named v.
+func Duration(v string) (time.Duration, bool, error) {
 	if s := os.Getenv(v); s != "" {
 		n, err := strconv.ParseUint(s, 10, 63)
 		if err != nil {
-			return 0, fmt.Errorf("%s must be a non-zero duration (in milliseconds)", v)
+			return 0, false, fmt.Errorf("%s must be a non-zero duration (in milliseconds)", v)
 		}
 
-		return time.Duration(n) * time.Millisecond, nil
+		return time.Duration(n) * time.Millisecond, true, nil
 	}
 
-	return d, nil
+	return 0, false, nil
 }
 
 // Bool parses and validates a boolean string from the environment variable
-// named v, or returns d if v is undefined.
-func Bool(v string, d bool) (bool, error) {
+// named v.
+func Bool(v string) (bool, bool, error) {
 	switch os.Getenv(v) {
 	case "true":
-		return true, nil
+		return true, true, nil
 	case "false":
-		return false, nil
+		return false, true, nil
 	case "":
-		return d, nil
+		return false, false, nil
 	default:
-		return false, fmt.Errorf("%s must be 'true' or 'false'", v)
+		return false, false, fmt.Errorf("%s must be 'true' or 'false'", v)
 	}
 }

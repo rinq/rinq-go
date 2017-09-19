@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rinq/rinq-go/src/rinq"
 	. "github.com/rinq/rinq-go/src/rinq/amqp"
+	"github.com/rinq/rinq-go/src/rinq/options"
 )
 
 // This example demonstrates how to establish a peer on a Rinq network using
@@ -25,13 +25,12 @@ func ExampleDial() {
 }
 
 // This example demonstrates how to establish a peer on a Rinq network using
-// a custom configuration.
-func ExampleDialConfig() {
-	cfg := rinq.Config{
-		DefaultTimeout: 10 * time.Second,
-	}
-
-	peer, err := DialConfig(context.Background(), "amqp://localhost", cfg)
+// custom options.
+func ExampleDial_withOptions() {
+	peer, err := Dial(
+		"amqp://localhost",
+		options.DefaultTimeout(10*time.Second),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +49,6 @@ func ExampleDialer() {
 	peer, err := dialer.Dial(
 		context.Background(),
 		"amqp://localhost",
-		rinq.DefaultConfig,
 	)
 	if err != nil {
 		panic(err)

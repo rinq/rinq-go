@@ -21,7 +21,7 @@ type invoker struct {
 	sm *service.StateMachine
 
 	peerID         ident.PeerID
-	preFetch       int
+	preFetch       uint
 	defaultTimeout time.Duration
 	sessions       localsession.Store
 	queues         *queueSet
@@ -51,7 +51,7 @@ type call struct {
 // newInvoker creates, initializes and returns a new invoker.
 func newInvoker(
 	peerID ident.PeerID,
-	preFetch int,
+	preFetch uint,
 	defaultTimeout time.Duration,
 	sessions localsession.Store,
 	queues *queueSet,

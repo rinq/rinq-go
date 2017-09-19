@@ -71,8 +71,7 @@ type Response interface {
 	// The failure type t is used verbatim. The failure message is formatted
 	// according to the format specifier f, interpolated with values from v.
 	//
-	// A panic occurs if the response has already been closed or if failureType
-	// is empty.
+	// A panic occurs if the response has already been closed or if t is empty.
 	Fail(t, f string, v ...interface{}) Failure
 
 	// Close finalizes the response.
@@ -87,8 +86,8 @@ type Response interface {
 // Failure is an application-defined command error.
 //
 // Failures are used to indicate an error that is "expected" within the domain
-// of the command that produced it. The for part of the command's API and should
-// usually be handled by the caller.
+// of the command that produced it. Failures form part of the command's API and
+// should usually be handled by the caller.
 //
 // Failures can be produced by a command handler by calling Response.Fail() or
 // passing a Failure value to Response.Error().
