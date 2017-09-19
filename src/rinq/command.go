@@ -71,8 +71,7 @@ type Response interface {
 	// The failure type t is used verbatim. The failure message is formatted
 	// according to the format specifier f, interpolated with values from v.
 	//
-	// A panic occurs if the response has already been closed or if failureType
-	// is empty.
+	// A panic occurs if the response has already been closed or if t is empty.
 	Fail(t, f string, v ...interface{}) Failure
 
 	// Close finalizes the response.
