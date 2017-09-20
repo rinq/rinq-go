@@ -213,6 +213,7 @@ func (d *Dialer) Dial(
 		notifier,
 		listener,
 		cfg.Logger,
+		cfg.Tracer,
 	), nil
 }
 

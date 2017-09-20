@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
@@ -30,6 +31,7 @@ type peer struct {
 	notifier    notify.Notifier
 	listener    notify.Listener
 	logger      rinq.Logger
+	tracer      opentracing.Tracer
 	seq         uint32
 
 	amqpClosed chan *amqp.Error
@@ -45,6 +47,7 @@ func newPeer(
 	notifier notify.Notifier,
 	listener notify.Listener,
 	logger rinq.Logger,
+	tracer opentracing.Tracer,
 ) *peer {
 	p := &peer{
 		id:          id,
@@ -56,6 +59,7 @@ func newPeer(
 		notifier:    notifier,
 		listener:    listener,
 		logger:      logger,
+		tracer:      tracer,
 
 		amqpClosed: make(chan *amqp.Error, 1),
 	}
@@ -87,6 +91,7 @@ func (p *peer) Session() rinq.Session {
 		p.notifier,
 		p.listener,
 		p.logger,
+		p.tracer,
 	)
 
 	p.localStore.Add(sess, cat)
