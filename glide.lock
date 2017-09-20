@@ -1,10 +1,16 @@
-hash: 9af6840633affb5ca27c315723251db603301e43ccc882e2bed707a9fffe84a5
-updated: 2017-09-18T10:25:56.210112951+10:00
+hash: 70d5b9f8e3e9893ebba2093e1a071ff85131665aa0ce092391f2e40c1dbd0353
+updated: 2017-09-19T14:56:52.778218527+10:00
 imports:
+- name: github.com/apache/thrift
+  version: b2a4d4ae21c789b689dd162deb819665567f481c
+  subpackages:
+  - lib/go/thrift
+- name: github.com/codahale/hdrhistogram
+  version: 3a0bb77429bd3a61596f5e8a3172445844342120
 - name: github.com/hashicorp/go-version
   version: 03c5bf6be031b6dd45afec16b1cf94fc8938bc77
 - name: github.com/onsi/ginkgo
-  version: a1f616c97771e46da1722d3aa9dcde0a43f55682
+  version: 11459a886d9cd66b319dac7ef1e917ee221372c9
   subpackages:
   - config
   - extensions/table
@@ -25,7 +31,7 @@ imports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: 00acfa9d92a386415bd235ab069c52063f925998
+  version: dcabb60a477c2b6f456df65037cb6708210fbb02
   subpackages:
   - format
   - internal/assertion
@@ -38,19 +44,39 @@ imports:
   - matchers/support/goraph/node
   - matchers/support/goraph/util
   - types
+- name: github.com/opentracing/opentracing-go
+  version: 1949ddbfd147afd4d964a9f00b24eb291e0e7c38
+  subpackages:
+  - ext
+  - log
 - name: github.com/streadway/amqp
   version: 2cbfe40c9341ad63ba23e53013b3ddc7989d801c
+- name: github.com/uber/jaeger-client-go
+  version: 3e3870040def0ebdaf65a003863fa64f5cb26139
+  subpackages:
+  - internal/spanlog
+  - log
+  - thrift-gen/agent
+  - thrift-gen/jaeger
+  - thrift-gen/sampling
+  - thrift-gen/zipkincore
+  - utils
+- name: github.com/uber/jaeger-lib
+  version: 3b2a9ad2a045881ab7a0f81d465be54c8292ee4f
+  subpackages:
+  - metrics
 - name: github.com/ugorji/go
   version: 5efa3251c7f7d05e5d9704a69a984ec9f1386a40
   subpackages:
   - codec
-testImports:
 - name: golang.org/x/net
   version: 4f2fc6c1e69d41baf187332ee08fbd2b296f21ed
   subpackages:
+  - context
   - html
   - html/atom
   - html/charset
+testImports:
 - name: golang.org/x/sys
   version: d9157a9621b69ad1d8d77a1933590c416593f24f
   subpackages:
