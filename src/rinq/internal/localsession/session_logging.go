@@ -11,6 +11,16 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
+func logCreated(
+	logger rinq.Logger,
+	ref ident.Ref,
+) {
+	logger.Log(
+		"%s session created",
+		ref.ShortString(),
+	)
+}
+
 func logCall(
 	logger rinq.Logger,
 	msgID ident.MessageID,

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
@@ -36,6 +37,7 @@ func NewSession(
 	notifier notify.Notifier,
 	listener notify.Listener,
 	logger rinq.Logger,
+	tracer opentracing.Tracer,
 ) rinq.Session {
 	sess := &session{
 		id:       id,
@@ -47,10 +49,7 @@ func NewSession(
 		done:     make(chan struct{}),
 	}
 
-	sess.logger.Log(
-		"%s session created",
-		sess.catalog.Ref().ShortString(),
-	)
+	logCreated(logger, catalog.Ref())
 
 	go func() {
 		<-catalog.Done()
