@@ -32,6 +32,10 @@ func (c *Config) ApplyDefaultTimeout(v time.Duration) error {
 
 // ApplyLogger sets the Logger value.
 func (c *Config) ApplyLogger(v rinq.Logger) error {
+	if v == nil {
+		panic("logger must not be nil")
+	}
+
 	c.Logger = v
 	return nil
 }
@@ -62,6 +66,10 @@ func (c *Config) ApplyProduct(v string) error {
 
 // ApplyTracer sets the Tracer value.
 func (c *Config) ApplyTracer(v opentracing.Tracer) error {
+	if v == nil {
+		panic("tracer must not be nil")
+	}
+
 	c.Tracer = v
 	return nil
 }

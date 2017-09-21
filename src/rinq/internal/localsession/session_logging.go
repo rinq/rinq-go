@@ -89,8 +89,13 @@ func logAsyncRequest(
 	ns string,
 	cmd string,
 	out *rinq.Payload,
+	err error,
 	traceID string,
 ) {
+	if err != nil {
+		return // request never sent
+	}
+
 	logger.Log(
 		"%s called '%s::%s' command asynchronously (%d/o) [%s]",
 		msgID.ShortString(),

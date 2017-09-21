@@ -45,6 +45,10 @@ func Apply(v Visitor, opts ...Option) error {
 		return err
 	}
 
+	if err := v.ApplyTracer(opentracing.NoopTracer{}); err != nil {
+		return err
+	}
+
 	for _, o := range opts {
 		if err := o(v); err != nil {
 			return err

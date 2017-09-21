@@ -7,10 +7,12 @@ import (
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
+	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
@@ -21,6 +23,7 @@ type session struct {
 	notifier notify.Notifier
 	listener notify.Listener
 	logger   rinq.Logger
+	tracer   opentracing.Tracer
 	done     chan struct{}
 
 	// mutex guards Call(), Listen(), Unlisten() and Close() so that Close()
@@ -45,6 +48,7 @@ func NewSession(
 		invoker:  invoker,
 		notifier: notifier,
 		logger:   logger,
+		tracer:   tracer,
 		listener: listener,
 		done:     make(chan struct{}),
 	}
@@ -88,10 +92,16 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 
 	msgID := s.catalog.NextMessageID()
 
+	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
+	defer span.Finish()
+
+	traceCallBegin(span, msgID, ns, cmd, out)
+
 	start := time.Now()
 	traceID, in, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, out)
 	elapsed := time.Since(start) / time.Millisecond
 
+	traceCallEnd(span, in, err)
 	logCall(s.logger, msgID, ns, cmd, elapsed, out, in, err, traceID)
 
 	return in, err
@@ -115,14 +125,15 @@ func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 
 	msgID = s.catalog.NextMessageID()
 
+	span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindRPCClient)
+	defer span.Finish()
+
 	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
-	if err != nil {
-		return msgID, err
-	}
 
-	logAsyncRequest(s.logger, msgID, ns, cmd, out, traceID)
+	traceAsyncRequest(span, msgID, ns, cmd, out, err)
+	logAsyncRequest(s.logger, msgID, ns, cmd, out, err, traceID)
 
-	return msgID, nil
+	return msgID, err
 }
 
 // SetAsyncHandler sets the asynchronous call handler.
@@ -150,7 +161,12 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 			in *rinq.Payload,
 			err error,
 		) {
+			span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindRPCClient)
+			defer span.Finish()
+
+			traceAsyncResponse(ctx, span, msgID, ns, cmd, in, err)
 			logAsyncResponse(ctx, s.logger, msgID, ns, cmd, in, err)
+
 			h(ctx, sess, msgID, ns, cmd, in, err)
 		},
 	)
@@ -170,8 +186,15 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 	}
 
 	msgID := s.catalog.NextMessageID()
+
+	span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindRPCClient)
+	defer span.Finish()
+
 	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
 
+	traceExecute(span, msgID, ns, cmd, p, err, traceID)
+
+	// TODO: move to function
 	if err == nil {
 		s.logger.Log(
 			"%s executed '%s::%s' command (%d/o) [%s]",
@@ -186,7 +209,7 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 	return err
 }
 
-func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, typ string, p *rinq.Payload) error {
+func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, t string, p *rinq.Payload) error {
 	if err := target.Validate(); err != nil || target.Seq == 0 {
 		return fmt.Errorf("session ID %s is invalid", target)
 	}
@@ -202,14 +225,21 @@ func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, typ st
 	}
 
 	msgID := s.catalog.NextMessageID()
-	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, typ, p)
 
+	span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindProducer)
+	defer span.Finish()
+
+	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, t, p)
+
+	traceNotifyUnicast(span, msgID, target, ns, t, p)
+
+	// TODO: move to function
 	if err == nil {
 		s.logger.Log(
 			"%s sent '%s::%s' notification to %s (%d/o) [%s]",
 			msgID.ShortString(),
 			ns,
-			typ,
+			t,
 			target.ShortString(),
 			p.Len(),
 			traceID,
@@ -219,7 +249,7 @@ func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, typ st
 	return err
 }
 
-func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, ns, typ string, p *rinq.Payload) error {
+func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, ns, t string, p *rinq.Payload) error {
 	if err := rinq.ValidateNamespace(ns); err != nil {
 		return err
 	}
@@ -231,14 +261,21 @@ func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, ns, typ s
 	}
 
 	msgID := s.catalog.NextMessageID()
-	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, typ, p)
 
+	span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindProducer)
+	defer span.Finish()
+
+	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, t, p)
+
+	traceNotifyMulticast(span, msgID, con, ns, t, p)
+
+	// TODO: move to function
 	if err == nil {
 		s.logger.Log(
 			"%s sent '%s::%s' notification to sessions matching {%s} (%d/o) [%s]",
 			msgID.ShortString(),
 			ns,
-			typ,
+			t,
 			con,
 			p.Len(),
 			traceID,
@@ -275,10 +312,17 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 			n rinq.Notification,
 		) {
 			rev := s.catalog.Head()
+			ref := rev.Ref()
 
+			span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindRPCClient)
+			defer span.Finish()
+
+			traceNotifyRecv(span, ref, n)
+
+			// TODO: move to function
 			s.logger.Log(
 				"%s received '%s::%s' notification from %s (%d/i) [%s]",
-				rev.Ref().ShortString(),
+				ref.ShortString(),
 				n.Namespace,
 				n.Type,
 				n.Source.Ref().ShortString(),
