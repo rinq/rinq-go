@@ -69,6 +69,15 @@ var _ = Describe("Ref", func() {
 		})
 	})
 
+	Describe("Message", func() {
+		It("retruns a new MessageID", func() {
+			subject := Ref{ID: sessionID, Rev: 456}
+			messageID := subject.Message(123)
+			Expect(messageID.Ref).To(Equal(subject))
+			Expect(messageID.Seq).To(Equal(uint32(123)))
+		})
+	})
+
 	Describe("String", func() {
 		It("returns a human readable string", func() {
 			subject := Ref{ID: sessionID, Rev: 456}

@@ -66,7 +66,7 @@ func (s *server) fetch(
 		return
 	}
 
-	sessID := ident.SessionID{Peer: s.peerID, Seq: args.Seq}
+	sessID := s.peerID.Session(args.Seq)
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		res.Fail(notFoundFailure, "")
@@ -104,7 +104,7 @@ func (s *server) update(
 		return
 	}
 
-	sessID := ident.SessionID{Peer: s.peerID, Seq: args.Seq}
+	sessID := s.peerID.Session(args.Seq)
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		res.Fail(notFoundFailure, "")
@@ -162,7 +162,7 @@ func (s *server) close(
 		return
 	}
 
-	sessID := ident.SessionID{Peer: s.peerID, Seq: args.Seq}
+	sessID := s.peerID.Session(args.Seq)
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		res.Fail(notFoundFailure, "")

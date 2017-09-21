@@ -31,6 +31,15 @@ var _ = Describe("PeerID", func() {
 		Entry("non-zero struct", PeerID{Clock: 1, Rand: 1}, true),
 	)
 
+	Describe("Session", func() {
+		It("retruns a new SessionID", func() {
+			subject := NewPeerID()
+			sessionID := subject.Session(123)
+			Expect(sessionID.Peer).To(Equal(subject))
+			Expect(sessionID.Seq).To(Equal(uint32(123)))
+		})
+	})
+
 	Describe("ShortString", func() {
 		It("returns a human readable ID", func() {
 			subject := PeerID{Clock: 0x0123456789abcdef, Rand: 0x0bad}

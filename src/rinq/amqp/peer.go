@@ -75,10 +75,9 @@ func (p *peer) ID() ident.PeerID {
 }
 
 func (p *peer) Session() rinq.Session {
-	id := ident.SessionID{
-		Peer: p.id,
-		Seq:  atomic.AddUint32(&p.seq, 1),
-	}
+	id := p.id.Session(
+		atomic.AddUint32(&p.seq, 1),
+	)
 
 	cat := localsession.NewCatalog(id, p.logger)
 	sess := localsession.NewSession(

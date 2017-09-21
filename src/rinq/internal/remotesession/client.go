@@ -170,10 +170,7 @@ func (c *client) Close(
 }
 
 func (c *client) nextMessageID() ident.MessageID {
-	return ident.MessageID{
-		Ref: ident.Ref{
-			ID: ident.SessionID{Peer: c.peerID},
-		},
-		Seq: atomic.AddUint32(&c.seq, 1),
-	}
+	seq := atomic.AddUint32(&c.seq, 1)
+
+	return c.peerID.Session(0).At(0).Message(seq)
 }
