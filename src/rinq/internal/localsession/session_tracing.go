@@ -183,14 +183,14 @@ func traceNotifyMulticast(
 
 func traceNotifyRecv(
 	span opentracing.Span,
+	msgID ident.MessageID,
 	ref ident.Ref,
 	n rinq.Notification,
 ) {
-	// TODO: get message ID from notify subsytem
-	traceNotifyCommon(span, ident.MessageID{}, n.Namespace, n.Type)
+	traceNotifyCommon(span, msgID, n.Namespace, n.Type)
 
 	fields := []log.Field{
-		log.String("event", "rinq.notify-recv"),
+		log.String("event", "rinq.notification"),
 		log.String("rinq.target", ref.String()),
 		log.Bool("rinq.is_multicast", n.IsMulticast),
 	}

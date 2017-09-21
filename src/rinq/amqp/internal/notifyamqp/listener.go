@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -24,6 +25,7 @@ type listener struct {
 	sessions  localsession.Store
 	revisions revision.Store
 	logger    rinq.Logger
+	tracer    opentracing.Tracer
 
 	parentCtx context.Context // parent of all contexts passed to handlers
 	cancelCtx func()          // cancels parentCtx when the server stops
@@ -31,7 +33,7 @@ type listener struct {
 	mutex      sync.RWMutex
 	channel    *amqp.Channel   // channel used for consuming
 	namespaces map[string]uint // map of namespace to listener count
-	handlers   map[ident.SessionID]map[string]rinq.NotificationHandler
+	handlers   map[ident.SessionID]map[string]notify.NotificationHandler
 
 	deliveries <-chan amqp.Delivery // incoming notifications
 	handled    chan struct{}        // signals a notification has been handled
@@ -49,6 +51,7 @@ func newListener(
 	revisions revision.Store,
 	channel *amqp.Channel,
 	logger rinq.Logger,
+	tracer opentracing.Tracer,
 ) (notify.Listener, error) {
 	l := &listener{
 		peerID:    peerID,
@@ -56,10 +59,11 @@ func newListener(
 		sessions:  sessions,
 		revisions: revisions,
 		logger:    logger,
+		tracer:    tracer,
 		channel:   channel,
 
 		namespaces: map[string]uint{},
-		handlers:   map[ident.SessionID]map[string]rinq.NotificationHandler{},
+		handlers:   map[ident.SessionID]map[string]notify.NotificationHandler{},
 
 		handled:    make(chan struct{}, preFetch),
 		amqpClosed: make(chan *amqp.Error, 1),
@@ -77,7 +81,7 @@ func newListener(
 	return l, nil
 }
 
-func (l *listener) Listen(id ident.SessionID, ns string, handler rinq.NotificationHandler) (bool, error) {
+func (l *listener) Listen(id ident.SessionID, ns string, handler notify.NotificationHandler) (bool, error) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
@@ -91,7 +95,7 @@ func (l *listener) Listen(id ident.SessionID, ns string, handler rinq.Notificati
 
 	handlers, ok := l.handlers[id]
 	if !ok {
-		handlers = map[string]rinq.NotificationHandler{}
+		handlers = map[string]notify.NotificationHandler{}
 		l.handlers[id] = handlers
 	}
 
@@ -370,8 +374,15 @@ func (l *listener) handleUnicast(
 		return err
 	}
 
+	ctx := amqputil.UnpackTrace(l.parentCtx, msg)
+
+	spanOpts, err := traceUnpackSpanOptions(msg, l.tracer)
+	if err != nil {
+		return err
+	}
+
 	l.handle(
-		amqputil.UnpackTrace(l.parentCtx, msg),
+		ctx,
 		msgID,
 		sess,
 		rinq.Notification{
@@ -380,6 +391,7 @@ func (l *listener) handleUnicast(
 			Type:      t,
 			Payload:   p,
 		},
+		spanOpts,
 	)
 
 	return nil
@@ -418,6 +430,11 @@ func (l *listener) handleMulticast(
 
 	ctx := amqputil.UnpackTrace(l.parentCtx, msg)
 
+	spanOpts, err := traceUnpackSpanOptions(msg, l.tracer)
+	if err != nil {
+		return err
+	}
+
 	for _, sess := range sessions {
 		l.handle(
 			ctx,
@@ -431,6 +448,7 @@ func (l *listener) handleMulticast(
 				IsMulticast: true,
 				Constraint:  constraint,
 			},
+			spanOpts,
 		)
 	}
 
@@ -444,6 +462,7 @@ func (l *listener) handle(
 	msgID ident.MessageID,
 	sess rinq.Session,
 	n rinq.Notification,
+	spanOpts []opentracing.StartSpanOption,
 ) {
 	l.mutex.RLock()
 	handler := l.handlers[sess.ID()][n.Namespace]
@@ -452,7 +471,15 @@ func (l *listener) handle(
 	if handler == nil {
 		n.Payload.Close()
 	} else {
-		handler(ctx, sess, n)
+		span := l.tracer.StartSpan(n.Namespace+"::"+n.Type, spanOpts...)
+		defer span.Finish()
+
+		handler(
+			opentracing.ContextWithSpan(ctx, span),
+			msgID,
+			sess,
+			n,
+		)
 	}
 }
 

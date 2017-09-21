@@ -33,6 +33,7 @@ func New(
 		revisions,
 		channel,
 		cfg.Logger,
+		cfg.Tracer,
 	)
 	if err != nil {
 		return nil, nil, err
