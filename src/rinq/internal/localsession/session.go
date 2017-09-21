@@ -125,7 +125,7 @@ func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 
 	msgID = s.catalog.NextMessageID()
 
-	span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindRPCClient)
+	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
@@ -161,6 +161,7 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 			in *rinq.Payload,
 			err error,
 		) {
+			// TODO: pack into existing rather than creating span
 			span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindRPCClient)
 			defer span.Finish()
 
@@ -187,7 +188,7 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 
 	msgID := s.catalog.NextMessageID()
 
-	span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindRPCClient)
+	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
@@ -226,7 +227,7 @@ func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, t stri
 
 	msgID := s.catalog.NextMessageID()
 
-	span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindProducer)
+	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, t, p)
@@ -262,7 +263,7 @@ func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, ns, t str
 
 	msgID := s.catalog.NextMessageID()
 
-	span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindProducer)
+	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, t, p)
