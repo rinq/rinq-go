@@ -316,7 +316,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 			rev := s.catalog.Head()
 			ref := rev.Ref()
 
-			traceNotifyRecv(opentracing.SpanFromContext(ctx), msgID, ref, n)
+			traceNotification(opentracing.SpanFromContext(ctx), msgID, ref, n)
 
 			// TODO: move to function
 			s.logger.Log(

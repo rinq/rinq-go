@@ -181,7 +181,7 @@ func traceNotifyMulticast(
 	)
 }
 
-func traceNotifyRecv(
+func traceNotification(
 	span opentracing.Span,
 	msgID ident.MessageID,
 	ref ident.Ref,
