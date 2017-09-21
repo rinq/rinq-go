@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 
+	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/streadway/amqp"
 )
@@ -99,4 +102,18 @@ func unpackConstraint(msg *amqp.Delivery) (rinq.Constraint, error) {
 	}
 
 	return nil, errors.New("constraint header is not a table")
+}
+
+func unpackSpanOptions(msg *amqp.Delivery, t opentracing.Tracer) (opts []opentracing.StartSpanOption, err error) {
+	sc, err := amqputil.UnpackSpanContext(msg, t)
+
+	if err == nil {
+		opts = append(opts, ext.SpanKindConsumer)
+
+		if sc != nil {
+			opts = append(opts, opentracing.FollowsFrom(sc))
+		}
+	}
+
+	return
 }

@@ -376,7 +376,7 @@ func (l *listener) handleUnicast(
 
 	ctx := amqputil.UnpackTrace(l.parentCtx, msg)
 
-	spanOpts, err := traceUnpackSpanOptions(msg, l.tracer)
+	spanOpts, err := unpackSpanOptions(msg, l.tracer)
 	if err != nil {
 		return err
 	}
@@ -430,7 +430,7 @@ func (l *listener) handleMulticast(
 
 	ctx := amqputil.UnpackTrace(l.parentCtx, msg)
 
-	spanOpts, err := traceUnpackSpanOptions(msg, l.tracer)
+	spanOpts, err := unpackSpanOptions(msg, l.tracer)
 	if err != nil {
 		return err
 	}
