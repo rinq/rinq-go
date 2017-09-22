@@ -32,7 +32,7 @@ var _ = Describe("PeerID", func() {
 	)
 
 	Describe("Session", func() {
-		It("retruns a new SessionID", func() {
+		It("returns a new SessionID with the given sequence number", func() {
 			subject := NewPeerID()
 			sessionID := subject.Session(123)
 			Expect(sessionID.Peer).To(Equal(subject))

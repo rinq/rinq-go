@@ -70,7 +70,7 @@ var _ = Describe("Ref", func() {
 	})
 
 	Describe("Message", func() {
-		It("retruns a new MessageID", func() {
+		It("returns a new MessageID with the given sequence number", func() {
 			subject := Ref{ID: sessionID, Rev: 456}
 			messageID := subject.Message(123)
 			Expect(messageID.Ref).To(Equal(subject))
