@@ -95,13 +95,19 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceCallBegin(span, msgID, ns, cmd, out)
+	traceutil.SetupCommand(span, msgID, ns, cmd)
+	traceutil.LogInvokerCall(span, out)
 
 	start := time.Now()
 	traceID, in, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, out)
 	elapsed := time.Since(start) / time.Millisecond
 
-	traceCallEnd(span, in, err)
+	if err == nil {
+		traceutil.LogInvokerSuccess(span, in)
+	} else {
+		traceutil.LogInvokerError(span, err)
+	}
+
 	logCall(s.logger, msgID, ns, cmd, elapsed, out, in, err, traceID)
 
 	return in, err
@@ -128,9 +134,15 @@ func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
+	traceutil.SetupCommand(span, msgID, ns, cmd)
+	traceutil.LogInvokerCallAsync(span, out)
+
 	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
 
-	traceAsyncRequest(span, msgID, ns, cmd, out, err)
+	if err != nil {
+		traceutil.LogInvokerError(span, err)
+	}
+
 	logAsyncRequest(s.logger, msgID, ns, cmd, out, err, traceID)
 
 	return msgID, err
@@ -165,7 +177,14 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 			span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindRPCClient)
 			defer span.Finish()
 
-			traceAsyncResponse(ctx, span, msgID, ns, cmd, in, err)
+			traceutil.SetupCommand(span, msgID, ns, cmd)
+
+			if err == nil {
+				traceutil.LogInvokerSuccess(span, in)
+			} else {
+				traceutil.LogInvokerError(span, err)
+			}
+
 			logAsyncResponse(ctx, s.logger, msgID, ns, cmd, in, err)
 
 			h(ctx, sess, msgID, ns, cmd, in, err)
@@ -191,9 +210,14 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
+	traceutil.SetupCommand(span, msgID, ns, cmd)
+	traceutil.LogInvokerCallAsync(span, p)
+
 	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
 
-	traceExecute(span, msgID, ns, cmd, p, err, traceID)
+	if err != nil {
+		traceutil.LogInvokerError(span, err)
+	}
 
 	// TODO: move to function
 	if err == nil {
@@ -230,9 +254,14 @@ func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, t stri
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
+	traceutil.SetupNotification(span, msgID, ns, t)
+	traceutil.LogNotifierUnicast(span, target, p)
+
 	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, t, p)
 
-	traceNotifyUnicast(span, msgID, target, ns, t, p)
+	if err != nil {
+		traceutil.LogNotifierError(span, err)
+	}
 
 	// TODO: move to function
 	if err == nil {
@@ -266,9 +295,14 @@ func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, ns, t str
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
+	traceutil.SetupNotification(span, msgID, ns, t)
+	traceutil.LogNotifierMulticast(span, con, p)
+
 	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, t, p)
 
-	traceNotifyMulticast(span, msgID, con, ns, t, p)
+	if err != nil {
+		traceutil.LogNotifierError(span, err)
+	}
 
 	// TODO: move to function
 	if err == nil {
@@ -316,7 +350,9 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 			rev := s.catalog.Head()
 			ref := rev.Ref()
 
-			traceNotification(opentracing.SpanFromContext(ctx), msgID, ref, n)
+			span := opentracing.SpanFromContext(ctx)
+			traceutil.SetupNotification(span, msgID, n.Namespace, n.Type)
+			traceutil.LogListenerReceived(span, ref, n)
 
 			// TODO: move to function
 			s.logger.Log(

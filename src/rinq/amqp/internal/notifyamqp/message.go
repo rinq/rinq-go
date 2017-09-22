@@ -9,6 +9,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 	"github.com/streadway/amqp"
 )
 
@@ -108,6 +109,7 @@ func unpackSpanOptions(msg *amqp.Delivery, t opentracing.Tracer) (opts []opentra
 	sc, err := amqputil.UnpackSpanContext(msg, t)
 
 	if err == nil {
+		opts = append(opts, traceutil.CommonSpanOptions...)
 		opts = append(opts, ext.SpanKindConsumer)
 
 		if sc != nil {

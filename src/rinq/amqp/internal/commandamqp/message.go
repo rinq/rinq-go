@@ -4,7 +4,11 @@ import (
 	"errors"
 	"fmt"
 
+	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 	"github.com/streadway/amqp"
 )
 
@@ -156,4 +160,23 @@ func unpackResponse(msg *amqp.Delivery) (*rinq.Payload, error) {
 	default:
 		return nil, fmt.Errorf("malformed response, message type '%s' is unexpected", msg.Type)
 	}
+}
+
+func unpackSpanOptions(msg *amqp.Delivery, t opentracing.Tracer) (opts []opentracing.StartSpanOption, err error) {
+	sc, err := amqputil.UnpackSpanContext(msg, t)
+
+	if err == nil {
+		opts = append(opts, traceutil.CommonSpanOptions...)
+		opts = append(opts, ext.SpanKindRPCServer)
+
+		if sc != nil {
+			if unpackReplyMode(msg) == replyCorrelated {
+				opts = append(opts, opentracing.ChildOf(sc))
+			} else {
+				opts = append(opts, opentracing.FollowsFrom(sc))
+			}
+		}
+	}
+
+	return
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/remotesession"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
 	"github.com/rinq/rinq-go/src/rinq/internal/syncutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/streadway/amqp"
 )
@@ -115,15 +116,26 @@ func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
 			req rinq.Request,
 			res rinq.Response,
 		) {
+			span := opentracing.SpanFromContext(ctx)
+
+			traceutil.SetupCommand(
+				span,
+				ident.MessageID{}, // TODO: get message ID
+				req.Namespace,
+				req.Command,
+			)
+			traceutil.LogServerRequest(span, p.id, req.Payload)
+
 			handler(
 				ctx,
 				req,
-				newLoggingResponse(
+				command.NewResponse(
 					req,
 					res,
 					p.id,
 					trace.Get(ctx),
 					p.logger,
+					span,
 				),
 			)
 		},

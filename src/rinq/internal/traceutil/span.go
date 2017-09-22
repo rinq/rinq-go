@@ -8,6 +8,15 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 )
 
+// CommonSpanOptions contains span options that should be applied to any
+// spans started by Rinq.
+var CommonSpanOptions = []opentracing.StartSpanOption{
+	opentracing.Tag{
+		Key:   string(ext.Component),
+		Value: "rinq/" + rinq.Version,
+	},
+}
+
 // FollowsFrom creates a new span that with a follows-from relationship to the
 // span in ctx, if any.
 func FollowsFrom(
@@ -51,8 +60,9 @@ func childSpanFromContext(
 		tracer = parent.Tracer()
 	}
 
+	opts = append(opts, CommonSpanOptions...)
+
 	span := tracer.StartSpan("", opts...)
-	ext.Component.Set(span, "rinq/"+rinq.Version)
 
 	return span, opentracing.ContextWithSpan(ctx, span)
 }

@@ -471,7 +471,7 @@ func (l *listener) handle(
 	if handler == nil {
 		n.Payload.Close()
 	} else {
-		span := l.tracer.StartSpan(n.Namespace+"::"+n.Type, spanOpts...)
+		span := l.tracer.StartSpan("", spanOpts...)
 		defer span.Finish()
 
 		handler(

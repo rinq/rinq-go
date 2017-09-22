@@ -419,6 +419,10 @@ func (i *invoker) publish(
 		return err
 	}
 
+	if err := amqputil.PackSpanContext(ctx, msg); err != nil {
+		return err
+	}
+
 	channel, err := i.channels.Get()
 	if err != nil {
 		return err

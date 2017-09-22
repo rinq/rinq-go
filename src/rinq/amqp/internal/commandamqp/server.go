@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -23,6 +24,7 @@ type server struct {
 	queues    *queueSet
 	channels  amqputil.ChannelPool
 	logger    rinq.Logger
+	tracer    opentracing.Tracer
 
 	parentCtx context.Context // parent of all contexts passed to handlers
 	cancelCtx func()          // cancels parentCtx when the server stops
@@ -47,6 +49,7 @@ func newServer(
 	queues *queueSet,
 	channels amqputil.ChannelPool,
 	logger rinq.Logger,
+	tracer opentracing.Tracer,
 ) (command.Server, error) {
 	s := &server{
 		peerID:    peerID,
@@ -55,6 +58,7 @@ func newServer(
 		queues:    queues,
 		channels:  channels,
 		logger:    logger,
+		tracer:    tracer,
 
 		handlers: map[string]rinq.CommandHandler{},
 
@@ -305,7 +309,14 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 		return
 	}
 
-	s.handle(msgID, msg, ns, cmd, source, h)
+	spanOpts, err := unpackSpanOptions(msg, s.tracer)
+	if err != nil {
+		_ = msg.Reject(false) // false = don't requeue
+		logIgnoredMessage(s.logger, s.peerID, msgID, err)
+		return
+	}
+
+	s.handle(msgID, msg, ns, cmd, source, h, spanOpts)
 }
 
 // handle invokes the command handler for request.
@@ -316,10 +327,16 @@ func (s *server) handle(
 	cmd string,
 	source rinq.Revision,
 	handler rinq.CommandHandler,
+	spanOpts []opentracing.StartSpanOption,
 ) {
 	ctx := amqputil.UnpackTrace(s.parentCtx, msg)
 	ctx, cancel := amqputil.UnpackDeadline(ctx, msg)
 	defer cancel()
+
+	span := s.tracer.StartSpan("", spanOpts...)
+	defer span.Finish()
+
+	ctx = opentracing.ContextWithSpan(ctx, span)
 
 	req := rinq.Request{
 		Source:    source,
