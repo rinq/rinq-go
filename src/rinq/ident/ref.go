@@ -40,8 +40,8 @@ func (ref Ref) After(r Ref) bool {
 	return ref.Rev > r.Rev
 }
 
-// Message returns a new message ID derived from this ref's revision with seq as
-// the sequence number.
+// Message returns a new message ID derived from this ref with seq as the
+// sequence number.
 func (ref Ref) Message(seq uint32) MessageID {
 	return MessageID{
 		Ref: ref,
