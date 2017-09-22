@@ -92,7 +92,7 @@ func (c *catalog) NextMessageID() ident.MessageID {
 	defer c.mutex.Unlock()
 
 	c.seq++
-	return ident.MessageID{Ref: c.ref, Seq: c.seq}
+	return c.ref.Message(c.seq)
 }
 
 func (c *catalog) Head() rinq.Revision {

@@ -52,6 +52,15 @@ func (id PeerID) Validate() error {
 	return fmt.Errorf("peer ID %s is invalid", id)
 }
 
+// Session returns a new session ID for this peer with seq as the sequence
+// number.
+func (id PeerID) Session(seq uint32) SessionID {
+	return SessionID{
+		Peer: id,
+		Seq:  seq,
+	}
+}
+
 // ShortString returns a string representation of the peer ID without the clock
 // component (e.g. "191C").
 func (id PeerID) ShortString() string {
