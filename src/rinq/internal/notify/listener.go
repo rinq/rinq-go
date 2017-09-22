@@ -8,9 +8,9 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
 )
 
-// NotificationHandler is a callback-function invoked when a inter-session
+// Handler is a callback-function invoked when a inter-session
 // notification is received.
-type NotificationHandler func(
+type Handler func(
 	ctx context.Context,
 	msgID ident.MessageID,
 	target rinq.Session,
@@ -21,7 +21,7 @@ type NotificationHandler func(
 type Listener interface {
 	service.Service
 
-	Listen(id ident.SessionID, ns string, h NotificationHandler) (bool, error)
+	Listen(id ident.SessionID, ns string, h Handler) (bool, error)
 	Unlisten(id ident.SessionID, ns string) (bool, error)
 	UnlistenAll(id ident.SessionID) error
 }

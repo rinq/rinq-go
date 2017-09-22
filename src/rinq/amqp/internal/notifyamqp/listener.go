@@ -33,7 +33,7 @@ type listener struct {
 	mutex      sync.RWMutex
 	channel    *amqp.Channel   // channel used for consuming
 	namespaces map[string]uint // map of namespace to listener count
-	handlers   map[ident.SessionID]map[string]notify.NotificationHandler
+	handlers   map[ident.SessionID]map[string]notify.Handler
 
 	deliveries <-chan amqp.Delivery // incoming notifications
 	handled    chan struct{}        // signals a notification has been handled
@@ -63,7 +63,7 @@ func newListener(
 		channel:   channel,
 
 		namespaces: map[string]uint{},
-		handlers:   map[ident.SessionID]map[string]notify.NotificationHandler{},
+		handlers:   map[ident.SessionID]map[string]notify.Handler{},
 
 		handled:    make(chan struct{}, preFetch),
 		amqpClosed: make(chan *amqp.Error, 1),
@@ -81,7 +81,7 @@ func newListener(
 	return l, nil
 }
 
-func (l *listener) Listen(id ident.SessionID, ns string, handler notify.NotificationHandler) (bool, error) {
+func (l *listener) Listen(id ident.SessionID, ns string, handler notify.Handler) (bool, error) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
@@ -95,7 +95,7 @@ func (l *listener) Listen(id ident.SessionID, ns string, handler notify.Notifica
 
 	handlers, ok := l.handlers[id]
 	if !ok {
-		handlers = map[string]notify.NotificationHandler{}
+		handlers = map[string]notify.Handler{}
 		l.handlers[id] = handlers
 	}
 

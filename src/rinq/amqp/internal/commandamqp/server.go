@@ -30,8 +30,8 @@ type server struct {
 	cancelCtx func()          // cancels parentCtx when the server stops
 
 	mutex    sync.RWMutex
-	channel  *amqp.Channel                  // channel used for consuming
-	handlers map[string]rinq.CommandHandler // map of namespace to handler
+	channel  *amqp.Channel              // channel used for consuming
+	handlers map[string]command.Handler // map of namespace to handler
 
 	deliveries chan amqp.Delivery // incoming command requests
 	handled    chan struct{}      // signals requests have been handled
@@ -60,7 +60,7 @@ func newServer(
 		logger:    logger,
 		tracer:    tracer,
 
-		handlers: map[string]rinq.CommandHandler{},
+		handlers: map[string]command.Handler{},
 
 		deliveries: make(chan amqp.Delivery, preFetch),
 		handled:    make(chan struct{}, preFetch),
@@ -79,7 +79,7 @@ func newServer(
 	return s, nil
 }
 
-func (s *server) Listen(namespace string, handler rinq.CommandHandler) (bool, error) {
+func (s *server) Listen(namespace string, handler command.Handler) (bool, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -326,7 +326,7 @@ func (s *server) handle(
 	ns string,
 	cmd string,
 	source rinq.Revision,
-	handler rinq.CommandHandler,
+	handler command.Handler,
 	spanOpts []opentracing.StartSpanOption,
 ) {
 	ctx := amqputil.UnpackTrace(s.parentCtx, msg)
@@ -358,7 +358,7 @@ func (s *server) handle(
 		logRequestBegin(ctx, s.logger, s.peerID, msgID, req)
 	}
 
-	handler(ctx, req, res)
+	handler(ctx, msgID, req, res)
 
 	if finalize() {
 		_ = msg.Ack(false) // false = single message
