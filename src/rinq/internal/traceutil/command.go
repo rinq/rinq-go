@@ -83,8 +83,8 @@ func LogInvokerError(s opentracing.Span, err error) {
 	case rinq.Failure:
 		s.LogFields(
 			invokerFailureEvent,
-			log.String("message", e.Message),
 			log.String("error.kind", e.Type),
+			log.String("message", e.Message),
 			invokerErrorSourceServer,
 			log.Int(payloadSizeKey, e.Payload.Len()),
 		)
