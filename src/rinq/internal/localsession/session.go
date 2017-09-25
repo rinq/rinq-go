@@ -90,7 +90,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 	default:
 	}
 
-	msgID := s.catalog.NextMessageID()
+	msgID, _ := s.catalog.NextMessageID()
 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
@@ -129,7 +129,7 @@ func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 	default:
 	}
 
-	msgID = s.catalog.NextMessageID()
+	msgID, _ = s.catalog.NextMessageID()
 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
@@ -202,7 +202,7 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 	default:
 	}
 
-	msgID := s.catalog.NextMessageID()
+	msgID, _ := s.catalog.NextMessageID()
 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
@@ -246,7 +246,7 @@ func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, t stri
 	default:
 	}
 
-	msgID := s.catalog.NextMessageID()
+	msgID, _ := s.catalog.NextMessageID()
 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
@@ -287,7 +287,7 @@ func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, ns, t str
 	default:
 	}
 
-	msgID := s.catalog.NextMessageID()
+	msgID, _ := s.catalog.NextMessageID()
 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
