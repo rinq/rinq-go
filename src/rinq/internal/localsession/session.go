@@ -90,13 +90,13 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 	default:
 	}
 
-	msgID, _ := s.catalog.NextMessageID()
+	msgID, attrs := s.catalog.NextMessageID()
 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	traceutil.SetupCommand(span, msgID, ns, cmd)
-	traceutil.LogInvokerCall(span, out)
+	traceutil.LogInvokerCall(span, attrs, out)
 
 	start := time.Now()
 	traceID, in, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, out)
@@ -129,13 +129,13 @@ func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 	default:
 	}
 
-	msgID, _ = s.catalog.NextMessageID()
+	msgID, attrs := s.catalog.NextMessageID()
 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	traceutil.SetupCommand(span, msgID, ns, cmd)
-	traceutil.LogInvokerCallAsync(span, out)
+	traceutil.LogInvokerCallAsync(span, attrs, out)
 
 	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
 
@@ -202,13 +202,13 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 	default:
 	}
 
-	msgID, _ := s.catalog.NextMessageID()
+	msgID, attrs := s.catalog.NextMessageID()
 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	traceutil.SetupCommand(span, msgID, ns, cmd)
-	traceutil.LogInvokerCallAsync(span, p)
+	traceutil.LogInvokerCallAsync(span, attrs, p)
 
 	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
 
@@ -246,13 +246,13 @@ func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, t stri
 	default:
 	}
 
-	msgID, _ := s.catalog.NextMessageID()
+	msgID, attrs := s.catalog.NextMessageID()
 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	traceutil.SetupNotification(span, msgID, ns, t)
-	traceutil.LogNotifierUnicast(span, target, p)
+	traceutil.LogNotifierUnicast(span, attrs, target, p)
 
 	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, t, p)
 
@@ -287,13 +287,13 @@ func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, ns, t str
 	default:
 	}
 
-	msgID, _ := s.catalog.NextMessageID()
+	msgID, attrs := s.catalog.NextMessageID()
 
 	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	traceutil.SetupNotification(span, msgID, ns, t)
-	traceutil.LogNotifierMulticast(span, con, p)
+	traceutil.LogNotifierMulticast(span, attrs, con, p)
 
 	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, t, p)
 

@@ -6,6 +6,7 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
 
 const (
@@ -39,27 +40,41 @@ func SetupNotification(
 // LogNotifierUnicast logs information about a unicast notification to s.
 func LogNotifierUnicast(
 	s opentracing.Span,
+	attrs attrmeta.Table,
 	target ident.SessionID,
 	p *rinq.Payload,
 ) {
-	s.LogFields(
+	fields := []log.Field{
 		notifierUnicastEvent,
 		log.String(targetKey, target.String()),
 		log.Int(payloadSizeKey, p.Len()),
-	)
+	}
+
+	if len(attrs) > 0 {
+		fields = append(fields, lazyString(attributesKey, attrs))
+	}
+
+	s.LogFields(fields...)
 }
 
 // LogNotifierMulticast logs informatin about a multicast notification to s.
 func LogNotifierMulticast(
 	s opentracing.Span,
+	attrs attrmeta.Table,
 	con rinq.Constraint,
 	p *rinq.Payload,
 ) {
-	s.LogFields(
+	fields := []log.Field{
 		notifierMulticastEvent,
 		log.String(constraintKey, con.String()),
 		log.Int(payloadSizeKey, p.Len()),
-	)
+	}
+
+	if len(attrs) > 0 {
+		fields = append(fields, lazyString(attributesKey, attrs))
+	}
+
+	s.LogFields(fields...)
 }
 
 // LogNotifierError logs information about err to s.

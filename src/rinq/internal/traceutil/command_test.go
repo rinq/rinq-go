@@ -5,9 +5,9 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/opentracing/opentracing-go/log"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	. "github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 )
 
@@ -40,16 +40,23 @@ var _ = Describe("LogInvokerCall", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
+		attrs := attrmeta.Table{
+			"foo": attrmeta.Attr{
+				Attr: rinq.Freeze("foo", "bar"),
+			},
+		}
+
 		p := rinq.NewPayloadFromBytes(make([]byte, 4))
 		defer p.Close()
 
-		LogInvokerCall(span, p)
+		LogInvokerCall(span, attrs, p)
 
 		Expect(span.log).To(Equal(
-			[][]log.Field{
+			[]map[string]interface{}{
 				{
-					log.String("event", "call"),
-					log.Int("payload.size", 4),
+					"event":        "call",
+					"attributes":   "foo@bar",
+					"payload.size": 4,
 				},
 			},
 		))
@@ -60,16 +67,23 @@ var _ = Describe("LogInvokerCallAsync", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
+		attrs := attrmeta.Table{
+			"foo": attrmeta.Attr{
+				Attr: rinq.Freeze("foo", "bar"),
+			},
+		}
+
 		p := rinq.NewPayloadFromBytes(make([]byte, 4))
 		defer p.Close()
 
-		LogInvokerCallAsync(span, p)
+		LogInvokerCallAsync(span, attrs, p)
 
 		Expect(span.log).To(Equal(
-			[][]log.Field{
+			[]map[string]interface{}{
 				{
-					log.String("event", "call-async"),
-					log.Int("payload.size", 4),
+					"event":        "call-async",
+					"attributes":   "foo@bar",
+					"payload.size": 4,
 				},
 			},
 		))
@@ -80,16 +94,23 @@ var _ = Describe("LogInvokerExecute", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
+		attrs := attrmeta.Table{
+			"foo": attrmeta.Attr{
+				Attr: rinq.Freeze("foo", "bar"),
+			},
+		}
+
 		p := rinq.NewPayloadFromBytes(make([]byte, 4))
 		defer p.Close()
 
-		LogInvokerExecute(span, p)
+		LogInvokerExecute(span, attrs, p)
 
 		Expect(span.log).To(Equal(
-			[][]log.Field{
+			[]map[string]interface{}{
 				{
-					log.String("event", "execute"),
-					log.Int("payload.size", 4),
+					"event":        "execute",
+					"attributes":   "foo@bar",
+					"payload.size": 4,
 				},
 			},
 		))
@@ -106,10 +127,10 @@ var _ = Describe("LogInvokerSuccess", func() {
 		LogInvokerSuccess(span, p)
 
 		Expect(span.log).To(Equal(
-			[][]log.Field{
+			[]map[string]interface{}{
 				{
-					log.String("event", "success"),
-					log.Int("payload.size", 4),
+					"event":        "success",
+					"payload.size": 4,
 				},
 			},
 		))
@@ -129,13 +150,13 @@ var _ = Describe("LogInvokerError", func() {
 			LogInvokerError(span, err)
 
 			Expect(span.log).To(Equal(
-				[][]log.Field{
+				[]map[string]interface{}{
 					{
-						log.String("event", "failure"),
-						log.String("error.kind", "<type>"),
-						log.String("message", "<message>"),
-						log.String("error.source", "server"),
-						log.Int("payload.size", 4),
+						"event":        "failure",
+						"error.kind":   "<type>",
+						"message":      "<message>",
+						"error.source": "server",
+						"payload.size": 4,
 					},
 				},
 			))
@@ -157,11 +178,11 @@ var _ = Describe("LogInvokerError", func() {
 			LogInvokerError(span, err)
 
 			Expect(span.log).To(Equal(
-				[][]log.Field{
+				[]map[string]interface{}{
 					{
-						log.String("event", "error"),
-						log.String("message", "<error>"),
-						log.String("error.source", "server"),
+						"event":        "error",
+						"message":      "<error>",
+						"error.source": "server",
 					},
 				},
 			))
@@ -183,11 +204,11 @@ var _ = Describe("LogInvokerError", func() {
 			LogInvokerError(span, err)
 
 			Expect(span.log).To(Equal(
-				[][]log.Field{
+				[]map[string]interface{}{
 					{
-						log.String("event", "error"),
-						log.String("message", "<error>"),
-						log.String("error.source", "client"),
+						"event":        "error",
+						"message":      "<error>",
+						"error.source": "client",
 					},
 				},
 			))
@@ -227,10 +248,10 @@ var _ = Describe("LogServerRequest", func() {
 		LogServerRequest(span, peerID, p)
 
 		Expect(span.log).To(Equal(
-			[][]log.Field{
+			[]map[string]interface{}{
 				{
-					log.String("event", "request"),
-					log.Int("payload.size", 4),
+					"event":        "request",
+					"payload.size": 4,
 				},
 			},
 		))
@@ -247,10 +268,10 @@ var _ = Describe("LogServerSuccess", func() {
 		LogServerSuccess(span, p)
 
 		Expect(span.log).To(Equal(
-			[][]log.Field{
+			[]map[string]interface{}{
 				{
-					log.String("event", "response"),
-					log.Int("payload.size", 4),
+					"event":        "response",
+					"payload.size": 4,
 				},
 			},
 		))
@@ -270,12 +291,12 @@ var _ = Describe("LogServerError", func() {
 			LogServerError(span, err)
 
 			Expect(span.log).To(Equal(
-				[][]log.Field{
+				[]map[string]interface{}{
 					{
-						log.String("event", "response"),
-						log.String("error.kind", "<type>"),
-						log.String("message", "<message>"),
-						log.Int("payload.size", 4),
+						"event":        "response",
+						"error.kind":   "<type>",
+						"message":      "<message>",
+						"payload.size": 4,
 					},
 				},
 			))
@@ -297,10 +318,10 @@ var _ = Describe("LogServerError", func() {
 			LogServerError(span, err)
 
 			Expect(span.log).To(Equal(
-				[][]log.Field{
+				[]map[string]interface{}{
 					{
-						log.String("event", "response"),
-						log.String("message", "<error>"),
+						"event":   "response",
+						"message": "<error>",
 					},
 				},
 			))

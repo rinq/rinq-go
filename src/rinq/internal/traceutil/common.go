@@ -6,7 +6,9 @@ const (
 	subsystemKey   = "subsystem"
 	messageIDKey   = "message_id"
 	namespaceKey   = "namespace"
+	attributesKey  = "attributes"
 	payloadSizeKey = "payload.size"
+	payloadDataKey = "payload.data" // TODO: log full payload with "debug tracing"
 )
 
 var (

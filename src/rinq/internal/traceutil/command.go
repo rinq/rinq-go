@@ -6,6 +6,7 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
 
 var (
@@ -44,27 +45,45 @@ func SetupCommand(
 }
 
 // LogInvokerCall logs information about a "call" style invocation to s.
-func LogInvokerCall(s opentracing.Span, p *rinq.Payload) {
-	s.LogFields(
+func LogInvokerCall(s opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
+	fields := []log.Field{
 		invokerCallEvent,
 		log.Int(payloadSizeKey, p.Len()),
-	)
+	}
+
+	if len(attrs) > 0 {
+		fields = append(fields, lazyString(attributesKey, attrs))
+	}
+
+	s.LogFields(fields...)
 }
 
 // LogInvokerCallAsync logs information about a "call-sync" style invocation to s.
-func LogInvokerCallAsync(span opentracing.Span, p *rinq.Payload) {
-	span.LogFields(
+func LogInvokerCallAsync(span opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
+	fields := []log.Field{
 		invokerCallAsyncEvent,
 		log.Int(payloadSizeKey, p.Len()),
-	)
+	}
+
+	if len(attrs) > 0 {
+		fields = append(fields, lazyString(attributesKey, attrs))
+	}
+
+	span.LogFields(fields...)
 }
 
 // LogInvokerExecute logs information about an "execute" style invoation to s.
-func LogInvokerExecute(span opentracing.Span, p *rinq.Payload) {
-	span.LogFields(
+func LogInvokerExecute(span opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
+	fields := []log.Field{
 		invokerExecuteEvent,
 		log.Int(payloadSizeKey, p.Len()),
-	)
+	}
+
+	if len(attrs) > 0 {
+		fields = append(fields, lazyString(attributesKey, attrs))
+	}
+
+	span.LogFields(fields...)
 }
 
 // LogInvokerSuccess logs information about a successful command response to s.

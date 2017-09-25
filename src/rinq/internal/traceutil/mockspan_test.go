@@ -9,7 +9,7 @@ type mockSpan struct {
 	opentracing.Span
 
 	operationName string
-	log           [][]log.Field
+	log           []map[string]interface{}
 	tags          map[string]interface{}
 }
 
@@ -48,5 +48,28 @@ func (s *mockSpan) SetTag(key string, value interface{}) opentracing.Span {
 //
 // Also see Span.FinishWithOptions() and FinishOptions.BulkLogData.
 func (s *mockSpan) LogFields(fields ...log.Field) {
-	s.log = append(s.log, fields)
+	m := map[string]interface{}{}
+	e := &encoder{m}
+
+	for _, f := range fields {
+		f.Marshal(e)
+	}
+
+	s.log = append(s.log, m)
 }
+
+type encoder struct {
+	m map[string]interface{}
+}
+
+func (e *encoder) EmitString(key, value string)             { e.m[key] = value }
+func (e *encoder) EmitBool(key string, value bool)          { e.m[key] = value }
+func (e *encoder) EmitInt(key string, value int)            { e.m[key] = value }
+func (e *encoder) EmitInt32(key string, value int32)        { e.m[key] = value }
+func (e *encoder) EmitInt64(key string, value int64)        { e.m[key] = value }
+func (e *encoder) EmitUint32(key string, value uint32)      { e.m[key] = value }
+func (e *encoder) EmitUint64(key string, value uint64)      { e.m[key] = value }
+func (e *encoder) EmitFloat32(key string, value float32)    { e.m[key] = value }
+func (e *encoder) EmitFloat64(key string, value float64)    { e.m[key] = value }
+func (e *encoder) EmitObject(key string, value interface{}) { e.m[key] = value }
+func (e *encoder) EmitLazyLogger(value log.LazyLogger)      { value(e) }

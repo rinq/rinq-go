@@ -1,6 +1,9 @@
 package attrmeta
 
-import "github.com/rinq/rinq-go/src/rinq"
+import (
+	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+)
 
 // Table maps attribute keys to attributes with meta data.
 type Table map[string]Attr
@@ -25,4 +28,19 @@ func (t Table) MatchConstraint(constraint rinq.Constraint) bool {
 	}
 
 	return true
+}
+
+func (t Table) String() string {
+	buf := bufferpool.Get()
+	defer bufferpool.Put(buf)
+
+	for _, attr := range t {
+		if buf.Len() > 0 {
+			buf.WriteString(", ")
+		}
+
+		buf.WriteString(attr.Attr.String())
+	}
+
+	return buf.String()
 }
