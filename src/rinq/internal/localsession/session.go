@@ -173,10 +173,7 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 			in *rinq.Payload,
 			err error,
 		) {
-			// TODO: pack into existing rather than creating span
-			span, ctx := traceutil.FollowsFrom(ctx, s.tracer, ext.SpanKindRPCClient)
-			defer span.Finish()
-
+			span := opentracing.SpanFromContext(ctx)
 			traceutil.SetupCommand(span, msgID, ns, cmd)
 
 			if err == nil {

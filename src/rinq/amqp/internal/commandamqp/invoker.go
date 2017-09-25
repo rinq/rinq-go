@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -28,6 +29,7 @@ type invoker struct {
 	channels       amqputil.ChannelPool
 	channel        *amqp.Channel // channel used for consuming
 	logger         rinq.Logger
+	tracer         opentracing.Tracer
 
 	mutex    sync.RWMutex
 	handlers map[ident.SessionID]rinq.AsyncHandler
@@ -57,6 +59,7 @@ func newInvoker(
 	queues *queueSet,
 	channels amqputil.ChannelPool,
 	logger rinq.Logger,
+	tracer opentracing.Tracer,
 ) (command.Invoker, error) {
 	i := &invoker{
 		peerID:         peerID,
@@ -66,6 +69,7 @@ func newInvoker(
 		queues:         queues,
 		channels:       channels,
 		logger:         logger,
+		tracer:         tracer,
 
 		handlers: map[ident.SessionID]rinq.AsyncHandler{},
 
@@ -494,6 +498,12 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 		return false
 	}
 
+	spanOpts, err := unpackSpanOptions(msg, i.tracer)
+	if err != nil {
+		logInvokerIgnoredMessage(i.logger, i.peerID, msgID, err)
+		return false
+	}
+
 	i.mutex.RLock()
 	handler := i.handlers[msgID.Ref.ID]
 	i.mutex.RUnlock()
@@ -505,9 +515,15 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 	ctx := amqputil.UnpackTrace(context.Background(), msg)
 	payload, err := unpackResponse(msg)
 
+	span := i.tracer.StartSpan("", spanOpts...)
+	ctx = opentracing.ContextWithSpan(ctx, span)
+
 	logAsyncResponse(i.logger, i.peerID, msgID, ns, cmd, trace.Get(ctx), payload, err)
 
-	go handler(ctx, sess, msgID, ns, cmd, payload, err)
+	go func() {
+		defer span.Finish()
+		handler(ctx, sess, msgID, ns, cmd, payload, err)
+	}()
 
 	return true
 }

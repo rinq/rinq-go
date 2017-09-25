@@ -37,6 +37,7 @@ func New(
 		queues,
 		channels,
 		cfg.Logger,
+		cfg.Tracer,
 	)
 	if err != nil {
 		return nil, nil, err

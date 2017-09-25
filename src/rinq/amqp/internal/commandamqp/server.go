@@ -291,6 +291,13 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 		return
 	}
 
+	spanOpts, err := unpackSpanOptions(msg, s.tracer)
+	if err != nil {
+		_ = msg.Reject(false) // false = don't requeue
+		logIgnoredMessage(s.logger, s.peerID, msgID, err)
+		return
+	}
+
 	// find the handler for this namespace
 	s.mutex.RLock()
 	h, ok := s.handlers[ns]
@@ -303,13 +310,6 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 
 	// find the source session revision
 	source, err := s.revisions.GetRevision(msgID.Ref)
-	if err != nil {
-		_ = msg.Reject(false) // false = don't requeue
-		logIgnoredMessage(s.logger, s.peerID, msgID, err)
-		return
-	}
-
-	spanOpts, err := unpackSpanOptions(msg, s.tracer)
 	if err != nil {
 		_ = msg.Reject(false) // false = don't requeue
 		logIgnoredMessage(s.logger, s.peerID, msgID, err)
