@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -291,7 +292,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 		return
 	}
 
-	spanOpts, err := unpackSpanOptions(msg, s.tracer)
+	spanOpts, err := unpackSpanOptions(msg, s.tracer, ext.SpanKindRPCServer)
 	if err != nil {
 		_ = msg.Reject(false) // false = don't requeue
 		logIgnoredMessage(s.logger, s.peerID, msgID, err)

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -498,7 +499,7 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 		return false
 	}
 
-	spanOpts, err := unpackSpanOptions(msg, i.tracer)
+	spanOpts, err := unpackSpanOptions(msg, i.tracer, ext.SpanKindRPCClient)
 	if err != nil {
 		logInvokerIgnoredMessage(i.logger, i.peerID, msgID, err)
 		return false

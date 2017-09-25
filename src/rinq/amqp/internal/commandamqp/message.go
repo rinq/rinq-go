@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
@@ -162,12 +161,16 @@ func unpackResponse(msg *amqp.Delivery) (*rinq.Payload, error) {
 	}
 }
 
-func unpackSpanOptions(msg *amqp.Delivery, t opentracing.Tracer) (opts []opentracing.StartSpanOption, err error) {
+func unpackSpanOptions(
+	msg *amqp.Delivery,
+	t opentracing.Tracer,
+	spanKind opentracing.Tag,
+) (opts []opentracing.StartSpanOption, err error) {
 	sc, err := amqputil.UnpackSpanContext(msg, t)
 
 	if err == nil {
 		opts = append(opts, traceutil.CommonSpanOptions...)
-		opts = append(opts, ext.SpanKindRPCServer)
+		opts = append(opts, spanKind)
 
 		if sc != nil {
 			if unpackReplyMode(msg) == replyCorrelated {
