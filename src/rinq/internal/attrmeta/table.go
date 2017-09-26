@@ -34,13 +34,7 @@ func (t Table) String() string {
 	buf := bufferpool.Get()
 	defer bufferpool.Put(buf)
 
-	for _, attr := range t {
-		if buf.Len() > 0 {
-			buf.WriteString(", ")
-		}
-
-		buf.WriteString(attr.Attr.String())
-	}
+	WriteTable(buf, t)
 
 	return buf.String()
 }

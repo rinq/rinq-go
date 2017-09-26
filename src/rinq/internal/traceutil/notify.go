@@ -9,13 +9,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
 
-const (
-	typeKey       = "type"
-	targetKey     = "target"
-	constraintKey = "constraint"
-	multicastKey  = "multicast"
-)
-
 var (
 	notifierUnicastEvent   = log.String("event", "notify")
 	notifierMulticastEvent = log.String("event", "notify-many")
@@ -29,12 +22,12 @@ func SetupNotification(
 	ns string,
 	t string,
 ) {
-	s.SetOperationName(ns + "::" + t)
+	s.SetOperationName(ns + "::" + t + " notification")
 
-	s.SetTag(subsystemKey, "notify")
-	s.SetTag(messageIDKey, id.String())
-	s.SetTag(namespaceKey, ns)
-	s.SetTag(typeKey, t)
+	s.SetTag("subsystem", "notify")
+	s.SetTag("message_id", id.String())
+	s.SetTag("namespace", ns)
+	s.SetTag("type", t)
 }
 
 // LogNotifierUnicast logs information about a unicast notification to s.
@@ -46,12 +39,12 @@ func LogNotifierUnicast(
 ) {
 	fields := []log.Field{
 		notifierUnicastEvent,
-		log.String(targetKey, target.String()),
-		log.Int(payloadSizeKey, p.Len()),
+		log.String("target", target.String()),
+		log.Int("size", p.Len()),
 	}
 
 	if len(attrs) > 0 {
-		fields = append(fields, lazyString(attributesKey, attrs))
+		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
 	s.LogFields(fields...)
@@ -66,12 +59,12 @@ func LogNotifierMulticast(
 ) {
 	fields := []log.Field{
 		notifierMulticastEvent,
-		log.String(constraintKey, con.String()),
-		log.Int(payloadSizeKey, p.Len()),
+		log.String("constraint", con.String()),
+		log.Int("size", p.Len()),
 	}
 
 	if len(attrs) > 0 {
-		fields = append(fields, lazyString(attributesKey, attrs))
+		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
 	s.LogFields(fields...)
@@ -89,18 +82,17 @@ func LogNotifierError(s opentracing.Span, err error) {
 
 // LogListenerReceived logs information about a received notification to s.
 func LogListenerReceived(s opentracing.Span, ref ident.Ref, n rinq.Notification) {
-	s.SetTag(targetKey, ref.String())
-
 	fields := []log.Field{
 		listenerReceiveEvent,
-		log.Bool(multicastKey, n.IsMulticast),
-		log.Int(payloadSizeKey, n.Payload.Len()),
+		log.String("recipient", ref.String()),
+		log.Bool("multicast", n.IsMulticast),
+		log.Int("size", n.Payload.Len()),
 	}
 
 	if n.IsMulticast {
 		fields = append(
 			fields,
-			log.String(constraintKey, n.Constraint.String()),
+			log.String("constraint", n.Constraint.String()),
 		)
 	}
 

@@ -17,7 +17,7 @@ var _ = Describe("SetupCommand", func() {
 
 		SetupCommand(span, ident.MessageID{}, "<ns>", "<cmd>")
 
-		Expect(span.operationName).To(Equal("<ns>::<cmd>"))
+		Expect(span.operationName).To(Equal("<ns>::<cmd> command"))
 	})
 
 	It("sets the appropriate tags", func() {
@@ -224,19 +224,6 @@ var _ = Describe("LogInvokerError", func() {
 })
 
 var _ = Describe("LogServerRequest", func() {
-	It("sets the server tag", func() {
-		span := &mockSpan{}
-
-		peerID := ident.NewPeerID()
-
-		p := rinq.NewPayloadFromBytes(make([]byte, 4))
-		defer p.Close()
-
-		LogServerRequest(span, peerID, p)
-
-		Expect(span.tags["server"]).To(Equal(peerID.String()))
-	})
-
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
@@ -251,6 +238,7 @@ var _ = Describe("LogServerRequest", func() {
 			[]map[string]interface{}{
 				{
 					"event":        "request",
+					"server":       peerID.String(),
 					"payload.size": 4,
 				},
 			},

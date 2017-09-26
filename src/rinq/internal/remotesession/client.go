@@ -4,16 +4,21 @@ import (
 	"context"
 	"sync/atomic"
 
+	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
+	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 )
 
 type client struct {
 	peerID  ident.PeerID
 	invoker command.Invoker
 	logger  rinq.Logger
+	tracer  opentracing.Tracer
 	seq     uint32
 }
 
@@ -21,11 +26,13 @@ func newClient(
 	peerID ident.PeerID,
 	invoker command.Invoker,
 	logger rinq.Logger,
+	tracer opentracing.Tracer,
 ) *client {
 	return &client{
 		peerID:  peerID,
 		invoker: invoker,
 		logger:  logger,
+		tracer:  tracer,
 	}
 }
 
@@ -38,6 +45,12 @@ func (c *client) Fetch(
 	[]attrmeta.Attr,
 	error,
 ) {
+	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
+	defer span.Finish()
+
+	traceutil.SetupSessionFetch(span, sessID)
+	traceutil.LogSessionFetchRequest(span, keys)
+
 	out := rinq.NewPayload(fetchRequest{
 		Seq:  sessID.Seq,
 		Keys: keys,
@@ -55,9 +68,12 @@ func (c *client) Fetch(
 	defer in.Close()
 
 	if err != nil {
+		traceutil.LogSessionError(span, err)
+
 		if rinq.IsFailureType(notFoundFailure, err) {
 			err = rinq.NotFoundError{ID: sessID}
 		}
+
 		return 0, nil, err
 	}
 
@@ -65,8 +81,12 @@ func (c *client) Fetch(
 	err = in.Decode(&rsp)
 
 	if err != nil {
+		traceutil.LogSessionError(span, err)
+
 		return 0, nil, err
 	}
+
+	traceutil.LogSessionFetchSuccess(span, rsp.Rev, rsp.Attrs)
 
 	return rsp.Rev, rsp.Attrs, nil
 }
@@ -80,6 +100,12 @@ func (c *client) Update(
 	[]attrmeta.Attr,
 	error,
 ) {
+	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
+	defer span.Finish()
+
+	traceutil.SetupSessionUpdate(span, ref.ID)
+	traceutil.LogSessionUpdateRequest(span, ref.Rev, attrs)
+
 	out := rinq.NewPayload(updateRequest{
 		Seq:   ref.ID.Seq,
 		Rev:   ref.Rev,
@@ -98,6 +124,8 @@ func (c *client) Update(
 	defer in.Close()
 
 	if err != nil {
+		traceutil.LogSessionError(span, err)
+
 		if rinq.IsFailureType(notFoundFailure, err) {
 			err = rinq.NotFoundError{ID: ref.ID}
 		} else if rinq.IsFailureType(staleUpdateFailure, err) {
@@ -113,6 +141,8 @@ func (c *client) Update(
 	err = in.Decode(&rsp)
 
 	if err != nil {
+		traceutil.LogSessionError(span, err)
+
 		return 0, nil, err
 	}
 
@@ -129,7 +159,13 @@ func (c *client) Update(
 		)
 	}
 
-	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), updatedAttrs)
+	diff := bufferpool.Get()
+	defer bufferpool.Put(diff)
+
+	attrmeta.WriteDiffSlice(diff, updatedAttrs)
+
+	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), diff)
+	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 
 	return rsp.Rev, updatedAttrs, nil
 }
@@ -138,6 +174,12 @@ func (c *client) Close(
 	ctx context.Context,
 	ref ident.Ref,
 ) error {
+	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
+	defer span.Finish()
+
+	traceutil.SetupSessionDestroy(span, ref.ID)
+	traceutil.LogSessionDestroyRequest(span, ref.Rev)
+
 	out := rinq.NewPayload(closeRequest{
 		Seq: ref.ID.Seq,
 		Rev: ref.Rev,
@@ -155,6 +197,8 @@ func (c *client) Close(
 	defer in.Close()
 
 	if err != nil {
+		traceutil.LogSessionError(span, err)
+
 		if rinq.IsFailureType(notFoundFailure, err) {
 			err = rinq.NotFoundError{ID: ref.ID}
 		} else if rinq.IsFailureType(staleUpdateFailure, err) {
@@ -165,6 +209,7 @@ func (c *client) Close(
 	}
 
 	logClose(ctx, c.logger, c.peerID, ref)
+	traceutil.LogSessionDestroySuccess(span)
 
 	return nil
 }

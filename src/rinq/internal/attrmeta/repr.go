@@ -2,7 +2,7 @@ package attrmeta
 
 import "bytes"
 
-// WriteDiff write a "diff" representation of attr to buffer.
+// WriteDiff writes a "diff" representation of attr to buffer.
 func WriteDiff(buffer *bytes.Buffer, attr Attr) {
 	if attr.Value == "" {
 		Write(buffer, attr)
@@ -22,6 +22,17 @@ func WriteDiff(buffer *bytes.Buffer, attr Attr) {
 	buffer.WriteString(attr.Value)
 }
 
+// WriteDiffSlice writes a "diff" representation of attrs to buffer.
+func WriteDiffSlice(buffer *bytes.Buffer, attrs []Attr) {
+	for index, attr := range attrs {
+		if index != 0 {
+			buffer.WriteString(", ")
+		}
+
+		WriteDiff(buffer, attr)
+	}
+}
+
 // Write writes a representation of attr to the buffer.
 func Write(buffer *bytes.Buffer, attr Attr) {
 	if attr.Value == "" {
@@ -39,6 +50,17 @@ func Write(buffer *bytes.Buffer, attr Attr) {
 			buffer.WriteString("=")
 		}
 		buffer.WriteString(attr.Value)
+	}
+}
+
+// WriteSlice writes a representation of attrs to the buffer.
+func WriteSlice(buffer *bytes.Buffer, attrs []Attr) {
+	for index, attr := range attrs {
+		if index != 0 {
+			buffer.WriteString(", ")
+		}
+
+		Write(buffer, attr)
 	}
 }
 

@@ -1,13 +1,9 @@
 package traceutil
 
-import (
-	"fmt"
+import "github.com/opentracing/opentracing-go/log"
 
-	"github.com/opentracing/opentracing-go/log"
-)
-
-func lazyString(key string, val fmt.Stringer) log.Field {
+func lazyString(key string, s func() string) log.Field {
 	return log.Lazy(func(e log.Encoder) {
-		e.EmitString(key, val.String())
+		e.EmitString(key, s())
 	})
 }

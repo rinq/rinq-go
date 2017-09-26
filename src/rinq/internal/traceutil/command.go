@@ -17,16 +17,10 @@ var (
 	invokerErrorSourceClient = log.String("error.source", "client")
 	invokerErrorSourceServer = log.String("error.source", "server")
 
-	invokerSuccessEvent = log.String("event", "success")
 	invokerFailureEvent = log.String("event", "failure")
 
 	serverRequestEvent  = log.String("event", "request")
 	serverResponseEvent = log.String("event", "response")
-)
-
-const (
-	commandKey = "command"
-	serverKey  = "server"
 )
 
 // SetupCommand configures span as a command-related span.
@@ -36,23 +30,23 @@ func SetupCommand(
 	ns string,
 	cmd string,
 ) {
-	s.SetOperationName(ns + "::" + cmd)
+	s.SetOperationName(ns + "::" + cmd + " command")
 
-	s.SetTag(subsystemKey, "command")
-	s.SetTag(messageIDKey, id.String())
-	s.SetTag(namespaceKey, ns)
-	s.SetTag(commandKey, cmd)
+	s.SetTag("subsystem", "command")
+	s.SetTag("message_id", id.String())
+	s.SetTag("namespace", ns)
+	s.SetTag("command", cmd)
 }
 
 // LogInvokerCall logs information about a "call" style invocation to s.
 func LogInvokerCall(s opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
 	fields := []log.Field{
 		invokerCallEvent,
-		log.Int(payloadSizeKey, p.Len()),
+		log.Int("size", p.Len()),
 	}
 
 	if len(attrs) > 0 {
-		fields = append(fields, lazyString(attributesKey, attrs))
+		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
 	s.LogFields(fields...)
@@ -62,11 +56,11 @@ func LogInvokerCall(s opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
 func LogInvokerCallAsync(span opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
 	fields := []log.Field{
 		invokerCallAsyncEvent,
-		log.Int(payloadSizeKey, p.Len()),
+		log.Int("size", p.Len()),
 	}
 
 	if len(attrs) > 0 {
-		fields = append(fields, lazyString(attributesKey, attrs))
+		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
 	span.LogFields(fields...)
@@ -76,11 +70,11 @@ func LogInvokerCallAsync(span opentracing.Span, attrs attrmeta.Table, p *rinq.Pa
 func LogInvokerExecute(span opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
 	fields := []log.Field{
 		invokerExecuteEvent,
-		log.Int(payloadSizeKey, p.Len()),
+		log.Int("size", p.Len()),
 	}
 
 	if len(attrs) > 0 {
-		fields = append(fields, lazyString(attributesKey, attrs))
+		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
 	span.LogFields(fields...)
@@ -89,8 +83,8 @@ func LogInvokerExecute(span opentracing.Span, attrs attrmeta.Table, p *rinq.Payl
 // LogInvokerSuccess logs information about a successful command response to s.
 func LogInvokerSuccess(span opentracing.Span, p *rinq.Payload) {
 	span.LogFields(
-		invokerSuccessEvent,
-		log.Int(payloadSizeKey, p.Len()),
+		successEvent,
+		log.Int("size", p.Len()),
 	)
 }
 
@@ -105,7 +99,7 @@ func LogInvokerError(s opentracing.Span, err error) {
 			log.String("error.kind", e.Type),
 			log.String("message", e.Message),
 			invokerErrorSourceServer,
-			log.Int(payloadSizeKey, e.Payload.Len()),
+			log.Int("size", e.Payload.Len()),
 		)
 
 	case rinq.CommandError:
@@ -126,11 +120,10 @@ func LogInvokerError(s opentracing.Span, err error) {
 
 // LogServerRequest logs information about an incoming command request to s.
 func LogServerRequest(s opentracing.Span, peerID ident.PeerID, p *rinq.Payload) {
-	s.SetTag(serverKey, peerID.String())
-
 	s.LogFields(
 		serverRequestEvent,
-		log.Int(payloadSizeKey, p.Len()),
+		log.String("server", peerID.String()),
+		log.Int("size", p.Len()),
 	)
 }
 
@@ -138,7 +131,7 @@ func LogServerRequest(s opentracing.Span, peerID ident.PeerID, p *rinq.Payload) 
 func LogServerSuccess(span opentracing.Span, p *rinq.Payload) {
 	span.LogFields(
 		serverResponseEvent,
-		log.Int(payloadSizeKey, p.Len()),
+		log.Int("size", p.Len()),
 	)
 }
 
@@ -150,7 +143,7 @@ func LogServerError(s opentracing.Span, err error) {
 			serverResponseEvent,
 			log.String("error.kind", e.Type),
 			log.String("message", e.Message),
-			log.Int(payloadSizeKey, e.Payload.Len()),
+			log.Int("size", e.Payload.Len()),
 		)
 
 	default:

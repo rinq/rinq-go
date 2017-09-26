@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
+	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 )
 
 type server struct {
@@ -60,17 +62,25 @@ func (s *server) fetch(
 	req rinq.Request,
 	res rinq.Response,
 ) {
+	span := opentracing.SpanFromContext(ctx)
+
 	var args fetchRequest
 
 	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
+		traceutil.LogSessionError(span, err)
 		return
 	}
 
 	sessID := s.peerID.Session(args.Seq)
+
+	traceutil.SetupSessionFetch(span, sessID)
+	traceutil.LogSessionFetchRequest(span, args.Keys)
+
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
-		res.Fail(notFoundFailure, "")
+		err := res.Fail(notFoundFailure, "")
+		traceutil.LogSessionError(span, err)
 		return
 	}
 
@@ -91,6 +101,8 @@ func (s *server) fetch(
 	defer payload.Close()
 
 	res.Done(payload)
+
+	traceutil.LogSessionFetchSuccess(span, rsp.Rev, rsp.Attrs)
 }
 
 func (s *server) update(
@@ -98,17 +110,25 @@ func (s *server) update(
 	req rinq.Request,
 	res rinq.Response,
 ) {
+	span := opentracing.SpanFromContext(ctx)
+
 	var args updateRequest
 
 	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
+		traceutil.LogSessionError(span, err)
 		return
 	}
 
 	sessID := s.peerID.Session(args.Seq)
+
+	traceutil.SetupSessionUpdate(span, sessID)
+	traceutil.LogSessionUpdateRequest(span, args.Rev, args.Attrs)
+
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
-		res.Fail(notFoundFailure, "")
+		err := res.Fail(notFoundFailure, "")
+		traceutil.LogSessionError(span, err)
 		return
 	}
 
@@ -128,6 +148,7 @@ func (s *server) update(
 			res.Error(err)
 		}
 
+		traceutil.LogSessionError(span, err)
 		return
 	}
 
@@ -148,7 +169,10 @@ func (s *server) update(
 
 	payload := rinq.NewPayload(rsp)
 	defer payload.Close()
+
 	res.Done(payload)
+
+	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 }
 
 func (s *server) close(
@@ -156,17 +180,25 @@ func (s *server) close(
 	req rinq.Request,
 	res rinq.Response,
 ) {
+	span := opentracing.SpanFromContext(ctx)
+
 	var args closeRequest
 
 	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
+		traceutil.LogSessionError(span, err)
 		return
 	}
 
 	sessID := s.peerID.Session(args.Seq)
+
+	traceutil.SetupSessionDestroy(span, sessID)
+	traceutil.LogSessionDestroyRequest(span, args.Rev)
+
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
-		res.Fail(notFoundFailure, "")
+		err := res.Fail(notFoundFailure, "")
+		traceutil.LogSessionError(span, err)
 		return
 	}
 
@@ -182,10 +214,13 @@ func (s *server) close(
 			res.Error(err)
 		}
 
+		traceutil.LogSessionError(span, err)
 		return
 	}
 
 	logRemoteClose(ctx, s.logger, cat, req.Source.Ref().ID.Peer)
 
 	res.Close()
+
+	traceutil.LogSessionDestroySuccess(span)
 }
