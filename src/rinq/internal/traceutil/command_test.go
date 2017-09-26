@@ -54,9 +54,9 @@ var _ = Describe("LogInvokerCall", func() {
 		Expect(span.log).To(Equal(
 			[]map[string]interface{}{
 				{
-					"event":        "call",
-					"attributes":   "foo@bar",
-					"payload.size": 4,
+					"event":      "call",
+					"attributes": "foo@bar",
+					"size":       4,
 				},
 			},
 		))
@@ -81,9 +81,9 @@ var _ = Describe("LogInvokerCallAsync", func() {
 		Expect(span.log).To(Equal(
 			[]map[string]interface{}{
 				{
-					"event":        "call-async",
-					"attributes":   "foo@bar",
-					"payload.size": 4,
+					"event":      "call-async",
+					"attributes": "foo@bar",
+					"size":       4,
 				},
 			},
 		))
@@ -108,9 +108,9 @@ var _ = Describe("LogInvokerExecute", func() {
 		Expect(span.log).To(Equal(
 			[]map[string]interface{}{
 				{
-					"event":        "execute",
-					"attributes":   "foo@bar",
-					"payload.size": 4,
+					"event":      "execute",
+					"attributes": "foo@bar",
+					"size":       4,
 				},
 			},
 		))
@@ -129,8 +129,8 @@ var _ = Describe("LogInvokerSuccess", func() {
 		Expect(span.log).To(Equal(
 			[]map[string]interface{}{
 				{
-					"event":        "success",
-					"payload.size": 4,
+					"event": "success",
+					"size":  4,
 				},
 			},
 		))
@@ -156,7 +156,7 @@ var _ = Describe("LogInvokerError", func() {
 						"error.kind":   "<type>",
 						"message":      "<message>",
 						"error.source": "server",
-						"payload.size": 4,
+						"size":         4,
 					},
 				},
 			))
@@ -237,9 +237,9 @@ var _ = Describe("LogServerRequest", func() {
 		Expect(span.log).To(Equal(
 			[]map[string]interface{}{
 				{
-					"event":        "request",
-					"server":       peerID.String(),
-					"payload.size": 4,
+					"event":  "request",
+					"server": peerID.String(),
+					"size":   4,
 				},
 			},
 		))
@@ -258,8 +258,8 @@ var _ = Describe("LogServerSuccess", func() {
 		Expect(span.log).To(Equal(
 			[]map[string]interface{}{
 				{
-					"event":        "response",
-					"payload.size": 4,
+					"event": "response",
+					"size":  4,
 				},
 			},
 		))
@@ -281,10 +281,10 @@ var _ = Describe("LogServerError", func() {
 			Expect(span.log).To(Equal(
 				[]map[string]interface{}{
 					{
-						"event":        "response",
-						"error.kind":   "<type>",
-						"message":      "<message>",
-						"payload.size": 4,
+						"event":      "response",
+						"error.kind": "<type>",
+						"message":    "<message>",
+						"size":       4,
 					},
 				},
 			))
