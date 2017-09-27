@@ -60,10 +60,10 @@ func (c *catalog) Head(ctx context.Context) (rinq.Revision, error) {
 		return nil, err
 	}
 
-	return &revision{
-		ref:     c.id.At(c.highestRev),
-		catalog: c,
-	}, nil
+	return newRevision(
+		c.id.At(c.highestRev),
+		c,
+	), nil
 }
 
 func (c *catalog) At(rev ident.Revision) rinq.Revision {
@@ -78,10 +78,7 @@ func (c *catalog) At(rev ident.Revision) rinq.Revision {
 
 	c.updateState(rev, nil)
 
-	return &revision{
-		ref:     ref,
-		catalog: c,
-	}
+	return newRevision(ref, c)
 }
 
 func (c *catalog) Fetch(
@@ -206,10 +203,10 @@ func (c *catalog) TryUpdate(
 		}
 	}
 
-	return &revision{
-		ref:     c.id.At(c.highestRev),
-		catalog: c,
-	}, nil
+	return newRevision(
+		c.id.At(c.highestRev),
+		c,
+	), nil
 }
 
 func (c *catalog) TryDestroy(
