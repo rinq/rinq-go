@@ -47,6 +47,7 @@ type forever struct {
 	dialer      Dialer
 	stopTimeout time.Duration
 	retryDelay  time.Duration
+	firstRetry  bool
 	peer        rinq.Peer
 	signals     chan os.Signal
 }
@@ -97,6 +98,8 @@ func (f *forever) dial() (state, error) {
 }
 
 func (f *forever) wait() (state, error) {
+	f.firstRetry = true
+
 	select {
 	case sig := <-f.signals:
 		if sig == syscall.SIGQUIT {
@@ -148,6 +151,11 @@ func (f *forever) forceful() (state, error) {
 }
 
 func (f *forever) retry() (state, error) {
+	if f.firstRetry {
+		f.firstRetry = false
+		return f.dial, nil
+	}
+
 	t := f.retryDelay
 	if t == 0 {
 		t = DefaultRetryDelay
