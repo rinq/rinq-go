@@ -16,6 +16,15 @@ type revision struct {
 	logger  rinq.Logger
 }
 
+func newRevision(r ident.Ref, c Catalog, a attrmeta.Table, l rinq.Logger) {
+	return &revision{
+		ref:     r,
+		catalog: c,
+		attrs:   a,
+		logger:  l,
+	}
+}
+
 func (r *revision) Ref() ident.Ref {
 	return r.ref
 }

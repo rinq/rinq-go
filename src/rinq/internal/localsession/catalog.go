@@ -99,12 +99,7 @@ func (c *catalog) Head() rinq.Revision {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
-	return &revision{
-		ref:     c.ref,
-		catalog: c,
-		attrs:   c.attrs,
-		logger:  c.logger,
-	}
+	return newRevision(c.ref, c, c.attrs, c.logger)
 }
 
 func (c *catalog) At(rev ident.Revision) (rinq.Revision, error) {
@@ -115,12 +110,7 @@ func (c *catalog) At(rev ident.Revision) (rinq.Revision, error) {
 		return nil, errors.New("revision is from the future")
 	}
 
-	return &revision{
-		ref:     c.ref.ID.At(rev),
-		catalog: c,
-		attrs:   c.attrs,
-		logger:  c.logger,
-	}, nil
+	return newRevision(c.ref.ID.At(rev), c, c.attrs, c.logger), nil
 }
 
 func (c *catalog) Attrs() (ident.Ref, attrmeta.Table) {
@@ -182,12 +172,7 @@ func (c *catalog) TryUpdate(
 	c.attrs = nextAttrs
 	c.seq = 0
 
-	return &revision{
-		ref:     c.ref,
-		catalog: c,
-		attrs:   c.attrs,
-		logger:  c.logger,
-	}, nil
+	return newRevision(c.ref, c, c.attrs, c.logger), nil
 }
 
 func (c *catalog) TryDestroy(ref ident.Ref) error {
