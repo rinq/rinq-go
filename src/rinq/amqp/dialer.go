@@ -180,11 +180,11 @@ func (d *Dialer) Dial(
 	)
 
 	localStore := localsession.NewStore()
-	revStore := &revision.AggregateStore{
-		PeerID: peerID,
-		Local:  localStore,
-		// Remote revision store depends on invoker, created below
-	}
+	revStore := revision.NewAggregateStore(
+		peerID,
+		localStore,
+		nil, // Remote revision store depends on invoker, created below
+	)
 
 	invoker, server, err := commandamqp.New(peerID, cfg, localStore, revStore, channels)
 	if err != nil {

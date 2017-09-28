@@ -19,6 +19,19 @@ type AggregateStore struct {
 	Remote Store
 }
 
+// Create a new aggregate store.
+func NewAggregateStore(
+	peerID ident.PeerID,
+	local Store,
+	remote Store,
+) *AggregateStore {
+	return &AggregateStore{
+		peerID,
+		local,
+		remote,
+	}
+}
+
 // GetRevision returns the session revision for the given ref.
 func (s *AggregateStore) GetRevision(ref ident.Ref) (rinq.Revision, error) {
 	if ref.ID.Peer == s.PeerID {
