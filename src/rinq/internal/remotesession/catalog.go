@@ -35,8 +35,8 @@ type attrCacheEntry struct {
 	FetchedAt ident.Revision
 }
 
-func newAttrCacheEntry(attr Attr, fetchedRev FetchedAt) attrCacheEntry {
-	return attrCacheEntry{attr, fetchedRev}
+func newAttrCacheEntry(attr attrmeta.Attr, rev ident.Revision) attrCacheEntry {
+	return attrCacheEntry{attr, rev}
 }
 
 func (c *catalog) Head(ctx context.Context) (rinq.Revision, error) {
