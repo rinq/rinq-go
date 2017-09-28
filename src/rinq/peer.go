@@ -18,7 +18,7 @@ type Peer interface {
 	// ID returns the peer's unique identifier.
 	ID() ident.PeerID
 
-	// Session creates and returns a new session owned by this peer.
+	// Session returns a new session owned by this peer.
 	//
 	// Creating a session does not perform any network IO. The only limit to the
 	// number of sessions is the memory required to store them.

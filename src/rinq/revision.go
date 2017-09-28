@@ -7,7 +7,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
-// Revision represents a specific revision of session.
+// Revision represents a specific revision of a session.
 //
 // Revision is the sole interface for manipulating a session's attribute table.
 //
@@ -17,8 +17,8 @@ import (
 // For remote sessions, operations may require network IO. Deadlines are
 // honored for all methods that accept a context.
 type Revision interface {
-	// Ref returns the session reference, which holds the session ID and the
-	// revision number represented by this instance.
+	// Ref returns the session reference, which uniquely identifies the session
+	// ID and the revision number represented by this instance.
 	Ref() ident.Ref
 
 	// Refresh returns the latest revision of the session.
@@ -33,7 +33,7 @@ type Revision interface {
 	// Non-existent attributes are equivalent to empty attributes, therefore it
 	// is not an error to request a key that has never been created.
 	//
-	// Peers do not always have a copy of the complete attribute table. If the
+	// Peers do not always have a complete copy of the attribute table. If the
 	// attribute value is unknown it is fetched from the owning peer.
 	//
 	// If the attribute can not be retrieved because it has already been
@@ -51,7 +51,7 @@ type Revision interface {
 	// Non-existent attributes are equivalent to empty attributes, therefore it
 	// is not an error to request keys that have never been created.
 	//
-	// Peers do not always have a copy of the complete attribute table. If any
+	// Peers do not always have a complete copy of the attribute table. If any
 	// of the attribute values are unknown they are fetched from the owning peer.
 	//
 	// If any of the attributes can not be retrieved because they have already
@@ -99,7 +99,7 @@ type Revision interface {
 }
 
 // ShouldRetry returns true if a call to Revision.Get(), GetMany(), Update() or
-// Close() failed because the revision is out of date.
+// Destroy() failed because the revision is out of date.
 //
 // The operation should be retried on the latest revision of the session,
 // which can be retrieved with Revision.Refresh().
@@ -125,8 +125,8 @@ func (err StaleFetchError) Error() string {
 	)
 }
 
-// StaleUpdateError indicates a failure to update or close a session revision
-// because the session has been modified after that revision.
+// StaleUpdateError indicates a failure to update or destroy a session  because
+// the session has been modified after that revision.
 type StaleUpdateError struct {
 	Ref ident.Ref
 }
@@ -138,8 +138,8 @@ func (err StaleUpdateError) Error() string {
 	)
 }
 
-// FrozenAttributesError indicates a failure to apply a change-set because one
-// or more attributes in the change-set are frozen.
+// FrozenAttributesError indicates a failure to update a session because at least
+// one of the attributes being updated is frozen.
 type FrozenAttributesError struct {
 	Ref ident.Ref
 }
