@@ -18,7 +18,7 @@ type Catalog interface {
 	Ref() ident.Ref
 
 	// NextMessageID generates a unique message ID from the current session-ref.
-	NextMessageID() ident.MessageID
+	NextMessageID() (ident.MessageID, attrmeta.Table)
 
 	// Head returns the most recent revision.
 	// It is conceptually equivalent to catalog.At(catalog.Ref().Rev).
@@ -87,12 +87,12 @@ func (c *catalog) Ref() ident.Ref {
 	return c.ref
 }
 
-func (c *catalog) NextMessageID() ident.MessageID {
+func (c *catalog) NextMessageID() (ident.MessageID, attrmeta.Table) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	c.seq++
-	return c.ref.Message(c.seq)
+	return c.ref.Message(c.seq), c.attrs
 }
 
 func (c *catalog) Head() rinq.Revision {

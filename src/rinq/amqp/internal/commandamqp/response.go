@@ -157,6 +157,11 @@ func (r *response) respond(msg *amqp.Publishing) {
 	if r.replyMode == replyUncorrelated {
 		packNamespaceAndCommand(msg, r.request.Namespace, r.request.Command)
 		packReplyMode(msg, r.replyMode)
+
+		err = amqputil.PackSpanContext(r.context, msg)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	err = channel.Publish(

@@ -7,3 +7,8 @@ import:
 - package: github.com/onsi/gomega
   version: master
 - package: github.com/hashicorp/go-version
+- package: github.com/opentracing/opentracing-go
+  version: ~1.0.2
+testImport:
+- package: github.com/uber/jaeger-client-go
+ 

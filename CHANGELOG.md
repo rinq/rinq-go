@@ -3,6 +3,7 @@
 ## Next Release
 
 - **[BC]** Remove `Config` in favour of "functional options" in the `options` package
+- **[NEW]** Add support for [OpenTracing](https://opentracing.io) via new `options.Tracer()` option
 
 ## 0.4.0 (2017-09-18)
 
