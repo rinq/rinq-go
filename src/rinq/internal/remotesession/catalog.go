@@ -35,10 +35,6 @@ type attrCacheEntry struct {
 	FetchedAt ident.Revision
 }
 
-func newAttrCacheEntry(attr attrmeta.Attr, rev ident.Revision) attrCacheEntry {
-	return attrCacheEntry{attr, rev}
-}
-
 func (c *catalog) Head(ctx context.Context) (rinq.Revision, error) {
 	unlock := syncutil.RLock(&c.mutex)
 	defer unlock()
@@ -114,7 +110,7 @@ func (c *catalog) Fetch(
 		// Update the cache entry if the fetched revision is newer.
 		entry := c.cache[attr.Key]
 		if fetchedRev > entry.FetchedAt {
-			c.cache[attr.Key] = newAttrCacheEntry(attr, fetchedRev)
+			c.cache[attr.Key] = attrCacheEntry{attr, fetchedRev}
 		}
 
 		if isStaleFetch {
@@ -199,7 +195,7 @@ func (c *catalog) TryUpdate(
 	for _, attr := range returnedAttrs {
 		entry := c.cache[attr.Key]
 		if updatedRev > entry.FetchedAt {
-			c.cache[attr.Key] = newAttrCacheEntry(attr, updatedRev)
+			c.cache[attr.Key] = attrCacheEntry{attr, updatedRev}
 		}
 	}
 
