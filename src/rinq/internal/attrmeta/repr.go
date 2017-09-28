@@ -1,6 +1,11 @@
 package attrmeta
 
-import "bytes"
+import (
+	"bytes"
+	"io"
+
+	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+)
 
 // WriteDiff writes a "diff" representation of attr to buffer.
 func WriteDiff(buffer *bytes.Buffer, attr Attr) {
@@ -77,5 +82,30 @@ func WriteTable(buffer *bytes.Buffer, attrs Table) {
 		}
 
 		Write(buffer, attr)
+	}
+}
+
+// WriteNamespacedTable writes a respresentation of attrs to the buffer.
+// Non-frozen attributes with empty-values are omitted.
+func WriteNamespacedTable(buffer *bytes.Buffer, attrs NamespacedTable) {
+	// TODO: review output formatting for legibility
+	sub := bufferpool.Get()
+	defer bufferpool.Put(sub)
+
+	for ns, a := range attrs {
+		sub.Reset()
+		WriteTable(sub, a)
+
+		if sub.Len() == 0 {
+			continue
+		}
+
+		if buffer.Len() != 0 {
+			buffer.WriteString(" | ")
+		}
+
+		io.WriteString(buffer, ns)
+		io.WriteString(buffer, "::")
+		sub.WriteTo(buffer)
 	}
 }

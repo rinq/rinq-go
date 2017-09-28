@@ -18,7 +18,7 @@ type Catalog interface {
 	Ref() ident.Ref
 
 	// NextMessageID generates a unique message ID from the current session-ref.
-	NextMessageID() (ident.MessageID, attrmeta.Table)
+	NextMessageID() (ident.MessageID, attrmeta.NamespacedTable)
 
 	// Head returns the most recent revision.
 	// It is conceptually equivalent to catalog.At(catalog.Ref().Rev).
@@ -28,11 +28,14 @@ type Catalog interface {
 	// number. The revision can not be newer than the current session-ref.
 	At(ident.Revision) (rinq.Revision, error)
 
-	// Attrs returns all attributes at the most recent revision.
-	Attrs() (ident.Ref, attrmeta.Table)
+	// AllAttrs returns all attributes at the most recent revision.
+	Attrs() (ident.Ref, attrmeta.NamespacedTable)
 
-	// TryUpdate adds or updates attributes in the attribute table and returns
-	// the new head revision.
+	// Attrs returns all attributes in the ns namespace at the most recent revision.
+	AttrsIn(ns string) (ident.Ref, attrmeta.Table)
+
+	// TryUpdate adds or updates attributes in the ns namespace of the attribute
+	// table and returns the new head revision.
 	//
 	// The operation fails if ref is not the current session-ref, attrs includes
 	// changes to frozen attributes, or the catalog is closed.
@@ -41,6 +44,7 @@ type Catalog interface {
 	// is non-nil.
 	TryUpdate(
 		ref ident.Ref,
+		ns string,
 		attrs []rinq.Attr,
 		diff *bytes.Buffer,
 	) (rinq.Revision, error)
@@ -62,7 +66,7 @@ type Catalog interface {
 type catalog struct {
 	mutex  sync.RWMutex
 	ref    ident.Ref
-	attrs  attrmeta.Table
+	attrs  attrmeta.NamespacedTable
 	seq    uint32
 	done   chan struct{}
 	logger rinq.Logger
@@ -87,7 +91,7 @@ func (c *catalog) Ref() ident.Ref {
 	return c.ref
 }
 
-func (c *catalog) NextMessageID() (ident.MessageID, attrmeta.Table) {
+func (c *catalog) NextMessageID() (ident.MessageID, attrmeta.NamespacedTable) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -123,15 +127,23 @@ func (c *catalog) At(rev ident.Revision) (rinq.Revision, error) {
 	}, nil
 }
 
-func (c *catalog) Attrs() (ident.Ref, attrmeta.Table) {
+func (c *catalog) Attrs() (ident.Ref, attrmeta.NamespacedTable) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
 	return c.ref, c.attrs
 }
 
+func (c *catalog) AttrsIn(ns string) (ident.Ref, attrmeta.Table) {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	return c.ref, c.attrs[ns]
+}
+
 func (c *catalog) TryUpdate(
 	ref ident.Ref,
+	ns string,
 	attrs []rinq.Attr,
 	diff *bytes.Buffer,
 ) (rinq.Revision, error) {
@@ -148,8 +160,9 @@ func (c *catalog) TryUpdate(
 		return nil, rinq.StaleUpdateError{Ref: ref}
 	}
 
-	nextAttrs := c.attrs.Clone()
+	hasChanged := false
 	nextRev := ref.Rev + 1
+	nextAttrs := c.attrs[ns].Clone()
 
 	for _, attr := range attrs {
 		entry, exists := nextAttrs[attr.Key]
@@ -162,6 +175,7 @@ func (c *catalog) TryUpdate(
 			return nil, rinq.FrozenAttributesError{Ref: ref}
 		}
 
+		hasChanged = true
 		entry.Attr = attr
 		entry.UpdatedAt = nextRev
 		if !exists {
@@ -179,8 +193,11 @@ func (c *catalog) TryUpdate(
 	}
 
 	c.ref.Rev = nextRev
-	c.attrs = nextAttrs
 	c.seq = 0
+
+	if hasChanged {
+		c.attrs = c.attrs.CloneAndReplace(ns, nextAttrs)
+	}
 
 	return &revision{
 		ref:     c.ref,

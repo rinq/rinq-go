@@ -156,7 +156,7 @@ func logSessionDestroy(
 
 	buffer := bufferpool.Get()
 	defer bufferpool.Put(buffer)
-	attrmeta.WriteTable(buffer, attrs)
+	attrmeta.WriteNamespacedTable(buffer, attrs)
 
 	if traceID == "" {
 		logger.Log(

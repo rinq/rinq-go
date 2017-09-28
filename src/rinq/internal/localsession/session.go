@@ -231,7 +231,7 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 	return err
 }
 
-func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, t string, p *rinq.Payload) error {
+func (s *session) Notify(ctx context.Context, ns, t string, target ident.SessionID, p *rinq.Payload) error {
 	if err := target.Validate(); err != nil || target.Seq == 0 {
 		return fmt.Errorf("session ID %s is invalid", target)
 	}
@@ -276,7 +276,7 @@ func (s *session) Notify(ctx context.Context, target ident.SessionID, ns, t stri
 	return err
 }
 
-func (s *session) NotifyMany(ctx context.Context, con rinq.Constraint, ns, t string, p *rinq.Payload) error {
+func (s *session) NotifyMany(ctx context.Context, ns, t string, con rinq.Constraint, p *rinq.Payload) error {
 	if err := rinq.ValidateNamespace(ns); err != nil {
 		return err
 	}

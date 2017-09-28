@@ -38,3 +38,29 @@ func (t Table) String() string {
 
 	return buf.String()
 }
+
+// NamespacedTable maps namespace to attribute table.
+type NamespacedTable map[string]Table
+
+// CloneAndReplace returns a copy of the attribute table with the ns namespaced replaced
+// with nt.
+func (t NamespacedTable) CloneAndReplace(ns string, nt Table) NamespacedTable {
+	r := NamespacedTable{ns: nt}
+
+	for n, a := range t {
+		if n != ns {
+			r[n] = a.Clone()
+		}
+	}
+
+	return r
+}
+
+func (t NamespacedTable) String() string {
+	buf := bufferpool.Get()
+	defer bufferpool.Put(buf)
+
+	WriteNamespacedTable(buf, t)
+
+	return buf.String()
+}

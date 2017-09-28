@@ -39,6 +39,7 @@ func newClient(
 func (c *client) Fetch(
 	ctx context.Context,
 	sessID ident.SessionID,
+	ns string,
 	keys []string,
 ) (
 	ident.Revision,
@@ -48,12 +49,13 @@ func (c *client) Fetch(
 	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupSessionFetch(span, sessID)
+	traceutil.SetupSessionFetch(span, ns, sessID)
 	traceutil.LogSessionFetchRequest(span, keys)
 
 	out := rinq.NewPayload(fetchRequest{
-		Seq:  sessID.Seq,
-		Keys: keys,
+		Seq:       sessID.Seq,
+		Namespace: ns,
+		Keys:      keys,
 	})
 	defer out.Close()
 
@@ -94,6 +96,7 @@ func (c *client) Fetch(
 func (c *client) Update(
 	ctx context.Context,
 	ref ident.Ref,
+	ns string,
 	attrs []rinq.Attr,
 ) (
 	ident.Revision,
@@ -103,13 +106,14 @@ func (c *client) Update(
 	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupSessionUpdate(span, ref.ID)
+	traceutil.SetupSessionUpdate(span, ns, ref.ID)
 	traceutil.LogSessionUpdateRequest(span, ref.Rev, attrs)
 
 	out := rinq.NewPayload(updateRequest{
-		Seq:   ref.ID.Seq,
-		Rev:   ref.Rev,
-		Attrs: attrs,
+		Seq:       ref.ID.Seq,
+		Rev:       ref.Rev,
+		Namespace: ns,
+		Attrs:     attrs,
 	})
 	defer out.Close()
 

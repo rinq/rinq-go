@@ -33,13 +33,15 @@ func setupSessionCommand(s opentracing.Span, op string, sessID ident.SessionID) 
 }
 
 // SetupSessionFetch configures s as an attribute fetch operation.
-func SetupSessionFetch(s opentracing.Span, sessID ident.SessionID) {
+func SetupSessionFetch(s opentracing.Span, ns string, sessID ident.SessionID) {
 	setupSessionCommand(s, fetchOp, sessID)
+	s.SetTag("namespace", ns)
 }
 
 // SetupSessionUpdate configures s as an attribute update operation.
-func SetupSessionUpdate(s opentracing.Span, sessID ident.SessionID) {
+func SetupSessionUpdate(s opentracing.Span, ns string, sessID ident.SessionID) {
 	setupSessionCommand(s, updateOp, sessID)
+	s.SetTag("namespace", ns)
 }
 
 // SetupSessionDestroy configures s as a destroy operation.
@@ -125,7 +127,7 @@ func LogSessionUpdateSuccess(s opentracing.Span, rev ident.Revision, diff *bytes
 	s.LogFields(fields...)
 }
 
-// LogSessionUpdateRequest logs information about a session destroy attempt to s.
+// LogSessionDestroyRequest logs information about a session destroy attempt to s.
 func LogSessionDestroyRequest(s opentracing.Span, rev ident.Revision) {
 	s.LogFields(
 		destroyEvent,
@@ -133,7 +135,7 @@ func LogSessionDestroyRequest(s opentracing.Span, rev ident.Revision) {
 	)
 }
 
-// LogSessionUpdateSuccess logs information about a successful destroy attempt to s.
+// LogSessionDestroySuccess logs information about a successful destroy attempt to s.
 func LogSessionDestroySuccess(s opentracing.Span) {
 	s.LogFields(
 		successEvent,

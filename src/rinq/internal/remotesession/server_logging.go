@@ -17,12 +17,14 @@ func logRemoteUpdate(
 	logger rinq.Logger,
 	ref ident.Ref,
 	peerID ident.PeerID,
+	ns string,
 	diff *bytes.Buffer,
 ) {
 	logger.Log(
-		"%s session updated by %s {%s} [%s]",
+		"%s session updated by %s {%s::%s} [%s]",
 		ref.ShortString(),
 		peerID.ShortString(),
+		ns,
 		diff.String(),
 		trace.Get(ctx),
 	)
@@ -38,7 +40,7 @@ func logRemoteClose(
 
 	buffer := bufferpool.Get()
 	defer bufferpool.Put(buffer)
-	attrmeta.WriteTable(buffer, attrs)
+	attrmeta.WriteNamespacedTable(buffer, attrs)
 
 	logger.Log(
 		"%s session destroyed by %s {%s} [%s]",

@@ -23,8 +23,9 @@ const (
 )
 
 type fetchRequest struct {
-	Seq  uint32   `json:"s"`
-	Keys []string `json:"k,omitempty"`
+	Seq       uint32   `json:"s"`
+	Namespace string   `json:"ns,omitempty"`
+	Keys      []string `json:"k,omitempty"`
 }
 
 type fetchResponse struct {
@@ -33,9 +34,10 @@ type fetchResponse struct {
 }
 
 type updateRequest struct {
-	Seq   uint32         `json:"s"`
-	Rev   ident.Revision `json:"r"`
-	Attrs []rinq.Attr    `json:"a,omitempty"`
+	Seq       uint32         `json:"s"`
+	Rev       ident.Revision `json:"r"`
+	Namespace string         `json:"ns"`
+	Attrs     []rinq.Attr    `json:"a,omitempty"`
 }
 
 type updateResponse struct {

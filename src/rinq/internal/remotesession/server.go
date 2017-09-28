@@ -74,7 +74,7 @@ func (s *server) fetch(
 
 	sessID := s.peerID.Session(args.Seq)
 
-	traceutil.SetupSessionFetch(span, sessID)
+	traceutil.SetupSessionFetch(span, args.Namespace, sessID)
 	traceutil.LogSessionFetchRequest(span, args.Keys)
 
 	_, cat, ok := s.sessions.Get(sessID)
@@ -84,7 +84,7 @@ func (s *server) fetch(
 		return
 	}
 
-	ref, attrs := cat.Attrs()
+	ref, attrs := cat.AttrsIn(args.Namespace)
 	rsp := fetchResponse{Rev: ref.Rev}
 	count := len(args.Keys)
 
@@ -122,7 +122,7 @@ func (s *server) update(
 
 	sessID := s.peerID.Session(args.Seq)
 
-	traceutil.SetupSessionUpdate(span, sessID)
+	traceutil.SetupSessionUpdate(span, args.Namespace, sessID)
 	traceutil.LogSessionUpdateRequest(span, args.Rev, args.Attrs)
 
 	_, cat, ok := s.sessions.Get(sessID)
@@ -135,7 +135,12 @@ func (s *server) update(
 	diff := bufferpool.Get()
 	defer bufferpool.Put(diff)
 
-	rev, err := cat.TryUpdate(sessID.At(args.Rev), args.Attrs, diff)
+	rev, err := cat.TryUpdate(
+		sessID.At(args.Rev),
+		args.Namespace,
+		args.Attrs,
+		diff,
+	)
 	if err != nil {
 		switch err.(type) {
 		case rinq.NotFoundError:
@@ -152,13 +157,13 @@ func (s *server) update(
 		return
 	}
 
-	logRemoteUpdate(ctx, s.logger, rev.Ref(), req.Source.Ref().ID.Peer, diff)
+	logRemoteUpdate(ctx, s.logger, rev.Ref(), req.Source.Ref().ID.Peer, args.Namespace, diff)
 
 	rsp := updateResponse{
 		Rev:         rev.Ref().Rev,
 		CreatedRevs: make([]ident.Revision, 0, len(args.Attrs)),
 	}
-	_, attrs := cat.Attrs()
+	_, attrs := cat.AttrsIn(args.Namespace)
 
 	for _, attr := range args.Attrs {
 		rsp.CreatedRevs = append(
