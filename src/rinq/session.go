@@ -21,6 +21,9 @@ import (
 // modified locally, as well as remotely by peers that have received a command
 // request or notification from the session.
 //
+// The attribute table is namespaced. Any operation performed on the attribute
+// table occurs within a single namespace.
+//
 // The attribute table is versioned. Each revision of the attribute table is
 // represented by the Revision interface.
 //
@@ -119,13 +122,14 @@ type Session interface {
 	//
 	// If IsNotFound(err) returns true, this session has been closed and the
 	// notification can not be sent.
-	Notify(ctx context.Context, s ident.SessionID, ns, t string, out *Payload) (err error)
+	Notify(ctx context.Context, ns, t string, s ident.SessionID, out *Payload) (err error)
 
 	// NotifyMany sends a message to multiple sessions that are listening to the
 	// ns namespace.
 	//
 	// The constraint c is a set of attribute key/value pairs that a session
-	// must have in it's attribute table in order to receive the notification.
+	// must have in the ns namespace of its attribute table in order to receive
+	// the notification.
 	//
 	// t and out are an application-defined notification type and payload,
 	// respectively. Both are passed to the notification handlers configured on
@@ -133,17 +137,17 @@ type Session interface {
 	//
 	// If IsNotFound(err) returns true, this session has been closed and the
 	// notification can not be sent.
-	NotifyMany(ctx context.Context, c Constraint, ns, t string, out *Payload) error
+	NotifyMany(ctx context.Context, ns, t string, c Constraint, out *Payload) error
 
-	// Listen begins listening for notifications sent to this session in the
-	// given namespace.
+	// Listen begins listening for notifications sent to this session in the ns
+	// namespace.
 	//
 	// When a notification is received with a namespace equal to ns, h is invoked.
 	//
 	// h is invoked on its own goroutine for each notification.
 	Listen(ns string, h NotificationHandler) error
 
-	// Unlisten stops listening for notifications from the given namespace.
+	// Unlisten stops listening for notifications from the ns namespace.
 	//
 	// If the session is not currently listening for notifications, nil is
 	// returned immediately.
