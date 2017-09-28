@@ -12,7 +12,7 @@ type revision struct {
 	catalog *catalog
 }
 
-func newRevision(ref ident.Ref, cat *catalog) revision {
+func newRevision(ref ident.Ref, cat *catalog) rinq.Revision {
 	return &revision{
 		ref:     ref,
 		catalog: cat,
