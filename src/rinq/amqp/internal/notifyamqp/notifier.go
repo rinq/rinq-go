@@ -54,9 +54,14 @@ func (n *notifier) NotifyUnicast(
 
 	packCommonAttributes(&msg, ns, notificationType, payload)
 	packTarget(&msg, target)
-
 	traceID = amqputil.PackTrace(ctx, &msg)
-	err = n.send(unicastExchange, unicastRoutingKey(ns, target.Peer), msg)
+
+	err = amqputil.PackSpanContext(ctx, &msg)
+
+	if err == nil {
+		err = n.send(unicastExchange, unicastRoutingKey(ns, target.Peer), msg)
+	}
+
 	return
 }
 
@@ -74,9 +79,14 @@ func (n *notifier) NotifyMulticast(
 
 	packCommonAttributes(&msg, ns, notificationType, payload)
 	packConstraint(&msg, constraint)
-
 	traceID = amqputil.PackTrace(ctx, &msg)
-	err = n.send(multicastExchange, ns, msg)
+
+	err = amqputil.PackSpanContext(ctx, &msg)
+
+	if err == nil {
+		err = n.send(multicastExchange, ns, msg)
+	}
+
 	return
 }
 

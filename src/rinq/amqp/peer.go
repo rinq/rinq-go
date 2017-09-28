@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
@@ -12,6 +13,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/remotesession"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
 	"github.com/rinq/rinq-go/src/rinq/internal/syncutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/streadway/amqp"
 )
@@ -30,6 +32,7 @@ type peer struct {
 	notifier    notify.Notifier
 	listener    notify.Listener
 	logger      rinq.Logger
+	tracer      opentracing.Tracer
 	seq         uint32
 
 	amqpClosed chan *amqp.Error
@@ -45,6 +48,7 @@ func newPeer(
 	notifier notify.Notifier,
 	listener notify.Listener,
 	logger rinq.Logger,
+	tracer opentracing.Tracer,
 ) *peer {
 	p := &peer{
 		id:          id,
@@ -56,6 +60,7 @@ func newPeer(
 		notifier:    notifier,
 		listener:    listener,
 		logger:      logger,
+		tracer:      tracer,
 
 		amqpClosed: make(chan *amqp.Error, 1),
 	}
@@ -87,6 +92,7 @@ func (p *peer) Session() rinq.Session {
 		p.notifier,
 		p.listener,
 		p.logger,
+		p.tracer,
 	)
 
 	p.localStore.Add(sess, cat)
@@ -107,18 +113,30 @@ func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
 		namespace,
 		func(
 			ctx context.Context,
+			msgID ident.MessageID,
 			req rinq.Request,
 			res rinq.Response,
 		) {
+			span := opentracing.SpanFromContext(ctx)
+
+			traceutil.SetupCommand(
+				span,
+				msgID,
+				req.Namespace,
+				req.Command,
+			)
+			traceutil.LogServerRequest(span, p.id, req.Payload)
+
 			handler(
 				ctx,
 				req,
-				newLoggingResponse(
+				command.NewResponse(
 					req,
 					res,
 					p.id,
 					trace.Get(ctx),
 					p.logger,
+					span,
 				),
 			)
 		},

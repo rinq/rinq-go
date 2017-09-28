@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 
+	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -23,13 +25,14 @@ type server struct {
 	queues    *queueSet
 	channels  amqputil.ChannelPool
 	logger    rinq.Logger
+	tracer    opentracing.Tracer
 
 	parentCtx context.Context // parent of all contexts passed to handlers
 	cancelCtx func()          // cancels parentCtx when the server stops
 
 	mutex    sync.RWMutex
-	channel  *amqp.Channel                  // channel used for consuming
-	handlers map[string]rinq.CommandHandler // map of namespace to handler
+	channel  *amqp.Channel              // channel used for consuming
+	handlers map[string]command.Handler // map of namespace to handler
 
 	deliveries chan amqp.Delivery // incoming command requests
 	handled    chan struct{}      // signals requests have been handled
@@ -47,6 +50,7 @@ func newServer(
 	queues *queueSet,
 	channels amqputil.ChannelPool,
 	logger rinq.Logger,
+	tracer opentracing.Tracer,
 ) (command.Server, error) {
 	s := &server{
 		peerID:    peerID,
@@ -55,8 +59,9 @@ func newServer(
 		queues:    queues,
 		channels:  channels,
 		logger:    logger,
+		tracer:    tracer,
 
-		handlers: map[string]rinq.CommandHandler{},
+		handlers: map[string]command.Handler{},
 
 		deliveries: make(chan amqp.Delivery, preFetch),
 		handled:    make(chan struct{}, preFetch),
@@ -75,7 +80,7 @@ func newServer(
 	return s, nil
 }
 
-func (s *server) Listen(namespace string, handler rinq.CommandHandler) (bool, error) {
+func (s *server) Listen(namespace string, handler command.Handler) (bool, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -287,6 +292,13 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 		return
 	}
 
+	spanOpts, err := unpackSpanOptions(msg, s.tracer, ext.SpanKindRPCServer)
+	if err != nil {
+		_ = msg.Reject(false) // false = don't requeue
+		logIgnoredMessage(s.logger, s.peerID, msgID, err)
+		return
+	}
+
 	// find the handler for this namespace
 	s.mutex.RLock()
 	h, ok := s.handlers[ns]
@@ -305,7 +317,7 @@ func (s *server) dispatch(msg *amqp.Delivery) {
 		return
 	}
 
-	s.handle(msgID, msg, ns, cmd, source, h)
+	s.handle(msgID, msg, ns, cmd, source, h, spanOpts)
 }
 
 // handle invokes the command handler for request.
@@ -315,11 +327,17 @@ func (s *server) handle(
 	ns string,
 	cmd string,
 	source rinq.Revision,
-	handler rinq.CommandHandler,
+	handler command.Handler,
+	spanOpts []opentracing.StartSpanOption,
 ) {
 	ctx := amqputil.UnpackTrace(s.parentCtx, msg)
 	ctx, cancel := amqputil.UnpackDeadline(ctx, msg)
 	defer cancel()
+
+	span := s.tracer.StartSpan("", spanOpts...)
+	defer span.Finish()
+
+	ctx = opentracing.ContextWithSpan(ctx, span)
 
 	req := rinq.Request{
 		Source:    source,
@@ -341,7 +359,7 @@ func (s *server) handle(
 		logRequestBegin(ctx, s.logger, s.peerID, msgID, req)
 	}
 
-	handler(ctx, req, res)
+	handler(ctx, msgID, req, res)
 
 	if finalize() {
 		_ = msg.Ack(false) // false = single message

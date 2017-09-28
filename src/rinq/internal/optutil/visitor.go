@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"time"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 )
 
@@ -18,6 +19,7 @@ type Visitor interface {
 	ApplySessionWorkers(uint) error
 	ApplyPruneInterval(time.Duration) error
 	ApplyProduct(string) error
+	ApplyTracer(opentracing.Tracer) error
 }
 
 // Apply applies the default options, then a sequence of additional options to v.
@@ -40,6 +42,10 @@ func Apply(v Visitor, opts ...Option) error {
 	}
 
 	if err := v.ApplyPruneInterval(3 * time.Minute); err != nil {
+		return err
+	}
+
+	if err := v.ApplyTracer(opentracing.NoopTracer{}); err != nil {
 		return err
 	}
 

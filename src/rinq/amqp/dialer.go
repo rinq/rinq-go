@@ -196,7 +196,7 @@ func (d *Dialer) Dial(
 		return nil, err
 	}
 
-	remoteStore := remotesession.NewStore(peerID, invoker, cfg.PruneInterval, cfg.Logger)
+	remoteStore := remotesession.NewStore(peerID, invoker, cfg.PruneInterval, cfg.Logger, cfg.Tracer)
 	revStore.Remote = remoteStore
 
 	if err := remotesession.Listen(server, peerID, localStore, cfg.Logger); err != nil {
@@ -213,6 +213,7 @@ func (d *Dialer) Dial(
 		notifier,
 		listener,
 		cfg.Logger,
+		cfg.Tracer,
 	), nil
 }
 

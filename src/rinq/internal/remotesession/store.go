@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
@@ -36,10 +37,11 @@ func NewStore(
 	invoker command.Invoker,
 	pruneInterval time.Duration,
 	logger rinq.Logger,
+	tracer opentracing.Tracer,
 ) Store {
 	s := &store{
 		peerID:   peerID,
-		client:   newClient(peerID, invoker, logger),
+		client:   newClient(peerID, invoker, logger, tracer),
 		interval: pruneInterval,
 		logger:   logger,
 		cache:    map[ident.SessionID]*catalogCacheEntry{},

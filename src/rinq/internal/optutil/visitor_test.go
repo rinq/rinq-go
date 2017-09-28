@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/internal/optutil"
 )
@@ -22,6 +23,7 @@ var _ = Describe("Apply", func() {
 			Logger:         rinq.NewLogger(false),
 			PruneInterval:  3 * time.Minute,
 			Product:        "",
+			Tracer:         opentracing.NoopTracer{},
 		}))
 	})
 })

@@ -3,6 +3,7 @@ package optutil
 import (
 	"time"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 )
 
@@ -14,6 +15,7 @@ type Config struct {
 	SessionWorkers uint
 	PruneInterval  time.Duration
 	Product        string
+	Tracer         opentracing.Tracer
 }
 
 // NewConfig returns a new config object from the given options.
@@ -30,6 +32,10 @@ func (c *Config) ApplyDefaultTimeout(v time.Duration) error {
 
 // ApplyLogger sets the Logger value.
 func (c *Config) ApplyLogger(v rinq.Logger) error {
+	if v == nil {
+		panic("logger must not be nil")
+	}
+
 	c.Logger = v
 	return nil
 }
@@ -55,5 +61,15 @@ func (c *Config) ApplyPruneInterval(v time.Duration) error {
 // ApplyProduct sets the Product value.
 func (c *Config) ApplyProduct(v string) error {
 	c.Product = v
+	return nil
+}
+
+// ApplyTracer sets the Tracer value.
+func (c *Config) ApplyTracer(v opentracing.Tracer) error {
+	if v == nil {
+		panic("tracer must not be nil")
+	}
+
+	c.Tracer = v
 	return nil
 }

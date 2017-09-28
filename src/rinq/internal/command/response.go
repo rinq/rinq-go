@@ -1,80 +1,64 @@
-package amqp
+package command
 
 import (
 	"time"
 
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 )
 
-func logStartedListening(
-	logger rinq.Logger,
-	peerID ident.PeerID,
-	namespace string,
-) {
-	logger.Log(
-		"%s started listening for command requests in '%s' namespace",
-		peerID.ShortString(),
-		namespace,
-	)
-}
-
-func logStoppedListening(
-	logger rinq.Logger,
-	peerID ident.PeerID,
-	namespace string,
-) {
-	logger.Log(
-		"%s stopped listening for command requests in '%s' namespace",
-		peerID.ShortString(),
-		namespace,
-	)
-}
-
-// loggingResponse wraps are "parent" response and emits a log entry when it is
-// closed.
-type loggingResponse struct {
+// response wraps a "parent" response and performs logging and tracing when the
+// response is closed.
+type response struct {
 	req rinq.Request
 	res rinq.Response
 
 	peerID    ident.PeerID
 	traceID   string
 	logger    rinq.Logger
+	span      opentracing.Span
 	startedAt time.Time
 }
 
-func newLoggingResponse(
+// NewResponse returns a response that wraps res.
+func NewResponse(
 	req rinq.Request,
 	res rinq.Response,
 	peerID ident.PeerID,
 	traceID string,
 	logger rinq.Logger,
+	span opentracing.Span,
 ) rinq.Response {
-	return &loggingResponse{
+	return &response{
 		res: res,
 		req: req,
 
 		peerID:    peerID,
 		traceID:   traceID,
 		logger:    logger,
+		span:      span,
 		startedAt: time.Now(),
 	}
 }
 
-func (r *loggingResponse) IsRequired() bool {
+func (r *response) IsRequired() bool {
 	return r.res.IsRequired()
 }
 
-func (r *loggingResponse) IsClosed() bool {
+func (r *response) IsClosed() bool {
 	return r.res.IsClosed()
 }
 
-func (r *loggingResponse) Done(payload *rinq.Payload) {
+func (r *response) Done(payload *rinq.Payload) {
 	r.res.Done(payload)
 	r.logSuccess(payload)
+
+	traceutil.LogServerSuccess(r.span, payload)
 }
 
-func (r *loggingResponse) Error(err error) {
+func (r *response) Error(err error) {
 	r.res.Error(err)
 
 	if failure, ok := err.(rinq.Failure); ok {
@@ -82,24 +66,29 @@ func (r *loggingResponse) Error(err error) {
 	} else {
 		r.logError(err)
 	}
+
+	traceutil.LogServerError(r.span, err)
 }
 
-func (r *loggingResponse) Fail(f, t string, v ...interface{}) rinq.Failure {
+func (r *response) Fail(f, t string, v ...interface{}) rinq.Failure {
 	err := r.res.Fail(f, t, v...)
 	r.logFailure(f, nil)
+	traceutil.LogServerError(r.span, err)
+
 	return err
 }
 
-func (r *loggingResponse) Close() bool {
+func (r *response) Close() bool {
 	if r.res.Close() {
 		r.logSuccess(nil)
+		traceutil.LogServerSuccess(r.span, nil)
 		return true
 	}
 
 	return false
 }
 
-func (r *loggingResponse) logSuccess(payload *rinq.Payload) {
+func (r *response) logSuccess(payload *rinq.Payload) {
 	r.logger.Log(
 		"%s handled '%s::%s' command from %s successfully (%dms %d/i %d/o) [%s]",
 		r.peerID.ShortString(),
@@ -112,7 +101,8 @@ func (r *loggingResponse) logSuccess(payload *rinq.Payload) {
 		r.traceID,
 	)
 }
-func (r *loggingResponse) logFailure(failureType string, payload *rinq.Payload) {
+
+func (r *response) logFailure(failureType string, payload *rinq.Payload) {
 	r.logger.Log(
 		"%s handled '%s::%s' command from %s: '%s' failure (%dms %d/i %d/o) [%s]",
 		r.peerID.ShortString(),
@@ -127,7 +117,7 @@ func (r *loggingResponse) logFailure(failureType string, payload *rinq.Payload) 
 	)
 }
 
-func (r *loggingResponse) logError(err error) {
+func (r *response) logError(err error) {
 	r.logger.Log(
 		"%s handled '%s::%s' command from %s: '%s' error (%dms %d/i 0/o) [%s]",
 		r.peerID.ShortString(),
