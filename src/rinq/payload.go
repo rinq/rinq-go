@@ -9,18 +9,25 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
-// Payload is an application-defined value that is included in a command request,
-// command response, or inter-session notification.
+// Payload is an immutable, application-defined value that is included in a
+// command request, command response, or inter-session notification.
 //
 // A nil-payload pointer is equivalent to a payload with a value of nil.
 //
-// Payload values are immutable, but must be closed when no longer required
-// in order to free the internal buffer. The Clone() function provides an
-// inexpensive way to create an additional reference to the same payload data.
-// Payloads are not safe for concurrent use.
+// Payloads must be closed by the application when no longer required. This
+// includes payloads constructed by calling NewPayload() or NewPayloadFromBytes(),
+// as well as any payload returned by a Rinq operation (such as Session.Call()),
+// or passed to a callback function that was provided by the application.
+//
+// Payloads are NOT safe for concurrent use. To share a payload across multiple
+// goroutines, call Payload.Clone() to obtain a second payload that references
+// the same underlying data.
 //
 // Payload values can be any value that can be represented using CBOR encoding.
 // See http://cbor.io/ for more information.
+//
+// Payloads are modelled in this way to allow an application to forward incoming
+// payloads without the need to decode and re-encode them.
 type Payload struct {
 	data *payloadData
 }

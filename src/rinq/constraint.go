@@ -3,7 +3,9 @@ package rinq
 import "github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 
 // Constraint represents a set of session attribute values used to determine
-// which sessions receive multicast notifications.
+// which sessions receive a multicast notification.
+//
+// See Session.NotifyMany() to send a multicast notification.
 type Constraint map[string]string
 
 func (con Constraint) String() string {

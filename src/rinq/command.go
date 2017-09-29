@@ -13,12 +13,12 @@ import (
 // Command requests can only be received for namespaces that a peer is listening
 // to. See Peer.Listen() to start listening.
 //
-// The handler MUST close the response by calling r.Done(), r.Error() or
-// r.Destroy(); otherwise the request may be redelivered, possibly to a
+// The handler MUST close the response by calling res.Done(), res.Error() or
+// res.Destroy(); otherwise the request may be redelivered, possibly to a
 // different peer.
 //
-// The handler is responsible for closing the req.Payload, though it may remain
-// open longer than the execution of the handler.
+// The handler is responsible for closing req.Payload, however there is no
+// requirement that the payload be closed during the execution of the handler.
 type CommandHandler func(
 	ctx context.Context,
 	req Request,
@@ -40,7 +40,9 @@ type Request struct {
 	Command string
 
 	// Payload contains optional application-defined information about the
-	// request, such as arguments to the command.
+	// request, such as arguments to the command. The handler that accepts the
+	// request is responsible for closing the payload, however there is no
+	// requirement that the payload be closed during the execution of the handler.
 	Payload *Payload
 }
 
@@ -52,7 +54,7 @@ type Response interface {
 	// The response must always be closed, even if IsRequired() returns false.
 	IsRequired() bool
 
-	// IsClosed true if the response has already been closed.
+	// IsClosed returns true if the response has already been closed.
 	IsClosed() bool
 
 	// Done sends a payload to the source session and closes the response.
@@ -65,7 +67,7 @@ type Response interface {
 	// A panic occurs if the response has already been closed.
 	Error(error)
 
-	// Fail is a convenience method that creates a Failure and passes it to
+	// Fail is a convenience method that creates a Failure and passes it to the
 	// Error() method. The created failure is returned.
 	//
 	// The failure type t is used verbatim. The failure message is formatted
@@ -78,7 +80,7 @@ type Response interface {
 	//
 	// If the origin session is expecting response it will receive a nil payload.
 	//
-	// It is not an error to close a responder multiple times. The return value
+	// It is not an error to close a response multiple times. The return value
 	// is true the first time Close() is called, and false on subsequent calls.
 	Close() bool
 }
@@ -89,7 +91,7 @@ type Response interface {
 // of the command that produced it. Failures form part of the command's API and
 // should usually be handled by the caller.
 //
-// Failures can be produced by a command handler by calling Response.Fail() or
+// Failures can be produced in a command handler by calling Response.Fail() or
 // passing a Failure value to Response.Error().
 type Failure struct {
 	// Type is an application-defined string identifying the failure.
@@ -165,7 +167,7 @@ func (err CommandError) Error() string {
 //
 // Namespaces beginning with an underscore are reserved for internal use.
 //
-// The return value is nil if ns is valid, unreserved namespace.
+// The return value is nil if ns is a valid, unreserved namespace.
 func ValidateNamespace(ns string) error {
 	if ns == "" {
 		return errors.New("namespace must not be empty")

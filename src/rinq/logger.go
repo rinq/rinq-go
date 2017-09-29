@@ -11,7 +11,7 @@ type Logger interface {
 	IsDebug() bool
 }
 
-// NewLogger returns a logger that writes to stdout using a standard Go logger.
+// NewLogger returns a logger that writes to STDOUT using a standard Go logger.
 func NewLogger(isDebug bool) Logger {
 	return standardLogger{
 		isDebug,
