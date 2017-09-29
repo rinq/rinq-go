@@ -10,14 +10,19 @@ type Constraint map[string]string
 
 func (con Constraint) String() string {
 	if len(con) == 0 {
-		return "*"
+		return "{*}"
 	}
 
 	buf := bufferpool.Get()
 	defer bufferpool.Put(buf)
 
+	buf.WriteRune('{')
+
+	first := true
 	for key, value := range con {
-		if buf.Len() > 0 {
+		if first {
+			first = false
+		} else {
 			buf.WriteString(", ")
 		}
 
@@ -30,6 +35,8 @@ func (con Constraint) String() string {
 			buf.WriteString(value)
 		}
 	}
+
+	buf.WriteRune('}')
 
 	return buf.String()
 }
