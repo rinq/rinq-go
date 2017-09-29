@@ -170,9 +170,6 @@ func (c *catalog) TryUpdate(
 
 	updateAttrs := make([]rinq.Attr, 0, len(attrs))
 
-	// grab the cache for this namespace, note that this variable is used after
-	// below when the write lock is acquired, as it will always point to the
-	// same map value
 	cache := c.cache[ns]
 
 	for _, attr := range attrs {
@@ -206,13 +203,21 @@ func (c *catalog) TryUpdate(
 		return nil, err
 	}
 
-	// note that "cache" refers to the same map as when the read lock was
-	// acquired above
+	cache, isExistingNamespace := c.cache[ns]
+
 	for _, attr := range returnedAttrs {
 		entry := cache[attr.Key]
 		if updatedRev > entry.FetchedAt {
+			if cache == nil {
+				cache = attrNamespaceCache{}
+			}
+
 			cache[attr.Key] = cachedAttr{attr, updatedRev}
 		}
+	}
+
+	if !isExistingNamespace && cache != nil {
+		c.cache[ns] = cache
 	}
 
 	return &revision{
