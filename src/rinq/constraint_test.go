@@ -12,7 +12,7 @@ var _ = Describe("Constraint", func() {
 			Expect(rinq.Constraint{}.String()).To(Equal("{*}"))
 		})
 
-		It("it returns key value pairs in any order", func() {
+		It("returns key/value pairs in any order", func() {
 			constraint := rinq.Constraint{"a": "1", "b": "2"}
 			str := constraint.String()
 

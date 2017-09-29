@@ -6,13 +6,12 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 )
 
 type revision struct {
 	ref     ident.Ref
 	catalog Catalog
-	attrs   attrmeta.NamespacedTable
+	attrs   attrmeta.Table
 	logger  rinq.Logger
 }
 
@@ -87,15 +86,12 @@ func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (r
 		return r, nil
 	}
 
-	diff := bufferpool.Get()
-	defer bufferpool.Put(diff)
-
-	rev, err := r.catalog.TryUpdate(r.ref, ns, attrs, diff)
+	rev, diff, err := r.catalog.TryUpdate(r.ref, ns, attrs)
 	if err != nil {
 		return r, err
 	}
 
-	logUpdate(ctx, r.logger, rev.Ref(), ns, diff)
+	logUpdate(ctx, r.logger, rev.Ref(), diff)
 
 	return rev, nil
 }

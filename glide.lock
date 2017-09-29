@@ -1,12 +1,6 @@
-hash: 70d5b9f8e3e9893ebba2093e1a071ff85131665aa0ce092391f2e40c1dbd0353
-updated: 2017-09-19T14:56:52.778218527+10:00
+hash: e549cb50d07d86b058713c1d6fbccd1be43dcc26bd4311266d9f3270596c55ad
+updated: 2017-09-29T14:24:05.422991532+10:00
 imports:
-- name: github.com/apache/thrift
-  version: b2a4d4ae21c789b689dd162deb819665567f481c
-  subpackages:
-  - lib/go/thrift
-- name: github.com/codahale/hdrhistogram
-  version: 3a0bb77429bd3a61596f5e8a3172445844342120
 - name: github.com/hashicorp/go-version
   version: 03c5bf6be031b6dd45afec16b1cf94fc8938bc77
 - name: github.com/onsi/ginkgo
@@ -51,20 +45,6 @@ imports:
   - log
 - name: github.com/streadway/amqp
   version: 2cbfe40c9341ad63ba23e53013b3ddc7989d801c
-- name: github.com/uber/jaeger-client-go
-  version: 3e3870040def0ebdaf65a003863fa64f5cb26139
-  subpackages:
-  - internal/spanlog
-  - log
-  - thrift-gen/agent
-  - thrift-gen/jaeger
-  - thrift-gen/sampling
-  - thrift-gen/zipkincore
-  - utils
-- name: github.com/uber/jaeger-lib
-  version: 3b2a9ad2a045881ab7a0f81d465be54c8292ee4f
-  subpackages:
-  - metrics
 - name: github.com/ugorji/go
   version: 5efa3251c7f7d05e5d9704a69a984ec9f1386a40
   subpackages:
@@ -77,6 +57,12 @@ imports:
   - html/atom
   - html/charset
 testImports:
+- name: github.com/davecgh/go-spew
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
+  subpackages:
+  - spew
+- name: github.com/uber/jaeger-client-go
+  version: 3e3870040def0ebdaf65a003863fa64f5cb26139
 - name: golang.org/x/sys
   version: d9157a9621b69ad1d8d77a1933590c416593f24f
   subpackages:

@@ -9,7 +9,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 )
@@ -43,7 +43,7 @@ func (c *client) Fetch(
 	keys []string,
 ) (
 	ident.Revision,
-	[]attrmeta.Attr,
+	attrmeta.List,
 	error,
 ) {
 	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
@@ -97,10 +97,10 @@ func (c *client) Update(
 	ctx context.Context,
 	ref ident.Ref,
 	ns string,
-	attrs []rinq.Attr,
+	attrs attrutil.List,
 ) (
 	ident.Revision,
-	[]attrmeta.Attr,
+	attrmeta.List,
 	error,
 ) {
 	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
@@ -150,11 +150,10 @@ func (c *client) Update(
 		return 0, nil, err
 	}
 
-	updatedAttrs := make([]attrmeta.Attr, 0, len(attrs))
+	diff := attrmeta.NewDiff(ns, rsp.Rev, len(attrs))
 
 	for index, attr := range attrs {
-		updatedAttrs = append(
-			updatedAttrs,
+		diff.Append(
 			attrmeta.Attr{
 				Attr:      attr,
 				CreatedAt: rsp.CreatedRevs[index],
@@ -163,15 +162,10 @@ func (c *client) Update(
 		)
 	}
 
-	diff := bufferpool.Get()
-	defer bufferpool.Put(diff)
-
-	attrmeta.WriteDiffSlice(diff, updatedAttrs)
-
-	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), ns, diff)
+	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), diff)
 	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 
-	return rsp.Rev, updatedAttrs, nil
+	return rsp.Rev, diff.Attrs, nil
 }
 
 func (c *client) Close(

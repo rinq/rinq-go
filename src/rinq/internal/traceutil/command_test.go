@@ -40,7 +40,7 @@ var _ = Describe("LogInvokerCall", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		attrs := attrmeta.NamespacedTable{
+		attrs := attrmeta.Table{
 			"ns": {
 				"foo": attrmeta.Attr{
 					Attr: rinq.Freeze("foo", "bar"),
@@ -57,7 +57,7 @@ var _ = Describe("LogInvokerCall", func() {
 			[]map[string]interface{}{
 				{
 					"event":      "call",
-					"attributes": "ns::foo@bar",
+					"attributes": "ns::{foo@bar}",
 					"size":       4,
 				},
 			},
@@ -69,7 +69,7 @@ var _ = Describe("LogInvokerCallAsync", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		attrs := attrmeta.NamespacedTable{
+		attrs := attrmeta.Table{
 			"ns": {
 				"foo": attrmeta.Attr{
 					Attr: rinq.Freeze("foo", "bar"),
@@ -86,7 +86,7 @@ var _ = Describe("LogInvokerCallAsync", func() {
 			[]map[string]interface{}{
 				{
 					"event":      "call-async",
-					"attributes": "ns::foo@bar",
+					"attributes": "ns::{foo@bar}",
 					"size":       4,
 				},
 			},
@@ -98,7 +98,7 @@ var _ = Describe("LogInvokerExecute", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		attrs := attrmeta.NamespacedTable{
+		attrs := attrmeta.Table{
 			"ns": {
 				"foo": attrmeta.Attr{
 					Attr: rinq.Freeze("foo", "bar"),
@@ -115,7 +115,7 @@ var _ = Describe("LogInvokerExecute", func() {
 			[]map[string]interface{}{
 				{
 					"event":      "execute",
-					"attributes": "ns::foo@bar",
+					"attributes": "ns::{foo@bar}",
 					"size":       4,
 				},
 			},

@@ -128,7 +128,7 @@ func (err StaleFetchError) Error() string {
 	)
 }
 
-// StaleUpdateError indicates a failure to update or destroy a session  because
+// StaleUpdateError indicates a failure to update or destroy a session because
 // the session has been modified after that revision.
 type StaleUpdateError struct {
 	Ref ident.Ref

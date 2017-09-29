@@ -6,6 +6,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 	revisionpkg "github.com/rinq/rinq-go/src/rinq/internal/revision"
 	"github.com/rinq/rinq-go/src/rinq/internal/syncutil"
 )
@@ -79,7 +80,7 @@ func (c *catalog) Fetch(
 	rev ident.Revision,
 	ns string,
 	keys ...string,
-) ([]rinq.Attr, error) {
+) (attrutil.List, error) {
 	solvedAttrs, unsolvedKeys, err := c.fetchLocal(rev, ns, keys)
 	if err != nil {
 		return nil, err
@@ -153,7 +154,7 @@ func (c *catalog) TryUpdate(
 	ctx context.Context,
 	rev ident.Revision,
 	ns string,
-	attrs []rinq.Attr,
+	attrs attrutil.List,
 ) (rinq.Revision, error) {
 	unlock := syncutil.RLock(&c.mutex)
 	defer unlock()
@@ -168,7 +169,7 @@ func (c *catalog) TryUpdate(
 		return nil, rinq.StaleUpdateError{Ref: ref}
 	}
 
-	updateAttrs := make([]rinq.Attr, 0, len(attrs))
+	updateAttrs := make(attrutil.List, 0, len(attrs))
 
 	cache := c.cache[ns]
 
@@ -263,7 +264,7 @@ func (c *catalog) fetchLocal(
 	ns string,
 	keys []string,
 ) (
-	solved []rinq.Attr,
+	solved attrutil.List,
 	unsolved []string,
 	err error,
 ) {
@@ -271,7 +272,7 @@ func (c *catalog) fetchLocal(
 	defer c.mutex.RUnlock()
 
 	count := len(keys)
-	solved = make([]rinq.Attr, 0, count)
+	solved = make(attrutil.List, 0, count)
 	unsolved = make([]string, 0, count)
 
 	cache := c.cache[ns]

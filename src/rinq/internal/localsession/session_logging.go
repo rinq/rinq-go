@@ -6,8 +6,6 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
@@ -154,21 +152,17 @@ func logSessionDestroy(
 ) {
 	ref, attrs := cat.Attrs()
 
-	buffer := bufferpool.Get()
-	defer bufferpool.Put(buffer)
-	attrmeta.WriteNamespacedTable(buffer, attrs)
-
 	if traceID == "" {
 		logger.Log(
-			"%s session destroyed {%s}",
+			"%s session destroyed %s",
 			ref.ShortString(),
-			buffer,
+			attrs,
 		)
 	} else {
 		logger.Log(
-			"%s session destroyed {%s} [%s]",
+			"%s session destroyed %s [%s]",
 			ref.ShortString(),
-			buffer,
+			attrs,
 			traceID,
 		)
 	}

@@ -304,7 +304,7 @@ func (s *session) NotifyMany(ctx context.Context, ns, t string, con rinq.Constra
 	// TODO: move to function
 	if err == nil {
 		s.logger.Log(
-			"%s sent '%s::%s' notification to sessions matching {%s} (%d/o) [%s]",
+			"%s sent '%s::%s' notification to sessions matching %s (%d/o) [%s]",
 			msgID.ShortString(),
 			ns,
 			t,

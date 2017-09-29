@@ -33,7 +33,7 @@ func SetupNotification(
 // LogNotifierUnicast logs information about a unicast notification to s.
 func LogNotifierUnicast(
 	s opentracing.Span,
-	attrs attrmeta.NamespacedTable,
+	attrs attrmeta.Table,
 	target ident.SessionID,
 	p *rinq.Payload,
 ) {
@@ -53,7 +53,7 @@ func LogNotifierUnicast(
 // LogNotifierMulticast logs informatin about a multicast notification to s.
 func LogNotifierMulticast(
 	s opentracing.Span,
-	attrs attrmeta.NamespacedTable,
+	attrs attrmeta.Table,
 	con rinq.Constraint,
 	p *rinq.Payload,
 ) {

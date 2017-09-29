@@ -1,13 +1,13 @@
 package localsession
 
 import (
-	"bytes"
 	"errors"
 	"sync"
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 )
 
 // Catalog is an interface for manipulating an attribute table.
@@ -18,7 +18,7 @@ type Catalog interface {
 	Ref() ident.Ref
 
 	// NextMessageID generates a unique message ID from the current session-ref.
-	NextMessageID() (ident.MessageID, attrmeta.NamespacedTable)
+	NextMessageID() (ident.MessageID, attrmeta.Table)
 
 	// Head returns the most recent revision.
 	// It is conceptually equivalent to catalog.At(catalog.Ref().Rev).
@@ -28,11 +28,11 @@ type Catalog interface {
 	// number. The revision can not be newer than the current session-ref.
 	At(ident.Revision) (rinq.Revision, error)
 
-	// AllAttrs returns all attributes at the most recent revision.
-	Attrs() (ident.Ref, attrmeta.NamespacedTable)
+	// Attrs returns all attributes at the most recent revision.
+	Attrs() (ident.Ref, attrmeta.Table)
 
-	// Attrs returns all attributes in the ns namespace at the most recent revision.
-	AttrsIn(ns string) (ident.Ref, attrmeta.Table)
+	// AttrsIn returns all attributes in the ns namespace at the most recent revision.
+	AttrsIn(ns string) (ident.Ref, attrmeta.Namespace)
 
 	// TryUpdate adds or updates attributes in the ns namespace of the attribute
 	// table and returns the new head revision.
@@ -45,9 +45,8 @@ type Catalog interface {
 	TryUpdate(
 		ref ident.Ref,
 		ns string,
-		attrs []rinq.Attr,
-		diff *bytes.Buffer,
-	) (rinq.Revision, error)
+		attrs attrutil.List,
+	) (rinq.Revision, *attrmeta.Diff, error)
 
 	// TryDestroy closes the catalog, preventing further updates.
 	//
@@ -66,7 +65,7 @@ type Catalog interface {
 type catalog struct {
 	mutex  sync.RWMutex
 	ref    ident.Ref
-	attrs  attrmeta.NamespacedTable
+	attrs  attrmeta.Table
 	seq    uint32
 	done   chan struct{}
 	logger rinq.Logger
@@ -91,7 +90,7 @@ func (c *catalog) Ref() ident.Ref {
 	return c.ref
 }
 
-func (c *catalog) NextMessageID() (ident.MessageID, attrmeta.NamespacedTable) {
+func (c *catalog) NextMessageID() (ident.MessageID, attrmeta.Table) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -127,14 +126,14 @@ func (c *catalog) At(rev ident.Revision) (rinq.Revision, error) {
 	}, nil
 }
 
-func (c *catalog) Attrs() (ident.Ref, attrmeta.NamespacedTable) {
+func (c *catalog) Attrs() (ident.Ref, attrmeta.Table) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
 	return c.ref, c.attrs
 }
 
-func (c *catalog) AttrsIn(ns string) (ident.Ref, attrmeta.Table) {
+func (c *catalog) AttrsIn(ns string) (ident.Ref, attrmeta.Namespace) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
@@ -144,25 +143,24 @@ func (c *catalog) AttrsIn(ns string) (ident.Ref, attrmeta.Table) {
 func (c *catalog) TryUpdate(
 	ref ident.Ref,
 	ns string,
-	attrs []rinq.Attr,
-	diff *bytes.Buffer,
-) (rinq.Revision, error) {
+	attrs attrutil.List,
+) (rinq.Revision, *attrmeta.Diff, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	select {
 	case <-c.done:
-		return nil, rinq.NotFoundError{ID: c.ref.ID}
+		return nil, nil, rinq.NotFoundError{ID: c.ref.ID}
 	default:
 	}
 
 	if ref != c.ref {
-		return nil, rinq.StaleUpdateError{Ref: ref}
+		return nil, nil, rinq.StaleUpdateError{Ref: ref}
 	}
 
-	hasChanged := false
 	nextRev := ref.Rev + 1
 	nextAttrs := c.attrs[ns].Clone()
+	diff := attrmeta.NewDiff(ns, nextRev, len(attrs))
 
 	for _, attr := range attrs {
 		entry, exists := nextAttrs[attr.Key]
@@ -172,10 +170,9 @@ func (c *catalog) TryUpdate(
 		}
 
 		if entry.IsFrozen {
-			return nil, rinq.FrozenAttributesError{Ref: ref}
+			return nil, nil, rinq.FrozenAttributesError{Ref: ref}
 		}
 
-		hasChanged = true
 		entry.Attr = attr
 		entry.UpdatedAt = nextRev
 		if !exists {
@@ -183,20 +180,14 @@ func (c *catalog) TryUpdate(
 		}
 
 		nextAttrs[attr.Key] = entry
-
-		if diff != nil {
-			if diff.Len() != 0 {
-				diff.WriteString(", ")
-			}
-			attrmeta.WriteDiff(diff, entry)
-		}
+		diff.Append(entry)
 	}
 
 	c.ref.Rev = nextRev
 	c.seq = 0
 
-	if hasChanged {
-		c.attrs = c.attrs.CloneAndReplace(ns, nextAttrs)
+	if !diff.IsEmpty() {
+		c.attrs = c.attrs.CloneAndMerge(ns, nextAttrs)
 	}
 
 	return &revision{
@@ -204,7 +195,7 @@ func (c *catalog) TryUpdate(
 		catalog: c,
 		attrs:   c.attrs,
 		logger:  c.logger,
-	}, nil
+	}, diff, nil
 }
 
 func (c *catalog) TryDestroy(ref ident.Ref) error {

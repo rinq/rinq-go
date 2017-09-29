@@ -1,9 +1,9 @@
 package remotesession
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 )
 
 const (
@@ -29,15 +29,15 @@ type fetchRequest struct {
 }
 
 type fetchResponse struct {
-	Rev   ident.Revision  `json:"r"`
-	Attrs []attrmeta.Attr `json:"a,omitempty"`
+	Rev   ident.Revision `json:"r"`
+	Attrs attrmeta.List  `json:"a,omitempty"`
 }
 
 type updateRequest struct {
 	Seq       uint32         `json:"s"`
 	Rev       ident.Revision `json:"r"`
 	Namespace string         `json:"ns"`
-	Attrs     []rinq.Attr    `json:"a,omitempty"`
+	Attrs     attrutil.List  `json:"a,omitempty"`
 }
 
 type updateResponse struct {

@@ -1,11 +1,11 @@
 package localsession
 
 import (
-	"bytes"
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
@@ -13,23 +13,20 @@ func logUpdate(
 	ctx context.Context,
 	logger rinq.Logger,
 	ref ident.Ref,
-	ns string,
-	diff *bytes.Buffer,
+	diff *attrmeta.Diff,
 ) {
 	if traceID := trace.Get(ctx); traceID != "" {
 		logger.Log(
-			"%s session updated {%s::%s} [%s]",
+			"%s session updated %s [%s]",
 			ref.ShortString(),
-			ns,
-			diff.String(),
+			diff,
 			traceID,
 		)
 	} else {
 		logger.Log(
-			"%s session updated {%s::%s}",
+			"%s session updated %s",
 			ref.ShortString(),
-			ns,
-			diff.String(),
+			diff,
 		)
 	}
 }

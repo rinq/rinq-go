@@ -41,7 +41,7 @@ func SetupCommand(
 // LogInvokerCall logs information about a "call" style invocation to s.
 func LogInvokerCall(
 	s opentracing.Span,
-	attrs attrmeta.NamespacedTable,
+	attrs attrmeta.Table,
 	p *rinq.Payload,
 ) {
 	fields := []log.Field{
@@ -59,7 +59,7 @@ func LogInvokerCall(
 // LogInvokerCallAsync logs information about a "call-sync" style invocation to s.
 func LogInvokerCallAsync(
 	span opentracing.Span,
-	attrs attrmeta.NamespacedTable,
+	attrs attrmeta.Table,
 	p *rinq.Payload,
 ) {
 	fields := []log.Field{
@@ -77,7 +77,7 @@ func LogInvokerCallAsync(
 // LogInvokerExecute logs information about an "execute" style invoation to s.
 func LogInvokerExecute(
 	span opentracing.Span,
-	attrs attrmeta.NamespacedTable,
+	attrs attrmeta.Table,
 	p *rinq.Payload,
 ) {
 	fields := []log.Field{

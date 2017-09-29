@@ -1,54 +1,21 @@
 package attrmeta
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
+	"bytes"
+
 	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 )
 
-// Table maps attribute keys to attributes with meta data.
-type Table map[string]Attr
+// Table maps namespace to attribute table.
+type Table map[string]Namespace
 
-// Clone returns a copy of the attribute table.
-func (t Table) Clone() Table {
-	r := Table{}
-
-	for k, v := range t {
-		r[k] = v
-	}
-
-	return r
-}
-
-// MatchConstraint returns true if the attributes match the given constraint.
-func (t Table) MatchConstraint(constraint rinq.Constraint) bool {
-	for key, value := range constraint {
-		if t[key].Value != value {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (t Table) String() string {
-	buf := bufferpool.Get()
-	defer bufferpool.Put(buf)
-
-	WriteTable(buf, t)
-
-	return buf.String()
-}
-
-// NamespacedTable maps namespace to attribute table.
-type NamespacedTable map[string]Table
-
-// CloneAndReplace returns a copy of the attribute table with the ns namespaced replaced
-// with nt.
-func (t NamespacedTable) CloneAndReplace(ns string, nt Table) NamespacedTable {
-	r := NamespacedTable{ns: nt}
+// CloneAndMerge returns a copy of the attribute table with the n namespaced replaced
+// with ns. ns is NOT cloned.
+func (t Table) CloneAndMerge(name string, ns Namespace) Table {
+	r := Table{name: ns}
 
 	for n, a := range t {
-		if n != ns {
+		if n != name {
 			r[n] = a.Clone()
 		}
 	}
@@ -56,11 +23,37 @@ func (t NamespacedTable) CloneAndReplace(ns string, nt Table) NamespacedTable {
 	return r
 }
 
-func (t NamespacedTable) String() string {
+// WriteTo writes a respresentation of t to buf.
+// Non-frozen attributes with empty-values are omitted.
+func (t Table) WriteTo(buf *bytes.Buffer) {
+	sub := bufferpool.Get()
+	defer bufferpool.Put(sub)
+
+	first := true
+	for n, a := range t {
+		sub.Reset()
+
+		if a.WriteWithNameTo(sub, n) {
+			if first {
+				first = false
+			} else {
+				buf.WriteRune(' ')
+			}
+
+			sub.WriteTo(buf)
+		}
+	}
+
+	if first {
+		buf.WriteString("{}")
+	}
+}
+
+func (t Table) String() string {
 	buf := bufferpool.Get()
 	defer bufferpool.Put(buf)
 
-	WriteNamespacedTable(buf, t)
+	t.WriteTo(buf)
 
 	return buf.String()
 }

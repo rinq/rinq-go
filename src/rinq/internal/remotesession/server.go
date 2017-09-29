@@ -8,7 +8,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
@@ -132,15 +131,7 @@ func (s *server) update(
 		return
 	}
 
-	diff := bufferpool.Get()
-	defer bufferpool.Put(diff)
-
-	rev, err := cat.TryUpdate(
-		sessID.At(args.Rev),
-		args.Namespace,
-		args.Attrs,
-		diff,
-	)
+	rev, diff, err := cat.TryUpdate(sessID.At(args.Rev), args.Namespace, args.Attrs)
 	if err != nil {
 		switch err.(type) {
 		case rinq.NotFoundError:
@@ -157,7 +148,7 @@ func (s *server) update(
 		return
 	}
 
-	logRemoteUpdate(ctx, s.logger, rev.Ref(), req.Source.Ref().ID.Peer, args.Namespace, diff)
+	logRemoteUpdate(ctx, s.logger, rev.Ref(), req.Source.Ref().ID.Peer, diff)
 
 	rsp := updateResponse{
 		Rev:         rev.Ref().Rev,
