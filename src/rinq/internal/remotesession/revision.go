@@ -29,7 +29,7 @@ func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
 		return rinq.Attr{Key: key}, nil
 	}
 
-	attrs, err := r.catalog.Fetch(ctx, r.ref.Rev, key)
+	attrs, err := r.catalog.Fetch(ctx, r.ref.Rev, ns, key)
 	if err != nil {
 		return rinq.Attr{}, err
 	} else if len(attrs) == 0 {
