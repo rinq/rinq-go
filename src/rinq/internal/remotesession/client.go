@@ -168,7 +168,7 @@ func (c *client) Update(
 
 	attrmeta.WriteDiffSlice(diff, updatedAttrs)
 
-	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), diff)
+	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), ns, diff)
 	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 
 	return rsp.Rev, updatedAttrs, nil

@@ -14,12 +14,14 @@ func logUpdate(
 	logger rinq.Logger,
 	peerID ident.PeerID,
 	ref ident.Ref,
+	ns string,
 	diff *bytes.Buffer,
 ) {
 	logger.Log(
-		"%s updated remote session %s {%s} [%s]",
+		"%s updated remote session %s {%s::%s} [%s]",
 		peerID.ShortString(),
 		ref.ShortString(),
+		ns,
 		diff.String(),
 		trace.Get(ctx),
 	)
