@@ -40,7 +40,7 @@ func (t Table) WriteTo(buf *bytes.Buffer) {
 				buf.WriteRune(' ')
 			}
 
-			sub.WriteTo(buf)
+			_, _ = sub.WriteTo(buf)
 		}
 	}
 
