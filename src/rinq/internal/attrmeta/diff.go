@@ -36,7 +36,14 @@ func (d *Diff) IsEmpty() bool {
 // WriteTo writes a representation of d to buf.
 func (d *Diff) WriteTo(buf *bytes.Buffer) {
 	buf.WriteString(d.Namespace)
-	buf.WriteString("::{")
+	buf.WriteString("::")
+	d.WriteWithoutNamespaceTo(buf)
+}
+
+// WriteWithoutNamespaceTo writes a representation of d to buf, without the
+// namespace name.
+func (d *Diff) WriteWithoutNamespaceTo(buf *bytes.Buffer) {
+	buf.WriteRune('{')
 
 	for index, attr := range d.Attrs {
 		if index != 0 {
@@ -58,6 +65,17 @@ func (d *Diff) String() string {
 	defer bufferpool.Put(buf)
 
 	d.WriteTo(buf)
+
+	return buf.String()
+}
+
+// StringWithoutNamespace returns a string representation of d, without the
+// namespace name.
+func (d *Diff) StringWithoutNamespace() string {
+	buf := bufferpool.Get()
+	defer bufferpool.Put(buf)
+
+	d.WriteWithoutNamespaceTo(buf)
 
 	return buf.String()
 }

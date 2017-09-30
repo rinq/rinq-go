@@ -99,7 +99,7 @@ func LogSessionUpdateSuccess(s opentracing.Span, rev ident.Revision, diff *attrm
 	}
 
 	if !diff.IsEmpty() {
-		fields = append(fields, lazyString("diff", diff.String))
+		fields = append(fields, lazyString("diff", diff.StringWithoutNamespace))
 	}
 
 	s.LogFields(fields...)
