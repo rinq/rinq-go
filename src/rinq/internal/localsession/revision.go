@@ -6,7 +6,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 )
 
 type revision struct {
@@ -24,12 +23,16 @@ func (r *revision) Refresh(ctx context.Context) (rinq.Revision, error) {
 	return r.catalog.Head(), nil
 }
 
-func (r *revision) Get(ctx context.Context, key string) (rinq.Attr, error) {
+func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
+	if err := rinq.ValidateNamespace(ns); err != nil {
+		return rinq.Attr{}, err
+	}
+
 	if r.ref.Rev == 0 {
 		return rinq.Attr{Key: key}, nil
 	}
 
-	attr, ok := r.attrs[key]
+	attr, ok := r.attrs[ns][key]
 
 	// The attribute hadn't yet been created at this revision.
 	if !ok || attr.CreatedAt > r.ref.Rev {
@@ -45,15 +48,20 @@ func (r *revision) Get(ctx context.Context, key string) (rinq.Attr, error) {
 	return attr.Attr, nil
 }
 
-func (r *revision) GetMany(ctx context.Context, keys ...string) (rinq.AttrTable, error) {
+func (r *revision) GetMany(ctx context.Context, ns string, keys ...string) (rinq.AttrTable, error) {
+	if err := rinq.ValidateNamespace(ns); err != nil {
+		return nil, err
+	}
+
 	if len(keys) == 0 {
 		return nil, nil
 	}
 
+	attrs := r.attrs[ns]
 	table := rinq.AttrTable{}
 
 	for _, key := range keys {
-		attr, ok := r.attrs[key]
+		attr, ok := attrs[key]
 
 		if !ok || attr.CreatedAt > r.ref.Rev {
 			// The attribute hadn't yet been created at this revision.
@@ -69,15 +77,16 @@ func (r *revision) GetMany(ctx context.Context, keys ...string) (rinq.AttrTable,
 	return table, nil
 }
 
-func (r *revision) Update(ctx context.Context, attrs ...rinq.Attr) (rinq.Revision, error) {
+func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (rinq.Revision, error) {
+	if err := rinq.ValidateNamespace(ns); err != nil {
+		return nil, err
+	}
+
 	if len(attrs) == 0 {
 		return r, nil
 	}
 
-	diff := bufferpool.Get()
-	defer bufferpool.Put(diff)
-
-	rev, err := r.catalog.TryUpdate(r.ref, attrs, diff)
+	rev, diff, err := r.catalog.TryUpdate(r.ref, ns, attrs)
 	if err != nil {
 		return r, err
 	}

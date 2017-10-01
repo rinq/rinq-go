@@ -32,7 +32,7 @@ func ExampleRevision_get() {
 	ctx := context.Background()
 	var attr Attr
 	for {
-		attr, err = rev.Get(ctx, "user-id")
+		attr, err = rev.Get(ctx, "my-api", "user-id")
 		if err != nil {
 			if ShouldRetry(err) {
 				// the attribute could not be fetched because it has been
@@ -77,7 +77,7 @@ func ExampleRevision_update() {
 	ctx := context.Background()
 
 	for {
-		rev, err = rev.Update(ctx, Set("user-id", "123"))
+		rev, err = rev.Update(ctx, "my-api", Set("user-id", "123"))
 		if err != nil {
 			if ShouldRetry(err) {
 				// the session could not be updated because rev is out of date

@@ -404,6 +404,12 @@ func (l *listener) handleMulticast(
 	msg *amqp.Delivery,
 	source rinq.Revision,
 ) error {
+	ns, t, p, err := unpackCommonAttributes(msg)
+	if err != nil {
+		return err
+	}
+	defer p.Close()
+
 	constraint, err := unpackConstraint(msg)
 	if err != nil {
 		return err
@@ -412,7 +418,7 @@ func (l *listener) handleMulticast(
 	var sessions []rinq.Session
 
 	l.sessions.Each(func(session rinq.Session, catalog localsession.Catalog) {
-		_, attrs := catalog.Attrs()
+		_, attrs := catalog.AttrsIn(ns)
 		if attrs.MatchConstraint(constraint) {
 			sessions = append(sessions, session)
 		}
@@ -421,12 +427,6 @@ func (l *listener) handleMulticast(
 	if len(sessions) == 0 {
 		return nil
 	}
-
-	ns, t, p, err := unpackCommonAttributes(msg)
-	if err != nil {
-		return err
-	}
-	defer p.Close()
 
 	ctx := amqputil.UnpackTrace(l.parentCtx, msg)
 

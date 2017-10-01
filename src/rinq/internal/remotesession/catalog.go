@@ -6,7 +6,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 	revisionpkg "github.com/rinq/rinq-go/src/rinq/internal/revision"
 	"github.com/rinq/rinq-go/src/rinq/internal/syncutil"
 )
@@ -17,7 +17,7 @@ type catalog struct {
 
 	mutex      sync.RWMutex
 	highestRev ident.Revision
-	cache      map[string]attrCacheEntry
+	cache      attrTableCache
 	isClosed   bool
 }
 
@@ -26,13 +26,8 @@ func newCatalog(id ident.SessionID, client *client) *catalog {
 		id:     id,
 		client: client,
 
-		cache: map[string]attrCacheEntry{},
+		cache: attrTableCache{},
 	}
-}
-
-type attrCacheEntry struct {
-	Attr      attrmeta.Attr
-	FetchedAt ident.Revision
 }
 
 func (c *catalog) Head(ctx context.Context) (rinq.Revision, error) {
@@ -45,7 +40,7 @@ func (c *catalog) Head(ctx context.Context) (rinq.Revision, error) {
 
 	unlock()
 
-	rev, _, err := c.client.Fetch(ctx, c.id, nil)
+	rev, _, err := c.client.Fetch(ctx, c.id, "", nil)
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -83,16 +78,17 @@ func (c *catalog) At(rev ident.Revision) rinq.Revision {
 func (c *catalog) Fetch(
 	ctx context.Context,
 	rev ident.Revision,
+	ns string,
 	keys ...string,
-) ([]rinq.Attr, error) {
-	solvedAttrs, unsolvedKeys, err := c.fetchLocal(rev, keys)
+) (attrutil.List, error) {
+	solvedAttrs, unsolvedKeys, err := c.fetchLocal(rev, ns, keys)
 	if err != nil {
 		return nil, err
 	} else if len(unsolvedKeys) == 0 {
 		return solvedAttrs, nil
 	}
 
-	fetchedRev, fetchedAttrs, err := c.client.Fetch(ctx, c.id, unsolvedKeys)
+	fetchedRev, fetchedAttrs, err := c.client.Fetch(ctx, c.id, ns, unsolvedKeys)
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -108,12 +104,18 @@ func (c *catalog) Fetch(
 	}
 
 	isStaleFetch := false
+	cache, isExistingNamespace := c.cache[ns]
 
 	for _, attr := range fetchedAttrs {
+		entry := cache[attr.Key]
+
 		// Update the cache entry if the fetched revision is newer.
-		entry := c.cache[attr.Key]
 		if fetchedRev > entry.FetchedAt {
-			c.cache[attr.Key] = attrCacheEntry{attr, fetchedRev}
+			if cache == nil {
+				cache = attrNamespaceCache{}
+			}
+
+			cache[attr.Key] = cachedAttr{attr, fetchedRev}
 		}
 
 		if isStaleFetch {
@@ -137,6 +139,10 @@ func (c *catalog) Fetch(
 		solvedAttrs = append(solvedAttrs, attr.Attr)
 	}
 
+	if !isExistingNamespace && cache != nil {
+		c.cache[ns] = cache
+	}
+
 	if isStaleFetch {
 		return nil, rinq.StaleFetchError{Ref: c.id.At(rev)}
 	}
@@ -147,7 +153,8 @@ func (c *catalog) Fetch(
 func (c *catalog) TryUpdate(
 	ctx context.Context,
 	rev ident.Revision,
-	attrs []rinq.Attr,
+	ns string,
+	attrs attrutil.List,
 ) (rinq.Revision, error) {
 	unlock := syncutil.RLock(&c.mutex)
 	defer unlock()
@@ -162,10 +169,12 @@ func (c *catalog) TryUpdate(
 		return nil, rinq.StaleUpdateError{Ref: ref}
 	}
 
-	updateAttrs := make([]rinq.Attr, 0, len(attrs))
+	updateAttrs := make(attrutil.List, 0, len(attrs))
+
+	cache := c.cache[ns]
 
 	for _, attr := range attrs {
-		if entry, ok := c.cache[attr.Key]; ok {
+		if entry, ok := cache[attr.Key]; ok {
 			if entry.Attr.IsFrozen {
 				if attr == entry.Attr.Attr {
 					continue
@@ -184,7 +193,7 @@ func (c *catalog) TryUpdate(
 
 	unlock()
 
-	updatedRev, returnedAttrs, err := c.client.Update(ctx, ref, updateAttrs)
+	updatedRev, returnedAttrs, err := c.client.Update(ctx, ref, ns, updateAttrs)
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -195,11 +204,21 @@ func (c *catalog) TryUpdate(
 		return nil, err
 	}
 
+	cache, isExistingNamespace := c.cache[ns]
+
 	for _, attr := range returnedAttrs {
-		entry := c.cache[attr.Key]
+		entry := cache[attr.Key]
 		if updatedRev > entry.FetchedAt {
-			c.cache[attr.Key] = attrCacheEntry{attr, updatedRev}
+			if cache == nil {
+				cache = attrNamespaceCache{}
+			}
+
+			cache[attr.Key] = cachedAttr{attr, updatedRev}
 		}
+	}
+
+	if !isExistingNamespace && cache != nil {
+		c.cache[ns] = cache
 	}
 
 	return &revision{
@@ -242,9 +261,10 @@ func (c *catalog) TryDestroy(
 
 func (c *catalog) fetchLocal(
 	rev ident.Revision,
+	ns string,
 	keys []string,
 ) (
-	solved []rinq.Attr,
+	solved attrutil.List,
 	unsolved []string,
 	err error,
 ) {
@@ -252,11 +272,13 @@ func (c *catalog) fetchLocal(
 	defer c.mutex.RUnlock()
 
 	count := len(keys)
-	solved = make([]rinq.Attr, 0, count)
+	solved = make(attrutil.List, 0, count)
 	unsolved = make([]string, 0, count)
 
+	cache := c.cache[ns]
+
 	for _, key := range keys {
-		if entry, ok := c.cache[key]; ok {
+		if entry, ok := cache[key]; ok {
 			// The attribute hadn't been created at this revision, so we know it
 			// had an empty value.
 			if entry.Attr.CreatedAt > rev {

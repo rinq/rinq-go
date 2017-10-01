@@ -39,7 +39,11 @@ func SetupCommand(
 }
 
 // LogInvokerCall logs information about a "call" style invocation to s.
-func LogInvokerCall(s opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
+func LogInvokerCall(
+	s opentracing.Span,
+	attrs attrmeta.Table,
+	p *rinq.Payload,
+) {
 	fields := []log.Field{
 		invokerCallEvent,
 		log.Int("size", p.Len()),
@@ -53,7 +57,11 @@ func LogInvokerCall(s opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
 }
 
 // LogInvokerCallAsync logs information about a "call-sync" style invocation to s.
-func LogInvokerCallAsync(span opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
+func LogInvokerCallAsync(
+	span opentracing.Span,
+	attrs attrmeta.Table,
+	p *rinq.Payload,
+) {
 	fields := []log.Field{
 		invokerCallAsyncEvent,
 		log.Int("size", p.Len()),
@@ -67,7 +75,11 @@ func LogInvokerCallAsync(span opentracing.Span, attrs attrmeta.Table, p *rinq.Pa
 }
 
 // LogInvokerExecute logs information about an "execute" style invoation to s.
-func LogInvokerExecute(span opentracing.Span, attrs attrmeta.Table, p *rinq.Payload) {
+func LogInvokerExecute(
+	span opentracing.Span,
+	attrs attrmeta.Table,
+	p *rinq.Payload,
+) {
 	fields := []log.Field{
 		invokerExecuteEvent,
 		log.Int("size", p.Len()),

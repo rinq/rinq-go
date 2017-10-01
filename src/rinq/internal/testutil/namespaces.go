@@ -57,7 +57,7 @@ func TearDownNamespaces() {
 
 		channel, err := broker.Channel()
 		if err != nil {
-			broker.Close()
+			_ = broker.Close()
 			fmt.Println(err)
 			return
 		}

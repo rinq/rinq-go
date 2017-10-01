@@ -1,40 +1,59 @@
 package attrmeta
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
+	"bytes"
+
 	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 )
 
-// Table maps attribute keys to attributes with meta data.
-type Table map[string]Attr
+// Table maps namespace to attribute table.
+type Table map[string]Namespace
 
-// Clone returns a copy of the attribute table.
-func (t Table) Clone() Table {
-	r := Table{}
+// CloneAndMerge returns a copy of the attribute table with the n namespaced replaced
+// with ns. ns is NOT cloned.
+func (t Table) CloneAndMerge(name string, ns Namespace) Table {
+	r := Table{name: ns}
 
-	for k, v := range t {
-		r[k] = v
+	for n, a := range t {
+		if n != name {
+			r[n] = a.Clone()
+		}
 	}
 
 	return r
 }
 
-// MatchConstraint returns true if the attributes match the given constraint.
-func (t Table) MatchConstraint(constraint rinq.Constraint) bool {
-	for key, value := range constraint {
-		if t[key].Value != value {
-			return false
+// WriteTo writes a respresentation of t to buf.
+// Non-frozen attributes with empty-values are omitted.
+func (t Table) WriteTo(buf *bytes.Buffer) {
+	sub := bufferpool.Get()
+	defer bufferpool.Put(sub)
+
+	first := true
+	for n, a := range t {
+		sub.Reset()
+
+		if a.WriteWithNameTo(sub, n) {
+			if first {
+				first = false
+			} else {
+				buf.WriteRune(' ')
+			}
+
+			_, _ = sub.WriteTo(buf)
 		}
 	}
 
-	return true
+	if first {
+		buf.WriteString("{}")
+	}
 }
 
 func (t Table) String() string {
 	buf := bufferpool.Get()
 	defer bufferpool.Put(buf)
 
-	WriteTable(buf, t)
+	t.WriteTo(buf)
 
 	return buf.String()
 }
