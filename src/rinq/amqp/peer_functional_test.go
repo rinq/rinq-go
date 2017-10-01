@@ -9,7 +9,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/rinq/rinq-go/src/rinq/amqp/internal/testutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/testutil"
 )
 
 var _ = Describe("peer (functional)", func() {
