@@ -49,8 +49,8 @@ func (s *server) handle(
 		s.fetch(ctx, req, res)
 	case updateCommand:
 		s.update(ctx, req, res)
-	case closeCommand:
-		s.close(ctx, req, res)
+	case destroyCommand:
+		s.destroy(ctx, req, res)
 	default:
 		res.Error(errors.New("unknown command"))
 	}
@@ -171,14 +171,14 @@ func (s *server) update(
 	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 }
 
-func (s *server) close(
+func (s *server) destroy(
 	ctx context.Context,
 	req rinq.Request,
 	res rinq.Response,
 ) {
 	span := opentracing.SpanFromContext(ctx)
 
-	var args closeRequest
+	var args destroyRequest
 
 	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
@@ -214,7 +214,7 @@ func (s *server) close(
 		return
 	}
 
-	logRemoteClose(ctx, s.logger, cat, req.Source.Ref().ID.Peer)
+	logRemoteDestroy(ctx, s.logger, cat, req.Source.Ref().ID.Peer)
 
 	res.Close()
 

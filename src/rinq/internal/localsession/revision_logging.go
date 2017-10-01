@@ -31,8 +31,7 @@ func logUpdate(
 	}
 }
 
-// TODO: should this be called logDestroy ?
-func logClose(
+func logDestroy(
 	ctx context.Context,
 	logger rinq.Logger,
 	cat Catalog,

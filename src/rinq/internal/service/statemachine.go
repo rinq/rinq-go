@@ -62,7 +62,7 @@ func (s *StateMachine) Run() {
 	s.close()
 }
 
-// Done returns a channel that is closed when the session is closed.
+// Done returns a channel that is closed when the service is stopped.
 func (s *StateMachine) Done() <-chan struct{} {
 	return s.Finalized
 }

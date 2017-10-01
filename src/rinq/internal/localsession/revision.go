@@ -102,7 +102,7 @@ func (r *revision) Destroy(ctx context.Context) error {
 		return err
 	}
 
-	logClose(ctx, r.logger, r.catalog)
+	logDestroy(ctx, r.logger, r.catalog)
 
 	return nil
 }

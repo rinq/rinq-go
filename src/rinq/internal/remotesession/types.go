@@ -11,9 +11,9 @@ const (
 )
 
 const (
-	fetchCommand  = "fetch"
-	updateCommand = "update"
-	closeCommand  = "close"
+	fetchCommand   = "fetch"
+	updateCommand  = "update"
+	destroyCommand = "destroy"
 )
 
 const (
@@ -45,7 +45,7 @@ type updateResponse struct {
 	CreatedRevs []ident.Revision `json:"cr"`
 }
 
-type closeRequest struct {
+type destroyRequest struct {
 	Seq uint32         `json:"s"`
 	Rev ident.Revision `json:"r"`
 }

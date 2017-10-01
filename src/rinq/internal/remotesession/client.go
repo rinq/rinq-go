@@ -168,7 +168,7 @@ func (c *client) Update(
 	return rsp.Rev, diff.Attrs, nil
 }
 
-func (c *client) Close(
+func (c *client) Destroy(
 	ctx context.Context,
 	ref ident.Ref,
 ) error {
@@ -178,7 +178,7 @@ func (c *client) Close(
 	traceutil.SetupSessionDestroy(span, ref.ID)
 	traceutil.LogSessionDestroyRequest(span, ref.Rev)
 
-	out := rinq.NewPayload(closeRequest{
+	out := rinq.NewPayload(destroyRequest{
 		Seq: ref.ID.Seq,
 		Rev: ref.Rev,
 	})
@@ -189,7 +189,7 @@ func (c *client) Close(
 		c.nextMessageID(),
 		ref.ID.Peer,
 		sessionNamespace,
-		closeCommand,
+		destroyCommand,
 		out,
 	)
 	defer in.Close()

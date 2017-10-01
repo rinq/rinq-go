@@ -26,8 +26,7 @@ func logRemoteUpdate(
 	)
 }
 
-// TODO: should this be named destroy?
-func logRemoteClose(
+func logRemoteDestroy(
 	ctx context.Context,
 	logger rinq.Logger,
 	cat localsession.Catalog,

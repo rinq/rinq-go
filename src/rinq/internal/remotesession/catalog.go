@@ -246,7 +246,7 @@ func (c *catalog) TryDestroy(
 
 	unlock()
 
-	err := c.client.Close(ctx, ref)
+	err := c.client.Destroy(ctx, ref)
 	if err != nil {
 		return err
 	}

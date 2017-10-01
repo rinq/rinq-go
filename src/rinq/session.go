@@ -69,7 +69,7 @@ type Session interface {
 	// contains the failure's application-defined payload; for this reason
 	// out.Close() must always be called, even if err is non-nil.
 	//
-	// If IsNotFound(err) returns true, the session has been closed and the
+	// If IsNotFound(err) returns true, the session has been destroyed and the
 	// command request can not be sent.
 	Call(ctx context.Context, ns, cmd string, out *Payload) (in *Payload, err error)
 
@@ -90,7 +90,7 @@ type Session interface {
 	// the session and as such the handler is never invoked in the event of a
 	// timeout.
 	//
-	// If IsNotFound(err) returns true, the session has been closed and the
+	// If IsNotFound(err) returns true, the session has been destroyed and the
 	// command request can not be sent.
 	CallAsync(ctx context.Context, ns, cmd string, out *Payload) (id ident.MessageID, err error)
 
@@ -99,7 +99,7 @@ type Session interface {
 	// h is invoked for each command response received to a command request made
 	// with CallAsync().
 	//
-	// If IsNotFound(err) returns true, the session has been closed and the
+	// If IsNotFound(err) returns true, the session has been destroyed and the
 	// command request can not be sent.
 	SetAsyncHandler(h AsyncHandler) error
 
@@ -109,7 +109,7 @@ type Session interface {
 	// cmd and out are an application-defined command name and request payload,
 	// respectively. Both are passed to the command handler on the server.
 	//
-	// If IsNotFound(err) returns true, the session has been closed and the
+	// If IsNotFound(err) returns true, the session has been destroyed and the
 	// command request can not be sent.
 	Execute(ctx context.Context, ns, cmd string, out *Payload) (err error)
 
@@ -120,7 +120,7 @@ type Session interface {
 	// respectively. Both are passed to the notification handler configured on
 	// the session identified by s.
 	//
-	// If IsNotFound(err) returns true, this session has been closed and the
+	// If IsNotFound(err) returns true, this session has been destroyed and the
 	// notification can not be sent.
 	Notify(ctx context.Context, ns, t string, s ident.SessionID, out *Payload) (err error)
 
@@ -135,7 +135,7 @@ type Session interface {
 	// respectively. Both are passed to the notification handlers configured on
 	// those sessions that match c.
 	//
-	// If IsNotFound(err) returns true, this session has been closed and the
+	// If IsNotFound(err) returns true, this session has been destroyed and the
 	// notification can not be sent.
 	NotifyMany(ctx context.Context, ns, t string, c Constraint, out *Payload) error
 

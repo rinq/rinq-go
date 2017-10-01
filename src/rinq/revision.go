@@ -23,7 +23,7 @@ type Revision interface {
 
 	// Refresh returns the latest revision of the session.
 	//
-	// If IsNotFound(err) returns true, the session has been closed and rev is
+	// If IsNotFound(err) returns true, the session has been destroyed and rev is
 	// invalid.
 	Refresh(ctx context.Context) (rev Revision, err error)
 
@@ -42,7 +42,7 @@ type Revision interface {
 	// the later revision, first call Refresh() then retry the Get() on the
 	// newer revision.
 	//
-	// If IsNotFound(err) returns true, the session has been closed and the
+	// If IsNotFound(err) returns true, the session has been destroyed and the
 	// revision can not be queried.
 	Get(ctx context.Context, ns, k string) (attr Attr, err error)
 
@@ -61,7 +61,7 @@ type Revision interface {
 	// values at the later revision, first call Refresh() then retry the
 	// GetMany() on the newer revision.
 	//
-	// If IsNotFound(err) returns true, the session has been closed and the
+	// If IsNotFound(err) returns true, the session has been destroyed and the
 	// revision can not be queried.
 	//
 	// If err is nil, t contains all of the attributes specified in k.
