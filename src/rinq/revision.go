@@ -23,11 +23,12 @@ type Revision interface {
 
 	// Refresh returns the latest revision of the session.
 	//
-	// If IsNotFound(err) returns true, the session has been closed and rev is
+	// If IsNotFound(err) returns true, the session has been destroyed and rev is
 	// invalid.
 	Refresh(ctx context.Context) (rev Revision, err error)
 
-	// Get returns the attribute with key k from the attribute table.
+	// Get returns the attribute with key k within the ns namespace of the
+	// attribute table.
 	//
 	// The returned attribute is guaranteed to be correct as of Ref().Rev.
 	// Non-existent attributes are equivalent to empty attributes, therefore it
@@ -41,11 +42,12 @@ type Revision interface {
 	// the later revision, first call Refresh() then retry the Get() on the
 	// newer revision.
 	//
-	// If IsNotFound(err) returns true, the session has been closed and the
+	// If IsNotFound(err) returns true, the session has been destroyed and the
 	// revision can not be queried.
-	Get(ctx context.Context, k string) (attr Attr, err error)
+	Get(ctx context.Context, ns, k string) (attr Attr, err error)
 
-	// GetMany returns the attributes with keys in k from the attribute table.
+	// GetMany returns the attributes with keys in k within the ns namespace of
+	// the attribute table.
 	//
 	// The returned attributes are guaranteed to be correct as of Ref().Rev.
 	// Non-existent attributes are equivalent to empty attributes, therefore it
@@ -59,13 +61,14 @@ type Revision interface {
 	// values at the later revision, first call Refresh() then retry the
 	// GetMany() on the newer revision.
 	//
-	// If IsNotFound(err) returns true, the session has been closed and the
+	// If IsNotFound(err) returns true, the session has been destroyed and the
 	// revision can not be queried.
 	//
 	// If err is nil, t contains all of the attributes specified in k.
-	GetMany(ctx context.Context, k ...string) (t AttrTable, err error)
+	GetMany(ctx context.Context, ns string, k ...string) (t AttrTable, err error)
 
-	// Update atomically modifies the attribute table.
+	// Update atomically modifies a set of attributes within the ns namespace of
+	// the attribute table.
 	//
 	// A successful update produces a new revision.
 	//
@@ -88,7 +91,7 @@ type Revision interface {
 	// As a convenience, if the update fails for any reason, rev is this
 	// revision. This allows the caller to assign the return value to an
 	// existing variable without first checking for errors.
-	Update(ctx context.Context, attrs ...Attr) (rev Revision, err error)
+	Update(ctx context.Context, ns string, attrs ...Attr) (rev Revision, err error)
 
 	// Destroy terminates the session.
 	//
@@ -125,7 +128,7 @@ func (err StaleFetchError) Error() string {
 	)
 }
 
-// StaleUpdateError indicates a failure to update or destroy a session  because
+// StaleUpdateError indicates a failure to update or destroy a session because
 // the session has been modified after that revision.
 type StaleUpdateError struct {
 	Ref ident.Ref

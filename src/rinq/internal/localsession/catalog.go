@@ -1,13 +1,13 @@
 package localsession
 
 import (
-	"bytes"
 	"errors"
 	"sync"
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 )
 
 // Catalog is an interface for manipulating an attribute table.
@@ -31,8 +31,11 @@ type Catalog interface {
 	// Attrs returns all attributes at the most recent revision.
 	Attrs() (ident.Ref, attrmeta.Table)
 
-	// TryUpdate adds or updates attributes in the attribute table and returns
-	// the new head revision.
+	// AttrsIn returns all attributes in the ns namespace at the most recent revision.
+	AttrsIn(ns string) (ident.Ref, attrmeta.Namespace)
+
+	// TryUpdate adds or updates attributes in the ns namespace of the attribute
+	// table and returns the new head revision.
 	//
 	// The operation fails if ref is not the current session-ref, attrs includes
 	// changes to frozen attributes, or the catalog is closed.
@@ -41,9 +44,9 @@ type Catalog interface {
 	// is non-nil.
 	TryUpdate(
 		ref ident.Ref,
-		attrs []rinq.Attr,
-		diff *bytes.Buffer,
-	) (rinq.Revision, error)
+		ns string,
+		attrs attrutil.List,
+	) (rinq.Revision, *attrmeta.Diff, error)
 
 	// TryDestroy closes the catalog, preventing further updates.
 	//
@@ -120,26 +123,34 @@ func (c *catalog) Attrs() (ident.Ref, attrmeta.Table) {
 	return c.ref, c.attrs
 }
 
+func (c *catalog) AttrsIn(ns string) (ident.Ref, attrmeta.Namespace) {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	return c.ref, c.attrs[ns]
+}
+
 func (c *catalog) TryUpdate(
 	ref ident.Ref,
-	attrs []rinq.Attr,
-	diff *bytes.Buffer,
-) (rinq.Revision, error) {
+	ns string,
+	attrs attrutil.List,
+) (rinq.Revision, *attrmeta.Diff, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	select {
 	case <-c.done:
-		return nil, rinq.NotFoundError{ID: c.ref.ID}
+		return nil, nil, rinq.NotFoundError{ID: c.ref.ID}
 	default:
 	}
 
 	if ref != c.ref {
-		return nil, rinq.StaleUpdateError{Ref: ref}
+		return nil, nil, rinq.StaleUpdateError{Ref: ref}
 	}
 
-	nextAttrs := c.attrs.Clone()
 	nextRev := ref.Rev + 1
+	nextAttrs := c.attrs[ns].Clone()
+	diff := attrmeta.NewDiff(ns, nextRev, len(attrs))
 
 	for _, attr := range attrs {
 		entry, exists := nextAttrs[attr.Key]
@@ -149,7 +160,7 @@ func (c *catalog) TryUpdate(
 		}
 
 		if entry.IsFrozen {
-			return nil, rinq.FrozenAttributesError{Ref: ref}
+			return nil, nil, rinq.FrozenAttributesError{Ref: ref}
 		}
 
 		entry.Attr = attr
@@ -159,20 +170,22 @@ func (c *catalog) TryUpdate(
 		}
 
 		nextAttrs[attr.Key] = entry
-
-		if diff != nil {
-			if diff.Len() != 0 {
-				diff.WriteString(", ")
-			}
-			attrmeta.WriteDiff(diff, entry)
-		}
+		diff.Append(entry)
 	}
 
 	c.ref.Rev = nextRev
-	c.attrs = nextAttrs
 	c.seq = 0
 
-	return newRevision(c.ref, c, c.attrs, c.logger), nil
+	if !diff.IsEmpty() {
+		c.attrs = c.attrs.CloneAndMerge(ns, nextAttrs)
+	}
+
+	return newRevision(
+		c.ref,
+		c,
+		c.attrs,
+		c.logger,
+	), diff, nil
 }
 
 func (c *catalog) TryDestroy(ref ident.Ref) error {

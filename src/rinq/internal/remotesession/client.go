@@ -9,7 +9,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 )
@@ -39,21 +39,23 @@ func newClient(
 func (c *client) Fetch(
 	ctx context.Context,
 	sessID ident.SessionID,
+	ns string,
 	keys []string,
 ) (
 	ident.Revision,
-	[]attrmeta.Attr,
+	attrmeta.List,
 	error,
 ) {
 	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupSessionFetch(span, sessID)
+	traceutil.SetupSessionFetch(span, ns, sessID)
 	traceutil.LogSessionFetchRequest(span, keys)
 
 	out := rinq.NewPayload(fetchRequest{
-		Seq:  sessID.Seq,
-		Keys: keys,
+		Seq:       sessID.Seq,
+		Namespace: ns,
+		Keys:      keys,
 	})
 	defer out.Close()
 
@@ -94,22 +96,24 @@ func (c *client) Fetch(
 func (c *client) Update(
 	ctx context.Context,
 	ref ident.Ref,
-	attrs []rinq.Attr,
+	ns string,
+	attrs attrutil.List,
 ) (
 	ident.Revision,
-	[]attrmeta.Attr,
+	attrmeta.List,
 	error,
 ) {
 	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupSessionUpdate(span, ref.ID)
+	traceutil.SetupSessionUpdate(span, ns, ref.ID)
 	traceutil.LogSessionUpdateRequest(span, ref.Rev, attrs)
 
 	out := rinq.NewPayload(updateRequest{
-		Seq:   ref.ID.Seq,
-		Rev:   ref.Rev,
-		Attrs: attrs,
+		Seq:       ref.ID.Seq,
+		Rev:       ref.Rev,
+		Namespace: ns,
+		Attrs:     attrs,
 	})
 	defer out.Close()
 
@@ -146,11 +150,10 @@ func (c *client) Update(
 		return 0, nil, err
 	}
 
-	updatedAttrs := make([]attrmeta.Attr, 0, len(attrs))
+	diff := attrmeta.NewDiff(ns, rsp.Rev, len(attrs))
 
 	for index, attr := range attrs {
-		updatedAttrs = append(
-			updatedAttrs,
+		diff.Append(
 			attrmeta.Attr{
 				Attr:      attr,
 				CreatedAt: rsp.CreatedRevs[index],
@@ -159,18 +162,13 @@ func (c *client) Update(
 		)
 	}
 
-	diff := bufferpool.Get()
-	defer bufferpool.Put(diff)
-
-	attrmeta.WriteDiffSlice(diff, updatedAttrs)
-
 	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), diff)
 	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 
-	return rsp.Rev, updatedAttrs, nil
+	return rsp.Rev, diff.Attrs, nil
 }
 
-func (c *client) Close(
+func (c *client) Destroy(
 	ctx context.Context,
 	ref ident.Ref,
 ) error {
@@ -180,7 +178,7 @@ func (c *client) Close(
 	traceutil.SetupSessionDestroy(span, ref.ID)
 	traceutil.LogSessionDestroyRequest(span, ref.Rev)
 
-	out := rinq.NewPayload(closeRequest{
+	out := rinq.NewPayload(destroyRequest{
 		Seq: ref.ID.Seq,
 		Rev: ref.Rev,
 	})
@@ -191,7 +189,7 @@ func (c *client) Close(
 		c.nextMessageID(),
 		ref.ID.Peer,
 		sessionNamespace,
-		closeCommand,
+		destroyCommand,
 		out,
 	)
 	defer in.Close()

@@ -23,15 +23,15 @@ func (r closedRevision) Refresh(context.Context) (rinq.Revision, error) {
 	return nil, rinq.NotFoundError{ID: r.ID}
 }
 
-func (r closedRevision) Get(context.Context, string) (rinq.Attr, error) {
+func (r closedRevision) Get(context.Context, string, string) (rinq.Attr, error) {
 	return rinq.Attr{}, rinq.NotFoundError{ID: r.ID}
 }
 
-func (r closedRevision) GetMany(context.Context, ...string) (rinq.AttrTable, error) {
+func (r closedRevision) GetMany(context.Context, string, ...string) (rinq.AttrTable, error) {
 	return nil, rinq.NotFoundError{ID: r.ID}
 }
 
-func (r closedRevision) Update(context.Context, ...rinq.Attr) (rinq.Revision, error) {
+func (r closedRevision) Update(context.Context, string, ...rinq.Attr) (rinq.Revision, error) {
 	return r, rinq.NotFoundError{ID: r.ID}
 }
 

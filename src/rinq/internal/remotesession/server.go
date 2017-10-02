@@ -8,7 +8,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
@@ -50,8 +49,8 @@ func (s *server) handle(
 		s.fetch(ctx, req, res)
 	case updateCommand:
 		s.update(ctx, req, res)
-	case closeCommand:
-		s.close(ctx, req, res)
+	case destroyCommand:
+		s.destroy(ctx, req, res)
 	default:
 		res.Error(errors.New("unknown command"))
 	}
@@ -74,7 +73,7 @@ func (s *server) fetch(
 
 	sessID := s.peerID.Session(args.Seq)
 
-	traceutil.SetupSessionFetch(span, sessID)
+	traceutil.SetupSessionFetch(span, args.Namespace, sessID)
 	traceutil.LogSessionFetchRequest(span, args.Keys)
 
 	_, cat, ok := s.sessions.Get(sessID)
@@ -84,7 +83,7 @@ func (s *server) fetch(
 		return
 	}
 
-	ref, attrs := cat.Attrs()
+	ref, attrs := cat.AttrsIn(args.Namespace)
 	rsp := fetchResponse{Rev: ref.Rev}
 	count := len(args.Keys)
 
@@ -122,7 +121,7 @@ func (s *server) update(
 
 	sessID := s.peerID.Session(args.Seq)
 
-	traceutil.SetupSessionUpdate(span, sessID)
+	traceutil.SetupSessionUpdate(span, args.Namespace, sessID)
 	traceutil.LogSessionUpdateRequest(span, args.Rev, args.Attrs)
 
 	_, cat, ok := s.sessions.Get(sessID)
@@ -132,10 +131,7 @@ func (s *server) update(
 		return
 	}
 
-	diff := bufferpool.Get()
-	defer bufferpool.Put(diff)
-
-	rev, err := cat.TryUpdate(sessID.At(args.Rev), args.Attrs, diff)
+	rev, diff, err := cat.TryUpdate(sessID.At(args.Rev), args.Namespace, args.Attrs)
 	if err != nil {
 		switch err.(type) {
 		case rinq.NotFoundError:
@@ -158,7 +154,7 @@ func (s *server) update(
 		Rev:         rev.Ref().Rev,
 		CreatedRevs: make([]ident.Revision, 0, len(args.Attrs)),
 	}
-	_, attrs := cat.Attrs()
+	_, attrs := cat.AttrsIn(args.Namespace)
 
 	for _, attr := range args.Attrs {
 		rsp.CreatedRevs = append(
@@ -175,14 +171,14 @@ func (s *server) update(
 	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 }
 
-func (s *server) close(
+func (s *server) destroy(
 	ctx context.Context,
 	req rinq.Request,
 	res rinq.Response,
 ) {
 	span := opentracing.SpanFromContext(ctx)
 
-	var args closeRequest
+	var args destroyRequest
 
 	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
@@ -218,7 +214,7 @@ func (s *server) close(
 		return
 	}
 
-	logRemoteClose(ctx, s.logger, cat, req.Source.Ref().ID.Peer)
+	logRemoteDestroy(ctx, s.logger, cat, req.Source.Ref().ID.Peer)
 
 	res.Close()
 

@@ -26,7 +26,7 @@ import (
 // Payload values can be any value that can be represented using CBOR encoding.
 // See http://cbor.io/ for more information.
 //
-// Payloads are modelled in this way to allow an application to forward incoming
+// Payloads are modeled in this way to allow an application to forward incoming
 // payloads without the need to decode and re-encode them.
 type Payload struct {
 	data *payloadData

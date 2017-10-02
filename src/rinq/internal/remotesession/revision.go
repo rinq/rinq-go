@@ -27,12 +27,16 @@ func (r *revision) Refresh(ctx context.Context) (rinq.Revision, error) {
 	return r.catalog.Head(ctx)
 }
 
-func (r *revision) Get(ctx context.Context, key string) (rinq.Attr, error) {
+func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
+	if err := rinq.ValidateNamespace(ns); err != nil {
+		return rinq.Attr{}, err
+	}
+
 	if r.ref.Rev == 0 {
 		return rinq.Attr{Key: key}, nil
 	}
 
-	attrs, err := r.catalog.Fetch(ctx, r.ref.Rev, key)
+	attrs, err := r.catalog.Fetch(ctx, r.ref.Rev, ns, key)
 	if err != nil {
 		return rinq.Attr{}, err
 	} else if len(attrs) == 0 {
@@ -42,7 +46,11 @@ func (r *revision) Get(ctx context.Context, key string) (rinq.Attr, error) {
 	return attrs[0], nil
 }
 
-func (r *revision) GetMany(ctx context.Context, keys ...string) (rinq.AttrTable, error) {
+func (r *revision) GetMany(ctx context.Context, ns string, keys ...string) (rinq.AttrTable, error) {
+	if err := rinq.ValidateNamespace(ns); err != nil {
+		return nil, err
+	}
+
 	if len(keys) == 0 {
 		return nil, nil
 	}
@@ -56,7 +64,7 @@ func (r *revision) GetMany(ctx context.Context, keys ...string) (rinq.AttrTable,
 		return table, nil
 	}
 
-	attrs, err := r.catalog.Fetch(ctx, r.ref.Rev, keys...)
+	attrs, err := r.catalog.Fetch(ctx, r.ref.Rev, ns, keys...)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +76,12 @@ func (r *revision) GetMany(ctx context.Context, keys ...string) (rinq.AttrTable,
 	return table, nil
 }
 
-func (r *revision) Update(ctx context.Context, attrs ...rinq.Attr) (rinq.Revision, error) {
-	rev, err := r.catalog.TryUpdate(ctx, r.ref.Rev, attrs)
+func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (rinq.Revision, error) {
+	if err := rinq.ValidateNamespace(ns); err != nil {
+		return nil, err
+	}
+
+	rev, err := r.catalog.TryUpdate(ctx, r.ref.Rev, ns, attrs)
 	if err != nil {
 		return r, err
 	}

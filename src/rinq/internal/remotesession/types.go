@@ -1,9 +1,9 @@
 package remotesession
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 )
 
 const (
@@ -11,9 +11,9 @@ const (
 )
 
 const (
-	fetchCommand  = "fetch"
-	updateCommand = "update"
-	closeCommand  = "close"
+	fetchCommand   = "fetch"
+	updateCommand  = "update"
+	destroyCommand = "destroy"
 )
 
 const (
@@ -23,19 +23,21 @@ const (
 )
 
 type fetchRequest struct {
-	Seq  uint32   `json:"s"`
-	Keys []string `json:"k,omitempty"`
+	Seq       uint32   `json:"s"`
+	Namespace string   `json:"ns,omitempty"`
+	Keys      []string `json:"k,omitempty"`
 }
 
 type fetchResponse struct {
-	Rev   ident.Revision  `json:"r"`
-	Attrs []attrmeta.Attr `json:"a,omitempty"`
+	Rev   ident.Revision `json:"r"`
+	Attrs attrmeta.List  `json:"a,omitempty"`
 }
 
 type updateRequest struct {
-	Seq   uint32         `json:"s"`
-	Rev   ident.Revision `json:"r"`
-	Attrs []rinq.Attr    `json:"a,omitempty"`
+	Seq       uint32         `json:"s"`
+	Rev       ident.Revision `json:"r"`
+	Namespace string         `json:"ns"`
+	Attrs     attrutil.List  `json:"a,omitempty"`
 }
 
 type updateResponse struct {
@@ -43,7 +45,7 @@ type updateResponse struct {
 	CreatedRevs []ident.Revision `json:"cr"`
 }
 
-type closeRequest struct {
+type destroyRequest struct {
 	Seq uint32         `json:"s"`
 	Rev ident.Revision `json:"r"`
 }

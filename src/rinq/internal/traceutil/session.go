@@ -1,7 +1,6 @@
 package traceutil
 
 import (
-	"bytes"
 	"strings"
 
 	opentracing "github.com/opentracing/opentracing-go"
@@ -10,7 +9,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 )
 
 const (
@@ -33,13 +32,15 @@ func setupSessionCommand(s opentracing.Span, op string, sessID ident.SessionID) 
 }
 
 // SetupSessionFetch configures s as an attribute fetch operation.
-func SetupSessionFetch(s opentracing.Span, sessID ident.SessionID) {
+func SetupSessionFetch(s opentracing.Span, ns string, sessID ident.SessionID) {
 	setupSessionCommand(s, fetchOp, sessID)
+	s.SetTag("namespace", ns)
 }
 
 // SetupSessionUpdate configures s as an attribute update operation.
-func SetupSessionUpdate(s opentracing.Span, sessID ident.SessionID) {
+func SetupSessionUpdate(s opentracing.Span, ns string, sessID ident.SessionID) {
 	setupSessionCommand(s, updateOp, sessID)
+	s.SetTag("namespace", ns)
 }
 
 // SetupSessionDestroy configures s as a destroy operation.
@@ -63,69 +64,48 @@ func LogSessionFetchRequest(s opentracing.Span, keys []string) {
 }
 
 // LogSessionFetchSuccess logs information about a successful session fetch to s.
-func LogSessionFetchSuccess(s opentracing.Span, rev ident.Revision, attrs []attrmeta.Attr) {
+func LogSessionFetchSuccess(s opentracing.Span, rev ident.Revision, attrs attrmeta.List) {
 	fields := []log.Field{
 		successEvent,
 		log.Uint32("rev", uint32(rev)),
 	}
 
 	if len(attrs) != 0 {
-		fields = append(fields, lazyString("attributes", func() string {
-			buf := bufferpool.Get()
-			defer bufferpool.Put(buf)
-			attrmeta.WriteSlice(buf, attrs)
-			return buf.String()
-		}))
+		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
 	s.LogFields(fields...)
 }
 
 // LogSessionUpdateRequest logs information about a session update attempt to s.
-func LogSessionUpdateRequest(s opentracing.Span, rev ident.Revision, attrs []rinq.Attr) {
+func LogSessionUpdateRequest(s opentracing.Span, rev ident.Revision, attrs attrutil.List) {
 	fields := []log.Field{
 		updateEvent,
 		log.Uint32("rev", uint32(rev)),
 	}
 
 	if len(attrs) != 0 {
-		fields = append(fields, lazyString("changes", func() string {
-			buf := bufferpool.Get()
-			defer bufferpool.Put(buf)
-
-			for _, attr := range attrs {
-				if buf.Len() > 0 {
-					buf.WriteString(", ")
-				}
-
-				buf.WriteString(attr.String())
-			}
-
-			return buf.String()
-		}))
+		fields = append(fields, lazyString("changes", attrs.String))
 	}
 
 	s.LogFields(fields...)
 }
 
 // LogSessionUpdateSuccess logs information about a successful session update to s.
-func LogSessionUpdateSuccess(s opentracing.Span, rev ident.Revision, diff *bytes.Buffer) {
+func LogSessionUpdateSuccess(s opentracing.Span, rev ident.Revision, diff *attrmeta.Diff) {
 	fields := []log.Field{
 		successEvent,
 		log.Uint32("rev", uint32(rev)),
 	}
 
-	if diff.Len() != 0 {
-		fields = append(
-			fields,
-			log.String("diff", diff.String()),
-		)
+	if !diff.IsEmpty() {
+		fields = append(fields, lazyString("diff", diff.StringWithoutNamespace))
 	}
 
 	s.LogFields(fields...)
 }
 
-// LogSessionUpdateRequest logs information about a session destroy attempt to s.
+// LogSessionDestroyRequest logs information about a session destroy attempt to s.
 func LogSessionDestroyRequest(s opentracing.Span, rev ident.Revision) {
 	s.LogFields(
 		destroyEvent,
@@ -133,7 +113,7 @@ func LogSessionDestroyRequest(s opentracing.Span, rev ident.Revision) {
 	)
 }
 
-// LogSessionUpdateSuccess logs information about a successful destroy attempt to s.
+// LogSessionDestroySuccess logs information about a successful destroy attempt to s.
 func LogSessionDestroySuccess(s opentracing.Span) {
 	s.LogFields(
 		successEvent,

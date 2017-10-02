@@ -1,13 +1,11 @@
 package remotesession
 
 import (
-	"bytes"
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
@@ -17,18 +15,18 @@ func logRemoteUpdate(
 	logger rinq.Logger,
 	ref ident.Ref,
 	peerID ident.PeerID,
-	diff *bytes.Buffer,
+	diff *attrmeta.Diff,
 ) {
 	logger.Log(
-		"%s session updated by %s {%s} [%s]",
+		"%s session updated by %s %s [%s]",
 		ref.ShortString(),
 		peerID.ShortString(),
-		diff.String(),
+		diff,
 		trace.Get(ctx),
 	)
 }
 
-func logRemoteClose(
+func logRemoteDestroy(
 	ctx context.Context,
 	logger rinq.Logger,
 	cat localsession.Catalog,
@@ -36,15 +34,11 @@ func logRemoteClose(
 ) {
 	ref, attrs := cat.Attrs()
 
-	buffer := bufferpool.Get()
-	defer bufferpool.Put(buffer)
-	attrmeta.WriteTable(buffer, attrs)
-
 	logger.Log(
-		"%s session destroyed by %s {%s} [%s]",
+		"%s session destroyed by %s %s [%s]",
 		ref.ShortString(),
 		peerID.ShortString(),
-		buffer,
+		attrs,
 		trace.Get(ctx),
 	)
 }

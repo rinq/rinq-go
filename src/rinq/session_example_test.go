@@ -103,9 +103,9 @@ func ExampleSession_notify() {
 
 	if err := send.Notify(
 		context.Background(),
-		recv.ID(),
 		"my-api",
 		"<type>",
+		recv.ID(),
 		payload,
 	); err != nil {
 		panic(err)
@@ -159,7 +159,11 @@ func ExampleSession_notifyMany() {
 			panic(err)
 		}
 
-		if _, err := rev.Update(context.Background(), Freeze("foo", "bar")); err != nil {
+		if _, err := rev.Update(
+			context.Background(),
+			"my-api",
+			Freeze("foo", "bar"),
+		); err != nil {
 			panic(err)
 		}
 	}
@@ -178,9 +182,9 @@ func ExampleSession_notifyMany() {
 
 	if err := send.NotifyMany(
 		context.Background(),
-		con,
 		"my-api",
 		"<type>",
+		con,
 		payload,
 	); err != nil {
 		panic(err)

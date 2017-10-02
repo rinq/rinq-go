@@ -13,7 +13,7 @@ import (
 var CommonSpanOptions = []opentracing.StartSpanOption{
 	opentracing.Tag{
 		Key:   string(ext.Component),
-		Value: "rinq/" + rinq.Version,
+		Value: "rinq-go/" + rinq.Version,
 	},
 }
 
