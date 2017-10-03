@@ -33,8 +33,8 @@ type peer struct {
 	listener    notify.Listener
 	logger      rinq.Logger
 	tracer      opentracing.Tracer
-	seq         uint32
 
+	seq        uint32
 	amqpClosed chan *amqp.Error
 }
 
