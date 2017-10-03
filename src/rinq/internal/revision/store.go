@@ -19,7 +19,8 @@ type AggregateStore struct {
 	Remote Store
 }
 
-// Create a new aggregate store.
+// NewAggregateStore returns a new store that attempts operations first on the
+// local store, then on the remote store.
 func NewAggregateStore(
 	peerID ident.PeerID,
 	local Store,
