@@ -2,141 +2,136 @@ package rinq_test
 
 import (
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
 )
 
 var _ = Describe("Constraint", func() {
 	Describe("And", func() {
-		It("returns an AND constraint", func() {
-			e := rinq.Equal("a", "1").And(
-				rinq.Equal("b", "2"),
-			)
+		It("is equivalent to rinq.And", func() {
+			a := rinq.Equal("a", "1")
+			b := rinq.Equal("b", "1")
 
-			Expect(e.String()).To(Equal(`{a=1, b=2}`))
+			Expect(a.And(b)).To(Equal(rinq.And(a, b)))
 		})
 	})
 
 	Describe("Or", func() {
-		It("returns an OR constraint", func() {
-			e := rinq.Equal("a", "1").Or(
-				rinq.Equal("b", "2"),
-			)
+		It("is equivalent to rinq.Or", func() {
+			a := rinq.Equal("a", "1")
+			b := rinq.Equal("b", "1")
 
-			Expect(e.String()).To(Equal(`{a=1|b=2}`))
+			Expect(a.Or(b)).To(Equal(rinq.Or(a, b)))
 		})
 	})
-})
 
-var _ = Describe("Within", func() {
-	It("returns the expected constraint", func() {
-		e := rinq.Within(
-			"ns",
-			rinq.Equal("a", "1"),
+	Describe("String", func() {
+		DescribeTable(
+			"returns an appropriate string representation",
+			func(con rinq.Constraint, s string) {
+				Expect(con.String()).To(Equal(s))
+			},
+
+			Entry(
+				"Within()",
+				rinq.Within(
+					"ns",
+					rinq.Equal("a", "1"),
+				),
+				"ns::{a=1}",
+			),
+			Entry(
+				"Within() with multiple values",
+				rinq.Within(
+					"ns",
+					rinq.Equal("a", "1"),
+					rinq.Equal("b", "2"),
+				),
+				"ns::{a=1, b=2}",
+			),
+
+			Entry(
+				"Equal()",
+				rinq.Equal("a", "1"),
+				"{a=1}",
+			),
+			Entry(
+				"NotEqual()",
+				rinq.NotEqual("a", "1"),
+				"{a!=1}",
+			),
+
+			Entry(
+				"Empty()",
+				rinq.Empty("a"),
+				"{!a}",
+			),
+			Entry(
+				"NotEmpty()",
+				rinq.NotEmpty("a"),
+				"{a}",
+			),
+
+			Entry(
+				"Not()",
+				rinq.Not(rinq.Equal("a", "1")),
+				"{! a=1}",
+			),
+			Entry(
+				"Not() with compound expression",
+				rinq.Not(
+					rinq.And(
+						rinq.Equal("a", "1"),
+						rinq.Equal("b", "2"),
+					),
+				),
+				"{! {a=1, b=2}}",
+			),
+
+			Entry(
+				"And()",
+				rinq.And(
+					rinq.Equal("a", "1"),
+				),
+				"{a=1}",
+			),
+			Entry(
+				"And() with multiple values",
+				rinq.And(
+					rinq.Equal("a", "1"),
+					rinq.Equal("b", "2"),
+				),
+				"{a=1, b=2}",
+			),
+
+			Entry(
+				"Or()",
+				rinq.Or(
+					rinq.Equal("a", "1"),
+				),
+				"{a=1}",
+			),
+			Entry(
+				"Or() with multiple values",
+				rinq.Or(
+					rinq.Equal("a", "1"),
+					rinq.Equal("b", "2"),
+				),
+				"{a=1|b=2}",
+			),
+
+			Entry(
+				"nested compound expression",
+				rinq.And(
+					rinq.Equal("a", "1"),
+					rinq.Or(
+						rinq.Equal("b", "2"),
+						rinq.Equal("c", "3"),
+					),
+				),
+				"{a=1, {b=2|c=3}}",
+			),
 		)
-
-		Expect(e.String()).To(Equal(`ns::{a=1}`))
-	})
-
-	It("returns the expected constraint when multiple constraints are passed", func() {
-		e := rinq.Within(
-			"ns",
-			rinq.Equal("a", "1"),
-			rinq.Equal("b", "2"),
-		)
-
-		Expect(e.String()).To(Equal(`ns::{a=1, b=2}`))
-	})
-})
-
-var _ = Describe("Equal", func() {
-	It("returns the expected constraint", func() {
-		e := rinq.Equal("a", "1")
-
-		Expect(e.String()).To(Equal(`a=1`))
-	})
-
-	It("returns the expected constraint when multiple values are passed", func() {
-		e := rinq.Equal("a", "1", "2")
-
-		Expect(e.String()).To(Equal(`a IN (1, 2)`))
-	})
-})
-
-var _ = Describe("NotEqual", func() {
-	It("returns the expected constraint", func() {
-		e := rinq.NotEqual("a", "1")
-
-		Expect(e.String()).To(Equal(`a!=1`))
-	})
-
-	It("returns the expected constraint when multiple values are passed", func() {
-		e := rinq.NotEqual("a", "1", "2")
-
-		Expect(e.String()).To(Equal(`a NOT IN (1, 2)`))
-	})
-})
-
-var _ = Describe("Empty", func() {
-	It("returns the expected constraint", func() {
-		e := rinq.Empty("a")
-
-		Expect(e.String()).To(Equal(`!a`))
-	})
-})
-
-var _ = Describe("NotEmpty", func() {
-	It("returns the expected constraint", func() {
-		e := rinq.NotEmpty("a")
-
-		Expect(e.String()).To(Equal(`a`))
-	})
-})
-
-var _ = Describe("Not", func() {
-	It("returns the expected constraint", func() {
-		e := rinq.Not(
-			rinq.Equal("a", "1"),
-		)
-
-		Expect(e.String()).To(Equal(`NOT a=1`))
-	})
-})
-
-var _ = Describe("And", func() {
-	It("returns the expected constraint", func() {
-		e := rinq.And(
-			rinq.Equal("a", "1"),
-			rinq.Equal("b", "2"),
-		)
-
-		Expect(e.String()).To(Equal(`{a=1, b=2}`))
-	})
-
-	It("returns the string representation of a single child", func() {
-		e := rinq.And(
-			rinq.Equal("a", "1"),
-		)
-
-		Expect(e.String()).To(Equal(`a=1`))
-	})
-})
-
-var _ = Describe("Or", func() {
-	It("returns the expected constraint", func() {
-		e := rinq.Or(
-			rinq.Equal("a", "1"),
-			rinq.Equal("b", "2"),
-		)
-
-		Expect(e.String()).To(Equal(`{a=1|b=2}`))
-	})
-
-	It("returns the string representation of a single child", func() {
-		e := rinq.Or(
-			rinq.Equal("a", "1"),
-		)
-
-		Expect(e.String()).To(Equal(`a=1`))
 	})
 })

@@ -14,7 +14,7 @@ type Table map[string]Namespace
 // The ns namespace is the default namespace used if there is no 'within'
 // constraint.
 func (t Table) MatchConstraint(ns string, con rinq.Constraint) bool {
-	m := &matcher{ns, t, false}
+	m := &tableMatcher{ns, t, false}
 	con.Accept(m)
 	return m.isMatch
 }

@@ -2,22 +2,22 @@ package rinq
 
 import "github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 
-// Constraint is a boolean expression evaluaed against session attribute values
+// Constraint is a boolean expression evaluated against session attribute values
 // to determine which sessions receive a multicast notification.
 //
 // See Session.NotifyMany() to send a multicast notification.
 type Constraint struct {
-	Op       constraintOp `json:"o,omitempty"`
-	Children []Constraint `json:"c,omitempty"`
-	Key      string       `json:"k,omitempty"`
-	Values   []string     `json:"v,omitempty"`
+	Op    constraintOp `json:"o,omitempty"`
+	Terms []Constraint `json:"t,omitempty"`
+	Key   string       `json:"k,omitempty"`
+	Value string       `json:"v,omitempty"`
 }
 
 func (c Constraint) String() string {
 	buf := bufferpool.Get()
 	defer bufferpool.Put(buf)
 
-	c.Accept(&constraintStringer{buf})
+	c.Accept(&constraintStringer{buf, nil})
 
 	return buf.String()
 }
@@ -38,29 +38,29 @@ func (c Constraint) Or(con Constraint) Constraint {
 // cons evaluates to true within the ns namespace.
 func Within(ns string, cons ...Constraint) Constraint {
 	return Constraint{
-		Op:       withinOp,
-		Children: cons,
-		Key:      ns,
+		Op:    withinOp,
+		Terms: cons,
+		Value: ns,
 	}
 }
 
-// Equal returns a Constraint that evaluates to true when the attribute k is equal
-// to any of the values in vals.
-func Equal(k string, v ...string) Constraint {
+// Equal returns a Constraint that evaluates to true when the attribute k is
+// equal to v.
+func Equal(k, v string) Constraint {
 	return Constraint{
-		Op:     equalOp,
-		Key:    k,
-		Values: v,
+		Op:    equalOp,
+		Key:   k,
+		Value: v,
 	}
 }
 
-// NotEqual returns a Constraint that evaluates to true when the attribute k is not
-// equal to any of the values in vals.
-func NotEqual(k string, v ...string) Constraint {
+// NotEqual returns a Constraint that evaluates to true when the attribute k is
+// not equal to v.
+func NotEqual(k, v string) Constraint {
 	return Constraint{
-		Op:     notEqualOp,
-		Key:    k,
-		Values: v,
+		Op:    notEqualOp,
+		Key:   k,
+		Value: v,
 	}
 }
 
@@ -68,7 +68,7 @@ func NotEqual(k string, v ...string) Constraint {
 // value equal to the empty string.
 func Empty(k string) Constraint {
 	return Constraint{
-		Op:  emptyOp,
+		Op:  equalOp,
 		Key: k,
 	}
 }
@@ -77,7 +77,7 @@ func Empty(k string) Constraint {
 // a value not equal to the empty string.
 func NotEmpty(k string) Constraint {
 	return Constraint{
-		Op:  notEmptyOp,
+		Op:  notEqualOp,
 		Key: k,
 	}
 }
@@ -86,8 +86,8 @@ func NotEmpty(k string) Constraint {
 // and vice-versa.
 func Not(con Constraint) Constraint {
 	return Constraint{
-		Op:       notOp,
-		Children: []Constraint{con},
+		Op:    notOp,
+		Terms: []Constraint{con},
 	}
 }
 
@@ -95,8 +95,8 @@ func Not(con Constraint) Constraint {
 // evaluate to true.
 func And(cons ...Constraint) Constraint {
 	return Constraint{
-		Op:       andOp,
-		Children: cons,
+		Op:    andOp,
+		Terms: cons,
 	}
 }
 
@@ -104,8 +104,8 @@ func And(cons ...Constraint) Constraint {
 // constraints in cons evaluate to true.
 func Or(cons ...Constraint) Constraint {
 	return Constraint{
-		Op:       orOp,
-		Children: cons,
+		Op:    orOp,
+		Terms: cons,
 	}
 }
 
@@ -113,21 +113,17 @@ func Or(cons ...Constraint) Constraint {
 func (c Constraint) Accept(v ConstraintVisitor) {
 	switch c.Op {
 	case withinOp:
-		v.Within(c.Key, c.Children)
+		v.Within(c.Value, c.Terms)
 	case equalOp:
-		v.Equal(c.Key, c.Values)
+		v.Equal(c.Key, c.Value)
 	case notEqualOp:
-		v.NotEqual(c.Key, c.Values)
-	case emptyOp:
-		v.Empty(c.Key)
-	case notEmptyOp:
-		v.NotEmpty(c.Key)
+		v.NotEqual(c.Key, c.Value)
 	case notOp:
-		v.Not(c.Children[0])
+		v.Not(c.Terms[0])
 	case andOp:
-		v.And(c.Children)
+		v.And(c.Terms)
 	case orOp:
-		v.Or(c.Children)
+		v.Or(c.Terms)
 	default:
 		panic("unrecognized constraint operation: " + c.Op)
 	}
@@ -139,8 +135,6 @@ const (
 	withinOp   constraintOp = "ns"
 	equalOp    constraintOp = "="
 	notEqualOp constraintOp = "!="
-	emptyOp    constraintOp = "-"
-	notEmptyOp constraintOp = "+"
 	notOp      constraintOp = "!"
 	andOp      constraintOp = "&"
 	orOp       constraintOp = "|"
@@ -149,10 +143,8 @@ const (
 // ConstraintVisitor is used to walk a constraint hierarchy.
 type ConstraintVisitor interface {
 	Within(ns string, cons []Constraint)
-	Equal(k string, v []string)
-	NotEqual(k string, v []string)
-	Empty(k string)
-	NotEmpty(k string)
+	Equal(k, v string)
+	NotEqual(k, v string)
 	Not(con Constraint)
 	And(cons []Constraint)
 	Or(cons []Constraint)

@@ -2,15 +2,15 @@ package attrmeta
 
 import "github.com/rinq/rinq-go/src/rinq"
 
-// matcher is a rinq.constraintVisitor that checks an constraint against an
+// tableMatcher is a rinq.constraintVisitor that checks an constraint against an
 // attribute table.
-type matcher struct {
+type tableMatcher struct {
 	ns      string
 	table   Table
 	isMatch bool
 }
 
-func (m *matcher) Within(ns string, cons []rinq.Constraint) {
+func (m *tableMatcher) Within(ns string, cons []rinq.Constraint) {
 	for _, con := range cons {
 		if !m.table.MatchConstraint(ns, con) {
 			return
@@ -20,44 +20,21 @@ func (m *matcher) Within(ns string, cons []rinq.Constraint) {
 	m.isMatch = true
 }
 
-func (m *matcher) Equal(k string, vals []string) {
+func (m *tableMatcher) Equal(k, v string) {
 	a := m.table[m.ns][k]
-
-	for _, v := range vals {
-		if a.Value == v {
-			m.isMatch = true
-			return
-		}
-	}
+	m.isMatch = a.Value == v
 }
 
-func (m *matcher) NotEqual(k string, v []string) {
+func (m *tableMatcher) NotEqual(k, v string) {
 	a := m.table[m.ns][k]
-
-	for _, x := range v {
-		if a.Value == x {
-			return
-		}
-	}
-
-	m.isMatch = true
+	m.isMatch = a.Value != v
 }
 
-func (m *matcher) Empty(k string) {
-	a := m.table[m.ns][k]
-	m.isMatch = a.Value == ""
-}
-
-func (m *matcher) NotEmpty(k string) {
-	a := m.table[m.ns][k]
-	m.isMatch = a.Value != ""
-}
-
-func (m *matcher) Not(con rinq.Constraint) {
+func (m *tableMatcher) Not(con rinq.Constraint) {
 	m.isMatch = !m.table.MatchConstraint(m.ns, con)
 }
 
-func (m *matcher) And(cons []rinq.Constraint) {
+func (m *tableMatcher) And(cons []rinq.Constraint) {
 	for _, con := range cons {
 		if !m.table.MatchConstraint(m.ns, con) {
 			return
@@ -67,7 +44,7 @@ func (m *matcher) And(cons []rinq.Constraint) {
 	m.isMatch = true
 }
 
-func (m *matcher) Or(cons []rinq.Constraint) {
+func (m *tableMatcher) Or(cons []rinq.Constraint) {
 	for _, con := range cons {
 		if m.table.MatchConstraint(m.ns, con) {
 			m.isMatch = true
