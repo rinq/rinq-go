@@ -5,7 +5,7 @@ import (
 	"log"
 
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega"
 )
 
 var _ = Describe("standardLogger", func() {
@@ -17,14 +17,14 @@ var _ = Describe("standardLogger", func() {
 
 			logger.Log("pattern %s", "value")
 
-			Expect(buffer.String()).To(Equal("pattern value\n"))
+			gomega.Expect(buffer.String()).To(gomega.Equal("pattern value\n"))
 		})
 	})
 
 	Describe("IsDebug", func() {
 		It("returns value of isDebug flag", func() {
-			Expect(NewLogger(true).IsDebug()).To(BeTrue())
-			Expect(NewLogger(false).IsDebug()).To(BeFalse())
+			gomega.Expect(NewLogger(true).IsDebug()).To(gomega.BeTrue())
+			gomega.Expect(NewLogger(false).IsDebug()).To(gomega.BeFalse())
 		})
 	})
 })

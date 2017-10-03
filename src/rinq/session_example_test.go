@@ -176,9 +176,7 @@ func ExampleSession_notifyMany() {
 
 	// constrain the notification to only those sessions that have a "foo"
 	// attribute with a value of "bar"
-	con := Constraint{
-		"foo": "bar",
-	}
+	con := Equal("foo", "bar")
 
 	if err := send.NotifyMany(
 		context.Background(),

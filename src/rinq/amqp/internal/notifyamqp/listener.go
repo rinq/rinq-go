@@ -418,8 +418,8 @@ func (l *listener) handleMulticast(
 	var sessions []rinq.Session
 
 	l.sessions.Each(func(session rinq.Session, catalog localsession.Catalog) {
-		_, attrs := catalog.AttrsIn(ns)
-		if attrs.MatchConstraint(con) {
+		_, attrs := catalog.Attrs()
+		if attrs.MatchConstraint(ns, con) {
 			sessions = append(sessions, session)
 		}
 	})

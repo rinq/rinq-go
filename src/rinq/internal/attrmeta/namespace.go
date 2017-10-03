@@ -3,7 +3,6 @@ package attrmeta
 import (
 	"bytes"
 
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 )
 
@@ -19,17 +18,6 @@ func (ns Namespace) Clone() Namespace {
 	}
 
 	return r
-}
-
-// MatchConstraint returns true if the attributes match the given constraint.
-func (ns Namespace) MatchConstraint(con rinq.Constraint) bool {
-	for key, value := range con {
-		if ns[key].Value != value {
-			return false
-		}
-	}
-
-	return true
 }
 
 // WriteTo writes a respresentation of t to buf.
