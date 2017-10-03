@@ -5,6 +5,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
@@ -54,7 +55,7 @@ func LogNotifierUnicast(
 func LogNotifierMulticast(
 	s opentracing.Span,
 	attrs attrmeta.Table,
-	con rinq.Constraint,
+	con constraint.Constraint,
 	p *rinq.Payload,
 ) {
 	fields := []log.Field{

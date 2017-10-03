@@ -9,6 +9,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
@@ -276,7 +277,7 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 	return err
 }
 
-func (s *session) NotifyMany(ctx context.Context, ns, t string, con rinq.Constraint, p *rinq.Payload) error {
+func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.Constraint, p *rinq.Payload) error {
 	if err := rinq.ValidateNamespace(ns); err != nil {
 		return err
 	}

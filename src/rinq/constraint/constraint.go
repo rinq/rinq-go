@@ -1,4 +1,4 @@
-package rinq
+package constraint
 
 import "github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 
@@ -17,7 +17,7 @@ func (c Constraint) String() string {
 	buf := bufferpool.Get()
 	defer bufferpool.Put(buf)
 
-	c.Accept(&constraintStringer{buf, nil})
+	c.Accept(&stringer{buf, nil})
 
 	return buf.String()
 }
@@ -110,7 +110,7 @@ func Or(cons ...Constraint) Constraint {
 }
 
 // Accept calls the method on v that corresponds to the operation type of c.
-func (c Constraint) Accept(v ConstraintVisitor) {
+func (c Constraint) Accept(v Visitor) {
 	switch c.Op {
 	case withinOp:
 		v.Within(c.Value, c.Terms)
@@ -140,8 +140,8 @@ const (
 	orOp       constraintOp = "|"
 )
 
-// ConstraintVisitor is used to walk a constraint hierarchy.
-type ConstraintVisitor interface {
+// Visitor  is used to walk a constraint hierarchy.
+type Visitor interface {
 	Within(ns string, cons []Constraint)
 	Equal(k, v string)
 	NotEqual(k, v string)

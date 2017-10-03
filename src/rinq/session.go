@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
@@ -137,7 +138,7 @@ type Session interface {
 	//
 	// If IsNotFound(err) returns true, this session has been destroyed and the
 	// notification can not be sent.
-	NotifyMany(ctx context.Context, ns, t string, c Constraint, out *Payload) error
+	NotifyMany(ctx context.Context, ns, t string, c constraint.Constraint, out *Payload) error
 
 	// Listen begins listening for notifications sent to this session in the ns
 	// namespace.

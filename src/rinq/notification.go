@@ -1,6 +1,10 @@
 package rinq
 
-import "context"
+import (
+	"context"
+
+	"github.com/rinq/rinq-go/src/rinq/constraint"
+)
 
 // Notification holds information about an inter-session notification.
 type Notification struct {
@@ -27,7 +31,7 @@ type Notification struct {
 	// For multicast notifications, Constraint contains the attributes used as
 	// criteria for selecting which sessions receive the notification. The
 	// constraint is nil if IsMulticast is false.
-	Constraint Constraint
+	Constraint constraint.Constraint
 }
 
 // NotificationHandler is a callback-function invoked when an inter-session

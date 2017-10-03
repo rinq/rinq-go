@@ -7,6 +7,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 	"github.com/streadway/amqp"
@@ -73,7 +74,7 @@ func unpackTarget(msg *amqp.Delivery) (id ident.SessionID, err error) {
 	return
 }
 
-func packConstraint(msg *amqp.Publishing, con rinq.Constraint) {
+func packConstraint(msg *amqp.Publishing, con constraint.Constraint) {
 	p := rinq.NewPayload(con)
 	defer p.Close()
 
@@ -84,7 +85,7 @@ func packConstraint(msg *amqp.Publishing, con rinq.Constraint) {
 	msg.Headers[constraintHeader] = p.Bytes()
 }
 
-func unpackConstraint(msg *amqp.Delivery) (con rinq.Constraint, err error) {
+func unpackConstraint(msg *amqp.Delivery) (con constraint.Constraint, err error) {
 	if buf, ok := msg.Headers[constraintHeader].([]byte); ok {
 		p := rinq.NewPayloadFromBytes(buf)
 		defer p.Close()

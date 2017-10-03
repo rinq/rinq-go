@@ -1,6 +1,6 @@
 package attrmeta
 
-import "github.com/rinq/rinq-go/src/rinq"
+import "github.com/rinq/rinq-go/src/rinq/constraint"
 
 // tableMatcher is a rinq.constraintVisitor that checks an constraint against an
 // attribute table.
@@ -10,7 +10,7 @@ type tableMatcher struct {
 	isMatch bool
 }
 
-func (m *tableMatcher) Within(ns string, cons []rinq.Constraint) {
+func (m *tableMatcher) Within(ns string, cons []constraint.Constraint) {
 	for _, con := range cons {
 		if !m.table.MatchConstraint(ns, con) {
 			return
@@ -30,11 +30,11 @@ func (m *tableMatcher) NotEqual(k, v string) {
 	m.isMatch = a.Value != v
 }
 
-func (m *tableMatcher) Not(con rinq.Constraint) {
+func (m *tableMatcher) Not(con constraint.Constraint) {
 	m.isMatch = !m.table.MatchConstraint(m.ns, con)
 }
 
-func (m *tableMatcher) And(cons []rinq.Constraint) {
+func (m *tableMatcher) And(cons []constraint.Constraint) {
 	for _, con := range cons {
 		if !m.table.MatchConstraint(m.ns, con) {
 			return
@@ -44,7 +44,7 @@ func (m *tableMatcher) And(cons []rinq.Constraint) {
 	m.isMatch = true
 }
 
-func (m *tableMatcher) Or(cons []rinq.Constraint) {
+func (m *tableMatcher) Or(cons []constraint.Constraint) {
 	for _, con := range cons {
 		if m.table.MatchConstraint(m.ns, con) {
 			m.isMatch = true

@@ -1,4 +1,4 @@
-package rinq
+package constraint
 
 import (
 	"bytes"
@@ -6,18 +6,18 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/strutil"
 )
 
-type constraintStringer struct {
+type stringer struct {
 	buf       *bytes.Buffer
 	hasBraces []bool
 }
 
-func (s *constraintStringer) Within(ns string, cons []Constraint) {
+func (s *stringer) Within(ns string, cons []Constraint) {
 	s.buf.WriteString(ns)
 	s.buf.WriteString("::")
 	s.join(", ", cons)
 }
 
-func (s *constraintStringer) Equal(k, v string) {
+func (s *stringer) Equal(k, v string) {
 	s.open()
 
 	if v == "" {
@@ -32,7 +32,7 @@ func (s *constraintStringer) Equal(k, v string) {
 	s.close()
 }
 
-func (s *constraintStringer) NotEqual(k, v string) {
+func (s *stringer) NotEqual(k, v string) {
 	s.open()
 
 	if v == "" {
@@ -46,22 +46,22 @@ func (s *constraintStringer) NotEqual(k, v string) {
 	s.close()
 }
 
-func (s *constraintStringer) Not(con Constraint) {
+func (s *stringer) Not(con Constraint) {
 	s.open()
 	s.buf.WriteString("! ")
 	con.Accept(s)
 	s.close()
 }
 
-func (s *constraintStringer) And(cons []Constraint) {
+func (s *stringer) And(cons []Constraint) {
 	s.join(", ", cons)
 }
 
-func (s *constraintStringer) Or(cons []Constraint) {
+func (s *stringer) Or(cons []Constraint) {
 	s.join("|", cons)
 }
 
-func (s *constraintStringer) join(sep string, cons []Constraint) {
+func (s *stringer) join(sep string, cons []Constraint) {
 	if len(cons) == 1 {
 		cons[0].Accept(s)
 		return
@@ -81,15 +81,15 @@ func (s *constraintStringer) join(sep string, cons []Constraint) {
 	s.buf.WriteRune('}')
 }
 
-func (s *constraintStringer) push(b bool) {
+func (s *stringer) push(b bool) {
 	s.hasBraces = append(s.hasBraces, b)
 }
 
-func (s *constraintStringer) pop() {
+func (s *stringer) pop() {
 	s.hasBraces = s.hasBraces[:len(s.hasBraces)-1]
 }
 
-func (s *constraintStringer) needsBraces() bool {
+func (s *stringer) needsBraces() bool {
 	if len(s.hasBraces) == 0 {
 		return true
 	}
@@ -97,7 +97,7 @@ func (s *constraintStringer) needsBraces() bool {
 	return !s.hasBraces[len(s.hasBraces)-1]
 }
 
-func (s *constraintStringer) open() {
+func (s *stringer) open() {
 	if s.needsBraces() {
 		s.buf.WriteRune('{')
 	}
@@ -105,7 +105,7 @@ func (s *constraintStringer) open() {
 	s.push(true)
 }
 
-func (s *constraintStringer) close() {
+func (s *stringer) close() {
 	s.pop()
 
 	if s.needsBraces() {
