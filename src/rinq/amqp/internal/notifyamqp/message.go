@@ -2,7 +2,6 @@ package notifyamqp
 
 import (
 	"errors"
-	"fmt"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -75,34 +74,27 @@ func unpackTarget(msg *amqp.Delivery) (id ident.SessionID, err error) {
 }
 
 func packConstraint(msg *amqp.Publishing, con rinq.Constraint) {
-	t := amqp.Table{}
-	for key, value := range con {
-		t[key] = value
-	}
+	p := rinq.NewPayload(con)
+	defer p.Close()
 
 	if msg.Headers == nil {
 		msg.Headers = amqp.Table{}
 	}
 
-	msg.Headers[constraintHeader] = t
+	msg.Headers[constraintHeader] = p.Bytes()
 }
 
-func unpackConstraint(msg *amqp.Delivery) (rinq.Constraint, error) {
-	if t, ok := msg.Headers[constraintHeader].(amqp.Table); ok {
-		con := rinq.Constraint{}
+func unpackConstraint(msg *amqp.Delivery) (con rinq.Constraint, err error) {
+	if buf, ok := msg.Headers[constraintHeader].([]byte); ok {
+		p := rinq.NewPayloadFromBytes(buf)
+		defer p.Close()
 
-		for key, value := range t {
-			if v, ok := value.(string); ok {
-				con[key] = v
-			} else {
-				return nil, fmt.Errorf("constraint key %s contains non-string value", key)
-			}
-		}
-
-		return con, nil
+		err = p.Decode(&con)
+	} else {
+		err = errors.New("constraint header is not a byte slice")
 	}
 
-	return nil, errors.New("constraint header is not a table")
+	return
 }
 
 func unpackSpanOptions(msg *amqp.Delivery, t opentracing.Tracer) (opts []opentracing.StartSpanOption, err error) {

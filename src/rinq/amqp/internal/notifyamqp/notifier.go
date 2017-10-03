@@ -68,7 +68,7 @@ func (n *notifier) NotifyUnicast(
 func (n *notifier) NotifyMulticast(
 	ctx context.Context,
 	msgID ident.MessageID,
-	constraint rinq.Constraint,
+	con rinq.Constraint,
 	ns string,
 	notificationType string,
 	payload *rinq.Payload,
@@ -78,7 +78,7 @@ func (n *notifier) NotifyMulticast(
 	}
 
 	packCommonAttributes(&msg, ns, notificationType, payload)
-	packConstraint(&msg, constraint)
+	packConstraint(&msg, con)
 	traceID = amqputil.PackTrace(ctx, &msg)
 
 	err = amqputil.PackSpanContext(ctx, &msg)

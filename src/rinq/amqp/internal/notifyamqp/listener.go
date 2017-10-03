@@ -410,7 +410,7 @@ func (l *listener) handleMulticast(
 	}
 	defer p.Close()
 
-	constraint, err := unpackConstraint(msg)
+	con, err := unpackConstraint(msg)
 	if err != nil {
 		return err
 	}
@@ -419,7 +419,7 @@ func (l *listener) handleMulticast(
 
 	l.sessions.Each(func(session rinq.Session, catalog localsession.Catalog) {
 		_, attrs := catalog.AttrsIn(ns)
-		if attrs.MatchConstraint(constraint) {
+		if attrs.MatchConstraint(con) {
 			sessions = append(sessions, session)
 		}
 	})
@@ -446,7 +446,7 @@ func (l *listener) handleMulticast(
 				Type:        t,
 				Payload:     p.Clone(),
 				IsMulticast: true,
-				Constraint:  constraint,
+				Constraint:  con,
 			},
 			spanOpts,
 		)

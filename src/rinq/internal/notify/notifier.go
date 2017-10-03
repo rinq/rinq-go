@@ -23,7 +23,7 @@ type Notifier interface {
 	NotifyMulticast(
 		ctx context.Context,
 		msgID ident.MessageID,
-		c rinq.Constraint,
+		con rinq.Constraint,
 		ns string,
 		t string,
 		out *rinq.Payload,
