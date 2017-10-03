@@ -102,12 +102,7 @@ func (c *catalog) Head() rinq.Revision {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
-	return &revision{
-		ref:     c.ref,
-		catalog: c,
-		attrs:   c.attrs,
-		logger:  c.logger,
-	}
+	return &revision{c.ref, c, c.attrs, c.logger}
 }
 
 func (c *catalog) At(rev ident.Revision) (rinq.Revision, error) {
@@ -119,10 +114,10 @@ func (c *catalog) At(rev ident.Revision) (rinq.Revision, error) {
 	}
 
 	return &revision{
-		ref:     c.ref.ID.At(rev),
-		catalog: c,
-		attrs:   c.attrs,
-		logger:  c.logger,
+		c.ref.ID.At(rev),
+		c,
+		c.attrs,
+		c.logger,
 	}, nil
 }
 
@@ -191,10 +186,10 @@ func (c *catalog) TryUpdate(
 	}
 
 	return &revision{
-		ref:     c.ref,
-		catalog: c,
-		attrs:   c.attrs,
-		logger:  c.logger,
+		c.ref,
+		c,
+		c.attrs,
+		c.logger,
 	}, diff, nil
 }
 
