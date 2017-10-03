@@ -8,7 +8,7 @@ const (
 	unicastExchange = "ntf.uc"
 
 	// multicastExchange is the exchange used to publish notifications that are
-	// sent to target multiple sessions based on an rinq.Constraint.
+	// sent to multiple sessions based on a rinq.Constraint.
 	multicastExchange = "ntf.mc"
 )
 
