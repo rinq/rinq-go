@@ -13,6 +13,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
+	"github.com/rinq/rinq-go/src/rinq/internal/nsutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
@@ -78,7 +79,7 @@ func (s *session) CurrentRevision() (rinq.Revision, error) {
 }
 
 func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (*rinq.Payload, error) {
-	if err := rinq.ValidateNamespace(ns); err != nil {
+	if err := nsutil.Validate(ns); err != nil {
 		return nil, err
 	}
 
@@ -117,7 +118,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Payload) (ident.MessageID, error) {
 	var msgID ident.MessageID
 
-	if err := rinq.ValidateNamespace(ns); err != nil {
+	if err := nsutil.Validate(ns); err != nil {
 		return msgID, err
 	}
 
@@ -193,7 +194,7 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 }
 
 func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) error {
-	if err := rinq.ValidateNamespace(ns); err != nil {
+	if err := nsutil.Validate(ns); err != nil {
 		return err
 	}
 
@@ -237,7 +238,7 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 		return fmt.Errorf("session ID %s is invalid", target)
 	}
 
-	if err := rinq.ValidateNamespace(ns); err != nil {
+	if err := nsutil.Validate(ns); err != nil {
 		return err
 	}
 
@@ -278,7 +279,7 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 }
 
 func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.Constraint, p *rinq.Payload) error {
-	if err := rinq.ValidateNamespace(ns); err != nil {
+	if err := nsutil.Validate(ns); err != nil {
 		return err
 	}
 
@@ -319,7 +320,7 @@ func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 }
 
 func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
-	if err := rinq.ValidateNamespace(ns); err != nil {
+	if err := nsutil.Validate(ns); err != nil {
 		return err
 	}
 
@@ -381,7 +382,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 }
 
 func (s *session) Unlisten(ns string) error {
-	if err := rinq.ValidateNamespace(ns); err != nil {
+	if err := nsutil.Validate(ns); err != nil {
 		return err
 	}
 

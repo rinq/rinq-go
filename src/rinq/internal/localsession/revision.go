@@ -6,6 +6,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/nsutil"
 )
 
 type revision struct {
@@ -24,7 +25,7 @@ func (r *revision) Refresh(ctx context.Context) (rinq.Revision, error) {
 }
 
 func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
-	if err := rinq.ValidateNamespace(ns); err != nil {
+	if err := nsutil.Validate(ns); err != nil {
 		return rinq.Attr{}, err
 	}
 
@@ -49,7 +50,7 @@ func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
 }
 
 func (r *revision) GetMany(ctx context.Context, ns string, keys ...string) (rinq.AttrTable, error) {
-	if err := rinq.ValidateNamespace(ns); err != nil {
+	if err := nsutil.Validate(ns); err != nil {
 		return nil, err
 	}
 
@@ -78,7 +79,7 @@ func (r *revision) GetMany(ctx context.Context, ns string, keys ...string) (rinq
 }
 
 func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (rinq.Revision, error) {
-	if err := rinq.ValidateNamespace(ns); err != nil {
+	if err := nsutil.Validate(ns); err != nil {
 		return nil, err
 	}
 
