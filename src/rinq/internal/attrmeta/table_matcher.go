@@ -10,6 +10,10 @@ type tableMatcher struct {
 	isMatch bool
 }
 
+func (m *tableMatcher) None() {
+	m.isMatch = true
+}
+
 func (m *tableMatcher) Within(ns string, cons []constraint.Constraint) {
 	for _, con := range cons {
 		if !m.table.MatchConstraint(ns, con) {

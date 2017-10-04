@@ -11,6 +11,12 @@ type stringer struct {
 	hasBraces []bool
 }
 
+func (s *stringer) None() {
+	s.open()
+	s.buf.WriteString("*")
+	s.close()
+}
+
 func (s *stringer) Within(ns string, cons []Constraint) {
 	s.buf.WriteString(ns)
 	s.buf.WriteString("::")

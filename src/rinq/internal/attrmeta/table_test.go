@@ -20,6 +20,13 @@ var _ = Describe("Table", func() {
 			},
 
 			Entry(
+				"None",
+				attrmeta.Table{},
+				"ns",
+				constraint.None,
+			),
+
+			Entry(
 				"Within",
 				attrmeta.Table{
 					"ns": {"a": {Attr: rinq.Set("a", "1")}},

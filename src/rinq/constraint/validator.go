@@ -8,6 +8,9 @@ import (
 
 type validator struct{}
 
+func (v *validator) None() {
+}
+
 func (v *validator) Within(ns string, cons []Constraint) {
 	if err := nsutil.Validate(ns); err != nil {
 		panic(errors.New("WITHIN constraint has invalid namespace: " + err.Error()))

@@ -3,6 +3,7 @@ package constraint
 type op string
 
 const (
+	noneOp     op = "*"
 	withinOp   op = "ns"
 	equalOp    op = "="
 	notEqualOp op = "!="
@@ -13,6 +14,7 @@ const (
 
 // Visitor is used to walk a constraint hierarchy.
 type Visitor interface {
+	None()
 	Within(ns string, cons []Constraint)
 	Equal(k, v string)
 	NotEqual(k, v string)

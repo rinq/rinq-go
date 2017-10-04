@@ -83,7 +83,21 @@ var _ = Describe("Constraint", func() {
 			},
 
 			Entry(
-				"Within()",
+				"None",
+				constraint.None,
+				"{*}",
+			),
+			Entry(
+				"None nested in compound constraint",
+				constraint.And(
+					constraint.None,
+					constraint.None,
+				),
+				"{*, *}",
+			),
+
+			Entry(
+				"Within",
 				constraint.Within(
 					"ns",
 					constraint.Equal("a", "1"),
@@ -91,7 +105,7 @@ var _ = Describe("Constraint", func() {
 				"ns::{a=1}",
 			),
 			Entry(
-				"Within() with multiple values",
+				"Within with multiple values",
 				constraint.Within(
 					"ns",
 					constraint.Equal("a", "1"),
@@ -101,34 +115,34 @@ var _ = Describe("Constraint", func() {
 			),
 
 			Entry(
-				"Equal()",
+				"Equal",
 				constraint.Equal("a", "1"),
 				"{a=1}",
 			),
 			Entry(
-				"NotEqual()",
+				"NotEqual",
 				constraint.NotEqual("a", "1"),
 				"{a!=1}",
 			),
 
 			Entry(
-				"Empty()",
+				"Empty",
 				constraint.Empty("a"),
 				"{!a}",
 			),
 			Entry(
-				"NotEmpty()",
+				"NotEmpty",
 				constraint.NotEmpty("a"),
 				"{a}",
 			),
 
 			Entry(
-				"Not()",
+				"Not",
 				constraint.Not(constraint.Equal("a", "1")),
 				"{! a=1}",
 			),
 			Entry(
-				"Not() with compound expression",
+				"Not with compound expression",
 				constraint.Not(
 					constraint.And(
 						constraint.Equal("a", "1"),
@@ -139,14 +153,14 @@ var _ = Describe("Constraint", func() {
 			),
 
 			Entry(
-				"And()",
+				"And",
 				constraint.And(
 					constraint.Equal("a", "1"),
 				),
 				"{a=1}",
 			),
 			Entry(
-				"And() with multiple values",
+				"And with multiple values",
 				constraint.And(
 					constraint.Equal("a", "1"),
 					constraint.Equal("b", "2"),
@@ -155,14 +169,14 @@ var _ = Describe("Constraint", func() {
 			),
 
 			Entry(
-				"Or()",
+				"Or",
 				constraint.Or(
 					constraint.Equal("a", "1"),
 				),
 				"{a=1}",
 			),
 			Entry(
-				"Or() with multiple values",
+				"Or with multiple values",
 				constraint.Or(
 					constraint.Equal("a", "1"),
 					constraint.Equal("b", "2"),

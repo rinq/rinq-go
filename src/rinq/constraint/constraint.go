@@ -46,6 +46,8 @@ func (c Constraint) Validate() (err error) {
 // Accept calls the method on v that corresponds to the operation type of c.
 func (c Constraint) Accept(v Visitor) {
 	switch c.Op {
+	case noneOp:
+		v.None()
 	case withinOp:
 		v.Within(c.Value, c.Terms)
 	case equalOp:
@@ -72,6 +74,10 @@ func (c Constraint) String() string {
 
 	return buf.String()
 }
+
+// None is a Constraint that always evaluates to true, and hence provides
+// "no constraint" on the sessions that receive the notification.
+var None = Constraint{Op: noneOp}
 
 // Within returns a Constraint that evaluates to true when each constraint in
 // cons evaluates to true within the ns namespace.

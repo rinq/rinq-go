@@ -2,15 +2,13 @@ package strutil
 
 import (
 	"encoding/json"
-	"strings"
+	"regexp"
 )
 
 // Escape returns human-readable, possibly quoted, escaped representation of s.
 func Escape(s string) string {
-	l := len(s)
-
-	if l == 0 {
-		return `""`
+	if pattern.MatchString(s) {
+		return s
 	}
 
 	buf, err := json.Marshal(s)
@@ -18,13 +16,11 @@ func Escape(s string) string {
 		panic(err)
 	}
 
-	j := string(buf)
+	return string(buf)
+}
 
-	// if the json marshaling only added quotes, and the string does not contain
-	// any "special" characters, use the original string.
-	if len(j) == l+2 && !strings.ContainsAny(s, ` =@!:(){}`) {
-		return s
-	}
+var pattern *regexp.Regexp
 
-	return j
+func init() {
+	pattern = regexp.MustCompile(`^[A-Za-z0-9_\.\-]+$`)
 }

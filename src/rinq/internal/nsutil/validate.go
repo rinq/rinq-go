@@ -19,15 +19,15 @@ func Validate(ns string) error {
 		return errors.New("namespace must not be empty")
 	} else if ns[0] == '_' {
 		return fmt.Errorf("namespace '%s' is reserved", ns)
-	} else if !namespacePattern.MatchString(ns) {
+	} else if !pattern.MatchString(ns) {
 		return fmt.Errorf("namespace '%s' contains invalid characters", ns)
 	}
 
 	return nil
 }
 
-var namespacePattern *regexp.Regexp
+var pattern *regexp.Regexp
 
 func init() {
-	namespacePattern = regexp.MustCompile(`^[A-Za-z0-9_\.\-:]+$`)
+	pattern = regexp.MustCompile(`^[A-Za-z0-9_\.\-:]+$`)
 }
