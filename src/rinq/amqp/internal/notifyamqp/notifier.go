@@ -5,6 +5,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
@@ -68,7 +69,7 @@ func (n *notifier) NotifyUnicast(
 func (n *notifier) NotifyMulticast(
 	ctx context.Context,
 	msgID ident.MessageID,
-	con rinq.Constraint,
+	con constraint.Constraint,
 	ns string,
 	notificationType string,
 	payload *rinq.Payload,

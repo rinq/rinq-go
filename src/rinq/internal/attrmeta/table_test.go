@@ -4,12 +4,171 @@ import (
 	"bytes"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
 
 var _ = Describe("Table", func() {
+	Describe("MatchConstraint", func() {
+		DescribeTable(
+			"returns true when the table matches the constraint",
+			func(t attrmeta.Table, ns string, con constraint.Constraint) {
+				Expect(t.MatchConstraint(ns, con)).To(BeTrue())
+			},
+
+			Entry(
+				"None",
+				attrmeta.Table{},
+				"ns",
+				constraint.None,
+			),
+
+			Entry(
+				"Within",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.Within("ns", constraint.Equal("a", "1")),
+			),
+
+			Entry(
+				"Equal",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.Equal("a", "1"),
+			),
+
+			Entry(
+				"NotEqual",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.NotEqual("a", "2"),
+			),
+
+			Entry(
+				"Not",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.Not(constraint.Equal("a", "2")),
+			),
+
+			Entry(
+				"And",
+				attrmeta.Table{
+					"ns": {
+						"a": {Attr: rinq.Set("a", "1")},
+						"b": {Attr: rinq.Set("b", "2")},
+					},
+				},
+				"ns",
+				constraint.And(
+					constraint.Equal("a", "1"),
+					constraint.Equal("b", "2"),
+				),
+			),
+
+			Entry(
+				"Or",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.Or(
+					constraint.Equal("a", "1"),
+					constraint.Equal("a", "2"),
+				),
+			),
+		)
+
+		DescribeTable(
+			"returns false when the table matches the constraint",
+			func(t attrmeta.Table, ns string, con constraint.Constraint) {
+				Expect(t.MatchConstraint(ns, con)).To(BeFalse())
+			},
+
+			Entry(
+				"Within with failing constraint",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.Within("ns", constraint.Equal("a", "2")),
+			),
+			Entry(
+				"Within with different namespace",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.Within("other", constraint.Equal("a", "1")),
+			),
+
+			Entry(
+				"Equal",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.Equal("a", "2"),
+			),
+
+			Entry(
+				"NotEqual",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.NotEqual("a", "1"),
+			),
+
+			Entry(
+				"Not",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.Not(constraint.Equal("a", "1")),
+			),
+
+			Entry(
+				"And",
+				attrmeta.Table{
+					"ns": {
+						"a": {Attr: rinq.Set("a", "1")},
+						"b": {Attr: rinq.Set("b", "2")},
+					},
+				},
+				"ns",
+				constraint.And(
+					constraint.Equal("a", "2"),
+					constraint.Equal("b", "2"),
+				),
+			),
+
+			Entry(
+				"Or",
+				attrmeta.Table{
+					"ns": {"a": {Attr: rinq.Set("a", "1")}},
+				},
+				"ns",
+				constraint.Or(
+					constraint.Equal("a", "2"),
+					constraint.Equal("a", "3"),
+				),
+			),
+		)
+	})
+
 	Describe("CloneAndMerge", func() {
 		var t attrmeta.Table
 

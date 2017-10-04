@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
@@ -23,7 +24,7 @@ type Notifier interface {
 	NotifyMulticast(
 		ctx context.Context,
 		msgID ident.MessageID,
-		con rinq.Constraint,
+		con constraint.Constraint,
 		ns string,
 		t string,
 		out *rinq.Payload,

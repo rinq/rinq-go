@@ -9,6 +9,7 @@ import (
 
 	. "github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp"
+	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
@@ -176,9 +177,7 @@ func ExampleSession_notifyMany() {
 
 	// constrain the notification to only those sessions that have a "foo"
 	// attribute with a value of "bar"
-	con := Constraint{
-		"foo": "bar",
-	}
+	con := constraint.Equal("foo", "bar")
 
 	if err := send.NotifyMany(
 		context.Background(),
