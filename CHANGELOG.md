@@ -2,6 +2,7 @@
 
 ## 0.5.0 (2017-10-02)
 
+- **[BC]** Expand notification constraints to a fully-fledged expression system
 - **[BC]** Remove `Config` in favour of "functional options" in the `options` package
 - **[BC]** Session attributes are now namespaced
 - **[NEW]** Add support for [OpenTracing](https://opentracing.io) via new `options.Tracer()` option
