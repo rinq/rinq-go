@@ -127,7 +127,7 @@ func NotEmpty(k string) Constraint {
 	}
 }
 
-// Not returns a Constraint  that evaluates to true when e evaluates to false,
+// Not returns a Constraint that evaluates to true when e evaluates to false,
 // and vice-versa.
 func Not(con Constraint) Constraint {
 	return Constraint{
