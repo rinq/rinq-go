@@ -8,6 +8,55 @@ import (
 )
 
 var _ = Describe("Constraint", func() {
+	Describe("Validate", func() {
+		It("returns nil when the constraint is valid", func() {
+			con := constraint.Within(
+				"ns",
+				constraint.Not(
+					constraint.And(
+						constraint.Equal("a", "1"),
+						constraint.NotEqual("b", "2"),
+						constraint.Or(
+							constraint.Empty("c"),
+						),
+					),
+				),
+			)
+
+			err := con.Validate()
+
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("returns an error if a WITHIN constraint has an invalid namespace", func() {
+			con := constraint.Within("_ns", constraint.Empty("a"))
+			err := con.Validate()
+
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("returns an error if a WITHIN constraint has no terms", func() {
+			con := constraint.Within("ns")
+			err := con.Validate()
+
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("returns an error if an AND constraint has no terms", func() {
+			con := constraint.And()
+			err := con.Validate()
+
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("returns an error if an OR constraint has no terms", func() {
+			con := constraint.Or()
+			err := con.Validate()
+
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
 	Describe("And", func() {
 		It("is equivalent to constraint.And", func() {
 			a := constraint.Equal("a", "1")

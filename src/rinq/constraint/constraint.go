@@ -7,19 +7,10 @@ import "github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
 //
 // See Session.NotifyMany() to send a multicast notification.
 type Constraint struct {
-	Op    constraintOp `json:"o,omitempty"`
+	Op    op           `json:"o,omitempty"`
 	Terms []Constraint `json:"t,omitempty"`
 	Key   string       `json:"k,omitempty"`
 	Value string       `json:"v,omitempty"`
-}
-
-func (c Constraint) String() string {
-	buf := bufferpool.Get()
-	defer bufferpool.Put(buf)
-
-	c.Accept(&stringer{buf, nil})
-
-	return buf.String()
 }
 
 // And returns a Constraint that evaluates to true if both c and con evaluate to
@@ -32,6 +23,54 @@ func (c Constraint) And(con Constraint) Constraint {
 // evaluate to true.
 func (c Constraint) Or(con Constraint) Constraint {
 	return Or(c, con)
+}
+
+// Validate returns nil if c is a valid constraint.
+func (c Constraint) Validate() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok {
+				err = e
+			} else {
+				panic(r)
+			}
+		}
+	}()
+
+	v := &validator{}
+	c.Accept(v)
+
+	return
+}
+
+// Accept calls the method on v that corresponds to the operation type of c.
+func (c Constraint) Accept(v Visitor) {
+	switch c.Op {
+	case withinOp:
+		v.Within(c.Value, c.Terms)
+	case equalOp:
+		v.Equal(c.Key, c.Value)
+	case notEqualOp:
+		v.NotEqual(c.Key, c.Value)
+	case notOp:
+		v.Not(c.Terms[0])
+	case andOp:
+		v.And(c.Terms)
+	case orOp:
+		v.Or(c.Terms)
+	default:
+		panic("unrecognized constraint operation: " + c.Op)
+	}
+}
+
+func (c Constraint) String() string {
+	buf := bufferpool.Get()
+	defer bufferpool.Put(buf)
+
+	v := &stringer{buf, nil}
+	c.Accept(v)
+
+	return buf.String()
 }
 
 // Within returns a Constraint that evaluates to true when each constraint in
@@ -107,45 +146,4 @@ func Or(cons ...Constraint) Constraint {
 		Op:    orOp,
 		Terms: cons,
 	}
-}
-
-// Accept calls the method on v that corresponds to the operation type of c.
-func (c Constraint) Accept(v Visitor) {
-	switch c.Op {
-	case withinOp:
-		v.Within(c.Value, c.Terms)
-	case equalOp:
-		v.Equal(c.Key, c.Value)
-	case notEqualOp:
-		v.NotEqual(c.Key, c.Value)
-	case notOp:
-		v.Not(c.Terms[0])
-	case andOp:
-		v.And(c.Terms)
-	case orOp:
-		v.Or(c.Terms)
-	default:
-		panic("unrecognized constraint operation: " + c.Op)
-	}
-}
-
-type constraintOp string
-
-const (
-	withinOp   constraintOp = "ns"
-	equalOp    constraintOp = "="
-	notEqualOp constraintOp = "!="
-	notOp      constraintOp = "!"
-	andOp      constraintOp = "&"
-	orOp       constraintOp = "|"
-)
-
-// Visitor  is used to walk a constraint hierarchy.
-type Visitor interface {
-	Within(ns string, cons []Constraint)
-	Equal(k, v string)
-	NotEqual(k, v string)
-	Not(con Constraint)
-	And(cons []Constraint)
-	Or(cons []Constraint)
 }
