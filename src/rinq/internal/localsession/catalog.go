@@ -39,13 +39,20 @@ type Catalog interface {
 	//
 	// The operation fails if ref is not the current session-ref, attrs includes
 	// changes to frozen attributes, or the catalog is closed.
-	//
-	// A human-readable representation of the changes is written to diff, if it
-	// is non-nil.
 	TryUpdate(
 		ref ident.Ref,
 		ns string,
 		attrs attrutil.List,
+	) (rinq.Revision, *attrmeta.Diff, error)
+
+	// TryClear updates all attributes in the ns namespace of the attribute
+	// table to the empty string and returns the new head revision.
+	//
+	// The operation fails if ref is not the current session-ref, there are any
+	// frozen attributes, or the catalog is closed.
+	TryClear(
+		ref ident.Ref,
+		ns string,
 	) (rinq.Revision, *attrmeta.Diff, error)
 
 	// TryDestroy closes the catalog, preventing further updates.
@@ -176,6 +183,57 @@ func (c *catalog) TryUpdate(
 
 		nextAttrs[attr.Key] = entry
 		diff.Append(entry)
+	}
+
+	c.ref.Rev = nextRev
+	c.seq = 0
+
+	if !diff.IsEmpty() {
+		c.attrs = c.attrs.CloneAndMerge(ns, nextAttrs)
+	}
+
+	return &revision{
+		c.ref,
+		c,
+		c.attrs,
+		c.logger,
+	}, diff, nil
+}
+
+func (c *catalog) TryClear(
+	ref ident.Ref,
+	ns string,
+) (rinq.Revision, *attrmeta.Diff, error) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	select {
+	case <-c.done:
+		return nil, nil, rinq.NotFoundError{ID: c.ref.ID}
+	default:
+	}
+
+	if ref != c.ref {
+		return nil, nil, rinq.StaleUpdateError{Ref: ref}
+	}
+
+	attrs := c.attrs[ns]
+	nextRev := ref.Rev + 1
+	nextAttrs := attrmeta.Namespace{}
+	diff := attrmeta.NewDiff(ns, nextRev, len(nextAttrs))
+
+	for _, entry := range attrs {
+		if entry.Value != "" {
+			if entry.IsFrozen {
+				return nil, nil, rinq.FrozenAttributesError{Ref: ref}
+			}
+
+			entry.Value = ""
+			entry.UpdatedAt = nextRev
+			diff.Append(entry)
+		}
+
+		nextAttrs[entry.Key] = entry
 	}
 
 	c.ref.Rev = nextRev

@@ -93,6 +93,17 @@ type Revision interface {
 	// existing variable without first checking for errors.
 	Update(ctx context.Context, ns string, attrs ...Attr) (rev Revision, err error)
 
+	// Clear is an update operation that atomically sets the value of each
+	// attribute within the ns namespace to the empty string.
+	//
+	// The sematics are the same as for Update(). This means the operation fails
+	// if ANY attribute in the ns namespace is frozen.
+	//
+	// As a convenience, if the clear operation fails for any reason, rev is
+	// this revision. This allows the caller to assign the return value to an
+	// existing variable without first checking for errors.
+	Clear(ctx context.Context, ns string) (rev Revision, err error)
+
 	// Destroy terminates the session.
 	//
 	// The session revision represented by this instance must be the latest

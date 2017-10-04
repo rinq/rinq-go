@@ -35,6 +35,10 @@ func (r closedRevision) Update(context.Context, string, ...rinq.Attr) (rinq.Revi
 	return r, rinq.NotFoundError{ID: r.ID}
 }
 
+func (r closedRevision) Clear(context.Context, string) (rinq.Revision, error) {
+	return r, rinq.NotFoundError{ID: r.ID}
+}
+
 func (r closedRevision) Destroy(context.Context) error {
 	return nil
 }

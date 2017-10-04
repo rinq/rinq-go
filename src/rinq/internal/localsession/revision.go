@@ -97,6 +97,21 @@ func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (r
 	return rev, nil
 }
 
+func (r *revision) Clear(ctx context.Context, ns string) (rinq.Revision, error) {
+	if err := nsutil.Validate(ns); err != nil {
+		return nil, err
+	}
+
+	rev, diff, err := r.catalog.TryClear(r.ref, ns)
+	if err != nil {
+		return r, err
+	}
+
+	logClear(ctx, r.logger, rev.Ref(), diff)
+
+	return rev, nil
+}
+
 func (r *revision) Destroy(ctx context.Context) error {
 	err := r.catalog.TryDestroy(r.ref)
 	if err != nil {

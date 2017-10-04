@@ -303,6 +303,66 @@ var _ = Describe("revision (functional)", func() {
 		})
 	})
 
+	Describe("Clear", func() {
+		It("clears the attributes", func() {
+			var err error
+			local, err = local.Update(
+				ctx,
+				ns,
+				rinq.Set("a", "1"),
+				rinq.Set("b", "2"),
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			remote, err = remote.Refresh(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = remote.Clear(ctx, ns)
+			Expect(err).NotTo(HaveOccurred())
+
+			local, err = local.Refresh(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			attrs, err := local.GetMany(ctx, ns, "a", "b")
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(attrs["a"].Value).To(BeEmpty())
+			Expect(attrs["b"].Value).To(BeEmpty())
+		})
+
+		It("returns an error if any frozen attribute exists", func() {
+			var err error
+			local, err = local.Update(ctx, ns, rinq.Freeze("a", "1"))
+			Expect(err).NotTo(HaveOccurred())
+
+			remote, err = remote.Refresh(ctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = remote.Clear(ctx, ns)
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(rinq.FrozenAttributesError{Ref: remote.Ref()}))
+		})
+
+		It("returns a stale update error if session is at a later revision", func() {
+			var err error
+			local, err = local.Update(ctx, ns, rinq.Set("a", "1"))
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = remote.Clear(ctx, ns)
+			Expect(err).To(HaveOccurred())
+			Expect(rinq.ShouldRetry(err)).To(BeTrue())
+		})
+
+		It("returns a not found error if the session has been destroyed", func() {
+			session.Destroy()
+
+			var err error
+			remote, err = remote.Clear(ctx, ns)
+			Expect(err).To(HaveOccurred())
+			Expect(rinq.IsNotFound(err)).To(BeTrue())
+		})
+	})
+
 	Describe("Destroy", func() {
 		It("returns a stale update error if session is at a later revision", func() {
 			var err error
