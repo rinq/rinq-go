@@ -160,7 +160,7 @@ type FrozenAttributesError struct {
 
 func (err FrozenAttributesError) Error() string {
 	return fmt.Sprintf(
-		"can not update %s, the change-set references one or more frozen key(s)",
+		"can not update %s, the change affects one or more frozen attributes",
 		err.Ref,
 	)
 }
