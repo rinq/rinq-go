@@ -68,11 +68,12 @@ func errorToFailure(err error) error {
 
 // failureToError returns the appropriate error based on the failure type of err.
 func failureToError(ref ident.Ref, err error) error {
-	if rinq.IsFailureType(notFoundFailure, err) {
+	switch rinq.FailureType(err) {
+	case notFoundFailure:
 		return rinq.NotFoundError{ID: ref.ID}
-	} else if rinq.IsFailureType(staleUpdateFailure, err) {
+	case staleUpdateFailure:
 		return rinq.StaleUpdateError{Ref: ref}
-	} else if rinq.IsFailureType(frozenAttributesFailure, err) {
+	case frozenAttributesFailure:
 		return rinq.FrozenAttributesError{Ref: ref}
 	}
 
