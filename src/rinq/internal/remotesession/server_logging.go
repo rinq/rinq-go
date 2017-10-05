@@ -26,6 +26,22 @@ func logRemoteUpdate(
 	)
 }
 
+func logRemoteClear(
+	ctx context.Context,
+	logger rinq.Logger,
+	ref ident.Ref,
+	peerID ident.PeerID,
+	diff *attrmeta.Diff,
+) {
+	logger.Log(
+		"%s session cleared by %s %s [%s]",
+		ref.ShortString(),
+		peerID.ShortString(),
+		diff,
+		trace.Get(ctx),
+	)
+}
+
 func logRemoteDestroy(
 	ctx context.Context,
 	logger rinq.Logger,

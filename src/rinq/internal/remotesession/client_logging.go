@@ -25,6 +25,22 @@ func logUpdate(
 	)
 }
 
+func logClear(
+	ctx context.Context,
+	logger rinq.Logger,
+	peerID ident.PeerID,
+	ref ident.Ref,
+	ns string,
+) {
+	logger.Log(
+		"%s cleared remote session %s %s::{*} [%s]",
+		peerID.ShortString(),
+		ref.ShortString(),
+		trace.Get(ctx),
+		ns,
+	)
+}
+
 func logClose(
 	ctx context.Context,
 	logger rinq.Logger,

@@ -224,6 +224,63 @@ func (c *catalog) TryUpdate(
 	}, nil
 }
 
+func (c *catalog) TryClear(
+	ctx context.Context,
+	rev ident.Revision,
+	ns string,
+) (rinq.Revision, error) {
+	unlock := syncutil.RLock(&c.mutex)
+	defer unlock()
+
+	if c.isClosed {
+		return nil, rinq.NotFoundError{ID: c.id}
+	}
+
+	ref := c.id.At(rev)
+
+	if c.highestRev > rev {
+		return nil, rinq.StaleUpdateError{Ref: ref}
+	}
+
+	for _, entry := range c.cache[ns] {
+		if entry.Attr.IsFrozen {
+			if entry.Attr.Value == "" {
+				continue
+			}
+
+			return nil, rinq.FrozenAttributesError{Ref: ref}
+		}
+	}
+
+	unlock()
+
+	updatedRev, err := c.client.Clear(ctx, ref, ns)
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	c.updateState(updatedRev, err)
+
+	if err != nil {
+		return nil, err
+	}
+
+	cache := c.cache[ns]
+
+	for key, entry := range cache {
+		if updatedRev > entry.FetchedAt {
+			entry.Attr.Value = ""
+			entry.FetchedAt = updatedRev
+			cache[key] = entry
+		}
+	}
+
+	return &revision{
+		c.id.At(c.highestRev),
+		c,
+	}, nil
+}
+
 func (c *catalog) TryDestroy(
 	ctx context.Context,
 	rev ident.Revision,

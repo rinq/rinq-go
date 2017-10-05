@@ -63,7 +63,7 @@ var _ = Describe("Revision", func() {
 			It("returns the message", func() {
 				err := rinq.FrozenAttributesError{Ref: sessionRef}
 				Expect(err.Error()).To(Equal(
-					"can not update 1-0002.3@4, the change-set references one or more frozen key(s)",
+					"can not update 1-0002.3@4, the change affects one or more frozen attributes",
 				))
 			})
 		})

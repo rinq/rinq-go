@@ -49,6 +49,8 @@ func (s *server) handle(
 		s.fetch(ctx, req, res)
 	case updateCommand:
 		s.update(ctx, req, res)
+	case clearCommand:
+		s.clear(ctx, req, res)
 	case destroyCommand:
 		s.destroy(ctx, req, res)
 	default:
@@ -133,17 +135,7 @@ func (s *server) update(
 
 	rev, diff, err := cat.TryUpdate(sessID.At(args.Rev), args.Namespace, args.Attrs)
 	if err != nil {
-		switch err.(type) {
-		case rinq.NotFoundError:
-			res.Fail(notFoundFailure, "")
-		case rinq.StaleUpdateError:
-			res.Fail(staleUpdateFailure, "")
-		case rinq.FrozenAttributesError:
-			res.Fail(frozenAttributesFailure, "")
-		default:
-			res.Error(err)
-		}
-
+		res.Error(errorToFailure(err))
 		traceutil.LogSessionError(span, err)
 		return
 	}
@@ -169,6 +161,54 @@ func (s *server) update(
 	res.Done(payload)
 
 	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
+}
+
+func (s *server) clear(
+	ctx context.Context,
+	req rinq.Request,
+	res rinq.Response,
+) {
+	span := opentracing.SpanFromContext(ctx)
+
+	var args updateRequest
+
+	if err := req.Payload.Decode(&args); err != nil {
+		res.Error(err)
+		traceutil.LogSessionError(span, err)
+		return
+	}
+
+	sessID := s.peerID.Session(args.Seq)
+
+	traceutil.SetupSessionClear(span, args.Namespace, sessID)
+	traceutil.LogSessionClearRequest(span, args.Rev)
+
+	_, cat, ok := s.sessions.Get(sessID)
+	if !ok {
+		err := res.Fail(notFoundFailure, "")
+		traceutil.LogSessionError(span, err)
+		return
+	}
+
+	rev, diff, err := cat.TryClear(sessID.At(args.Rev), args.Namespace)
+	if err != nil {
+		res.Error(errorToFailure(err))
+		traceutil.LogSessionError(span, err)
+		return
+	}
+
+	logRemoteClear(ctx, s.logger, rev.Ref(), req.Source.Ref().ID.Peer, diff)
+
+	rsp := updateResponse{
+		Rev: rev.Ref().Rev,
+	}
+
+	payload := rinq.NewPayload(rsp)
+	defer payload.Close()
+
+	res.Done(payload)
+
+	traceutil.LogSessionClearSuccess(span, rsp.Rev, diff)
 }
 
 func (s *server) destroy(
@@ -201,15 +241,7 @@ func (s *server) destroy(
 	ref := sessID.At(args.Rev)
 
 	if err := cat.TryDestroy(ref); err != nil {
-		switch err.(type) {
-		case rinq.NotFoundError:
-			res.Fail(notFoundFailure, "")
-		case rinq.StaleUpdateError:
-			res.Fail(staleUpdateFailure, "")
-		default:
-			res.Error(err)
-		}
-
+		res.Error(errorToFailure(err))
 		traceutil.LogSessionError(span, err)
 		return
 	}

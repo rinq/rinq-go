@@ -71,12 +71,7 @@ func (c *client) Fetch(
 
 	if err != nil {
 		traceutil.LogSessionError(span, err)
-
-		if rinq.IsFailureType(notFoundFailure, err) {
-			err = rinq.NotFoundError{ID: sessID}
-		}
-
-		return 0, nil, err
+		return 0, nil, failureToError(sessID.At(0), err)
 	}
 
 	var rsp fetchResponse
@@ -129,16 +124,7 @@ func (c *client) Update(
 
 	if err != nil {
 		traceutil.LogSessionError(span, err)
-
-		if rinq.IsFailureType(notFoundFailure, err) {
-			err = rinq.NotFoundError{ID: ref.ID}
-		} else if rinq.IsFailureType(staleUpdateFailure, err) {
-			err = rinq.StaleUpdateError{Ref: ref}
-		} else if rinq.IsFailureType(frozenAttributesFailure, err) {
-			err = rinq.FrozenAttributesError{Ref: ref}
-		}
-
-		return 0, nil, err
+		return 0, nil, failureToError(ref, err)
 	}
 
 	var rsp updateResponse
@@ -166,6 +152,57 @@ func (c *client) Update(
 	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 
 	return rsp.Rev, diff.Attrs, nil
+}
+
+func (c *client) Clear(
+	ctx context.Context,
+	ref ident.Ref,
+	ns string,
+) (
+	ident.Revision,
+	error,
+) {
+	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
+	defer span.Finish()
+
+	traceutil.SetupSessionClear(span, ns, ref.ID)
+	traceutil.LogSessionClearRequest(span, ref.Rev)
+
+	out := rinq.NewPayload(updateRequest{
+		Seq:       ref.ID.Seq,
+		Rev:       ref.Rev,
+		Namespace: ns,
+	})
+	defer out.Close()
+
+	_, in, err := c.invoker.CallUnicast(
+		ctx,
+		c.nextMessageID(),
+		ref.ID.Peer,
+		sessionNamespace,
+		clearCommand,
+		out,
+	)
+	defer in.Close()
+
+	if err != nil {
+		traceutil.LogSessionError(span, err)
+		return 0, failureToError(ref, err)
+	}
+
+	var rsp updateResponse
+	err = in.Decode(&rsp)
+
+	if err != nil {
+		traceutil.LogSessionError(span, err)
+
+		return 0, err
+	}
+
+	logClear(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), ns)
+	traceutil.LogSessionClearSuccess(span, rsp.Rev, nil)
+
+	return rsp.Rev, nil
 }
 
 func (c *client) Destroy(
@@ -196,14 +233,7 @@ func (c *client) Destroy(
 
 	if err != nil {
 		traceutil.LogSessionError(span, err)
-
-		if rinq.IsFailureType(notFoundFailure, err) {
-			err = rinq.NotFoundError{ID: ref.ID}
-		} else if rinq.IsFailureType(staleUpdateFailure, err) {
-			err = rinq.StaleUpdateError{Ref: ref}
-		}
-
-		return err
+		return failureToError(ref, err)
 	}
 
 	logClose(ctx, c.logger, c.peerID, ref)

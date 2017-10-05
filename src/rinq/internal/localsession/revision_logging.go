@@ -31,6 +31,28 @@ func logUpdate(
 	}
 }
 
+func logClear(
+	ctx context.Context,
+	logger rinq.Logger,
+	ref ident.Ref,
+	diff *attrmeta.Diff,
+) {
+	if traceID := trace.Get(ctx); traceID != "" {
+		logger.Log(
+			"%s session cleared %s [%s]",
+			ref.ShortString(),
+			diff,
+			traceID,
+		)
+	} else {
+		logger.Log(
+			"%s session cleared %s",
+			ref.ShortString(),
+			diff,
+		)
+	}
+}
+
 func logDestroy(
 	ctx context.Context,
 	logger rinq.Logger,

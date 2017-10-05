@@ -15,12 +15,14 @@ import (
 const (
 	fetchOp   = "session fetch"
 	updateOp  = "session update"
+	clearOp   = "session clear"
 	destroyOp = "session destroy"
 )
 
 var (
 	fetchEvent   = log.String("event", "fetch")
 	updateEvent  = log.String("event", "update")
+	clearEvent   = log.String("event", "clear")
 	destroyEvent = log.String("event", "destroy")
 )
 
@@ -37,17 +39,6 @@ func SetupSessionFetch(s opentracing.Span, ns string, sessID ident.SessionID) {
 	s.SetTag("namespace", ns)
 }
 
-// SetupSessionUpdate configures s as an attribute update operation.
-func SetupSessionUpdate(s opentracing.Span, ns string, sessID ident.SessionID) {
-	setupSessionCommand(s, updateOp, sessID)
-	s.SetTag("namespace", ns)
-}
-
-// SetupSessionDestroy configures s as a destroy operation.
-func SetupSessionDestroy(s opentracing.Span, sessID ident.SessionID) {
-	setupSessionCommand(s, destroyOp, sessID)
-}
-
 // LogSessionFetchRequest logs information about a session fetch attempt to s.
 func LogSessionFetchRequest(s opentracing.Span, keys []string) {
 	fields := []log.Field{
@@ -56,7 +47,7 @@ func LogSessionFetchRequest(s opentracing.Span, keys []string) {
 
 	if len(keys) != 0 {
 		fields = append(fields, lazyString("keys", func() string {
-			return strings.Join(keys, ", ")
+			return "{" + strings.Join(keys, ", ") + "}"
 		}))
 	}
 
@@ -75,6 +66,12 @@ func LogSessionFetchSuccess(s opentracing.Span, rev ident.Revision, attrs attrme
 	}
 
 	s.LogFields(fields...)
+}
+
+// SetupSessionUpdate configures s as an attribute update operation.
+func SetupSessionUpdate(s opentracing.Span, ns string, sessID ident.SessionID) {
+	setupSessionCommand(s, updateOp, sessID)
+	s.SetTag("namespace", ns)
 }
 
 // LogSessionUpdateRequest logs information about a session update attempt to s.
@@ -103,6 +100,42 @@ func LogSessionUpdateSuccess(s opentracing.Span, rev ident.Revision, diff *attrm
 	}
 
 	s.LogFields(fields...)
+}
+
+// SetupSessionClear configures s as an attribute update operation.
+func SetupSessionClear(s opentracing.Span, ns string, sessID ident.SessionID) {
+	setupSessionCommand(s, clearOp, sessID)
+	s.SetTag("namespace", ns)
+}
+
+// LogSessionClearRequest logs information about a session clear attempt to s.
+func LogSessionClearRequest(s opentracing.Span, rev ident.Revision) {
+	fields := []log.Field{
+		clearEvent,
+		log.Uint32("rev", uint32(rev)),
+	}
+
+	s.LogFields(fields...)
+}
+
+// LogSessionClearSuccess logs information about a successful session clear to s.
+// diff is optional, as the information is not known on the remote end.
+func LogSessionClearSuccess(s opentracing.Span, rev ident.Revision, diff *attrmeta.Diff) {
+	fields := []log.Field{
+		successEvent,
+		log.Uint32("rev", uint32(rev)),
+	}
+
+	if diff != nil && !diff.IsEmpty() {
+		fields = append(fields, lazyString("diff", diff.StringWithoutNamespace))
+	}
+
+	s.LogFields(fields...)
+}
+
+// SetupSessionDestroy configures s as a destroy operation.
+func SetupSessionDestroy(s opentracing.Span, sessID ident.SessionID) {
+	setupSessionCommand(s, destroyOp, sessID)
 }
 
 // LogSessionDestroyRequest logs information about a session destroy attempt to s.
