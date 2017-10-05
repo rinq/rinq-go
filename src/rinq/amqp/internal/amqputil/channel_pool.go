@@ -2,6 +2,7 @@ package amqputil
 
 import (
 	"errors"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -24,15 +25,21 @@ type ChannelPool interface {
 
 // NewChannelPool returns a channel pool of the given size.
 func NewChannelPool(broker *amqp.Connection, size uint) ChannelPool {
-	return &channelPool{
+	pool := &channelPool{
 		broker:   broker,
 		channels: make(chan *amqp.Channel, size),
+		ticker:   time.NewTicker(5 * time.Minute),
 	}
+
+	go periodicChannelCloser(pool)
+
+	return pool
 }
 
 type channelPool struct {
 	broker   *amqp.Connection
 	channels chan *amqp.Channel
+	ticker   *time.Ticker // periodic channel close ticker
 }
 
 func (p *channelPool) Get() (channel *amqp.Channel, err error) {
@@ -86,5 +93,15 @@ func (p *channelPool) Put(channel *amqp.Channel) {
 	case p.channels <- channel: // return to the pool
 	default: // pool is full, close channel
 		_ = channel.Close()
+	}
+}
+
+func periodicChannelCloser(p *channelPool) {
+	for now := range p.ticker.C {
+		select {
+		case channel = <-p.channels: // fetch from the pool and close
+			channel.Close()
+		default: // none available, nothing to do
+		}
 	}
 }
