@@ -212,6 +212,7 @@ func (d *Dialer) Dial(
 		server,
 		notifier,
 		listener,
+		channels,
 		cfg.Logger,
 		cfg.Tracer,
 	), nil
