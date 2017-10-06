@@ -85,14 +85,6 @@ func (l *listener) Listen(id ident.SessionID, ns string, handler notify.Handler)
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	count := l.namespaces[ns] + 1
-
-	if count == 1 {
-		if err := l.bindQueues(ns); err != nil {
-			return false, err
-		}
-	}
-
 	handlers, ok := l.handlers[id]
 	if !ok {
 		handlers = map[string]notify.Handler{}
@@ -106,9 +98,7 @@ func (l *listener) Listen(id ident.SessionID, ns string, handler notify.Handler)
 		return false, nil
 	}
 
-	l.namespaces[ns] = count
-
-	return true, nil
+	return true, l.bindQueues(ns)
 }
 
 func (l *listener) Unlisten(id ident.SessionID, ns string) (bool, error) {
@@ -131,16 +121,7 @@ func (l *listener) Unlisten(id ident.SessionID, ns string) (bool, error) {
 		delete(l.handlers, id)
 	}
 
-	count := l.namespaces[ns] - 1
-	l.namespaces[ns] = count
-
-	if count == 0 {
-		if err := l.unbindQueues(ns); err != nil {
-			return false, err
-		}
-	}
-
-	return true, nil
+	return true, l.unbindQueues(ns)
 }
 
 func (l *listener) UnlistenAll(id ident.SessionID) error {
@@ -150,18 +131,7 @@ func (l *listener) UnlistenAll(id ident.SessionID) error {
 	handlers := l.handlers[id]
 	delete(l.handlers, id)
 
-	var namespaces []string
-
 	for ns := range handlers {
-		count := l.namespaces[ns] - 1
-		l.namespaces[ns] = count
-
-		if count == 0 {
-			namespaces = append(namespaces, ns)
-		}
-	}
-
-	for _, ns := range namespaces {
 		if err := l.unbindQueues(ns); err != nil {
 			return err
 		}
@@ -171,6 +141,13 @@ func (l *listener) UnlistenAll(id ident.SessionID) error {
 }
 
 func (l *listener) bindQueues(ns string) error {
+	count := l.namespaces[ns]
+	l.namespaces[ns] = count + 1
+
+	if count != 0 {
+		return nil
+	}
+
 	queue := notifyQueue(l.peerID)
 
 	if err := l.channel.QueueBind(
@@ -193,6 +170,13 @@ func (l *listener) bindQueues(ns string) error {
 }
 
 func (l *listener) unbindQueues(ns string) error {
+	count := l.namespaces[ns] - 1
+	l.namespaces[ns] = count
+
+	if count != 0 {
+		return nil
+	}
+
 	queue := notifyQueue(l.peerID)
 
 	if err := l.channel.QueueUnbind(
