@@ -1,8 +1,10 @@
 package amqputil
 
 import (
+	"context"
 	"errors"
 
+	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
 	"github.com/streadway/amqp"
 )
@@ -55,6 +57,7 @@ type channelPool struct {
 	get        chan getRequest
 	put        chan *amqp.Channel
 	amqpClosed chan *amqp.Error
+	logger     rinq.Logger
 
 	// TODO: make channels into a stack like slice
 	// state-machine data
@@ -111,14 +114,30 @@ func (p *channelPool) GetQOS(preFetch uint) (*amqp.Channel, error) {
 }
 
 func (p *channelPool) Put(channel *amqp.Channel) {
+	p.put <- channel
+}
+
+func (p *channelPool) handleGet(request getRequest) (service.State, error) {
+	var response getReposne
+	select {
+	case response.channel = <-p.channels: // fetch from the pool
+	default: // none available, make a new channel
+		response.channel, response.err = p.broker.Channel()
+	}
+	request.reply <- response
+
+	return nil, response.err
+}
+
+func (p *channelPool) handlePut(channel *amqp.Channel) (service.State, error) {
 	if channel == nil {
-		return
+		return nil, nil
 	}
 
 	// set the QoS state back to unlimited, both to "reset" the channel, and to
 	// verify that it is still usable.
 	if err := channel.Qos(0, 0, true); err != nil {
-		return
+		return nil, err
 	}
 
 	select {
@@ -126,56 +145,20 @@ func (p *channelPool) Put(channel *amqp.Channel) {
 	default: // pool is full, close channel
 		_ = channel.Close()
 	}
-}
 
-func (p *channelPool) getHandler(request getRequest) (service.State, error) {
-	var response getReposne
-	select {
-	case channel = <-p.channels: // fetch from the pool
-	default: // none available, make a new channel
-		response.channel, response.err = p.broker.Channel()
-	}
-	request.reply <- response
-	// if response.err != nil {
-	// 	return nil, response.err
-	// }
-
-	return nil, response.err
+	return nil, nil
 }
 
 func (p *channelPool) run() (service.State, error) {
-	// TODO: add logging... fmt.Println("channelpool running")
+	logChannelPoolStart(p.logger)
+
 	for {
 		select {
 		case request := <-p.get:
-			// var response getReposne
-			// select {
-			// case channel = <-p.channels: // fetch from the pool
-			// default: // none available, make a new channel
-			// 	response.channel, response.err = p.broker.Channel()
-			// }
-			// request.reply <- response
-			// if response.err != nil {
-			// 	return nil, response.err
-			// }
-			return getHandler(request)
+			return handleGet(request)
 
-		// case channel := <-p.put:
-		// 	if channel == nil {
-		// 		return
-		// 	}
-
-		// 	// set the QoS state back to unlimited, both to "reset" the channel, and to
-		// 	// verify that it is still usable.
-		// 	if err := channel.Qos(0, 0, true); err != nil {
-		// 		return
-		// 	}
-
-		// 	select {
-		// 	case p.channels <- channel: // return to the pool
-		// 	default: // pool is full, close channel
-		// 		_ = channel.Close()
-		// 	}
+		case channel := <-p.put:
+			return handlePut(channel)
 
 		// TODO: cleanupTick thing
 		// case <-p.nextCleanupTick
@@ -193,6 +176,6 @@ func (p *channelPool) run() (service.State, error) {
 }
 
 func (p *channelPool) finalize(err error) error {
-	// TODO: add logging... fmt.Println("channelpool stopped", err)
+	logChannelPoolStop(p.logger, err)
 	return err
 }
