@@ -108,19 +108,27 @@ func (p *channelPool) GetQOS(preFetch uint) (*amqp.Channel, error) {
 	global, _ := caps["per_consumer_qos"].(bool)
 
 	if preFetch > maxPreFetch {
-		return nil, errors.New("pre-fetch is too large")
+		err := errors.New("pre-fetch is too large")
+		logChannelPoolGetQOS(p.logger, len(p.channels), err)
+		return nil, err
 	}
 
 	err = channel.Qos(int(preFetch), 0, global)
 	if err != nil {
+		logChannelPoolGetQOS(p.logger, len(p.channels), err)
 		return nil, err
 	}
 
 	return channel, nil
 }
 
-func (p *channelPool) Put(channel *amqp.Channel) {
-	p.put <- channel
+func (p *channelPool) Put(channel *amqp.Channel) error {
+	select {
+	case p.put <- channel:
+		return nil
+	case <-p.sm.Forceful:
+		return context.Canceled
+	}
 }
 
 func (p *channelPool) handleGet(request getRequest) error {
@@ -137,6 +145,8 @@ func (p *channelPool) handleGet(request getRequest) error {
 	}
 	request.reply <- response
 
+	logChannelPoolGet(p.logger, len(p.channels), response.err)
+
 	return response.err
 }
 
@@ -148,6 +158,7 @@ func (p *channelPool) handlePut(channel *amqp.Channel) error {
 	// set the QoS state back to unlimited, both to "reset" the channel, and to
 	// verify that it is still usable.
 	if err := channel.Qos(0, 0, true); err != nil {
+		logChannelPoolPut(p.logger, len(p.channels), err)
 		return err
 	}
 
@@ -156,25 +167,39 @@ func (p *channelPool) handlePut(channel *amqp.Channel) error {
 		p.channels = append(p.channels, channel)
 	} else {
 		// pool is full, close channel
-		_ = channel.Close()
+		err = channel.Close()
+		if err != nil {
+			logChannelPoolPut(p.logger, len(p.channels), err)
+			return err
+		}
 	}
+
+	logChannelPoolPut(p.logger, len(p.channels), nil)
 
 	return nil
 }
 
-func (p *channelPool) handlePeriodicCleanup() {
+func (p *channelPool) handlePeriodicCleanup() error {
 	index := len(p.channels) - 1
 	if index >= 0 {
 		// fetch from the pool
 		channel := p.channels[index]
 		p.channels = p.channels[:index]
 		// close channel
-		_ = channel.Close()
+		err := channel.Close()
+		if err != nil {
+			logChannelPoolCleanup(p.logger, len(p.channels), err)
+			return err
+		}
+
+		logChannelPoolCleanup(p.logger, len(p.channels))
 	}
+
+	return nil
 }
 
 func (p *channelPool) run() (service.State, error) {
-	logChannelPoolStart(p.logger)
+	logChannelPoolStart(p.logger, cap(p.channels))
 
 	for {
 		select {
@@ -189,10 +214,12 @@ func (p *channelPool) run() (service.State, error) {
 			}
 
 		case <-p.ticker.C:
-			p.handlePeriodicCleanup()
+			if err := p.handlePeriodicCleanup(); err != nil {
+				return nil, err
+			}
 
 		case <-p.sm.Graceful:
-			return nil, nil
+			logChannelPoolGraceful(p.logger, len(p.channels))
 
 		case <-p.sm.Forceful:
 			return nil, nil
@@ -204,6 +231,6 @@ func (p *channelPool) run() (service.State, error) {
 }
 
 func (p *channelPool) finalize(err error) error {
-	logChannelPoolStop(p.logger, err)
+	logChannelPoolStop(p.logger, len(p.channels), err)
 	return err
 }
