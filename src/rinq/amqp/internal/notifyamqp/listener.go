@@ -85,14 +85,6 @@ func (l *listener) Listen(id ident.SessionID, ns string, handler notify.Handler)
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	count := l.namespaces[ns] + 1
-
-	if count == 1 {
-		if err := l.bindQueues(ns); err != nil {
-			return false, err
-		}
-	}
-
 	handlers, ok := l.handlers[id]
 	if !ok {
 		handlers = map[string]notify.Handler{}
@@ -106,9 +98,7 @@ func (l *listener) Listen(id ident.SessionID, ns string, handler notify.Handler)
 		return false, nil
 	}
 
-	l.namespaces[ns] = count
-
-	return true, nil
+	return true, l.bindQueues(ns)
 }
 
 func (l *listener) Unlisten(id ident.SessionID, ns string) (bool, error) {
@@ -131,16 +121,7 @@ func (l *listener) Unlisten(id ident.SessionID, ns string) (bool, error) {
 		delete(l.handlers, id)
 	}
 
-	count := l.namespaces[ns] - 1
-	l.namespaces[ns] = count
-
-	if count == 0 {
-		if err := l.unbindQueues(ns); err != nil {
-			return false, err
-		}
-	}
-
-	return true, nil
+	return true, l.unbindQueues(ns)
 }
 
 func (l *listener) UnlistenAll(id ident.SessionID) error {
@@ -150,18 +131,7 @@ func (l *listener) UnlistenAll(id ident.SessionID) error {
 	handlers := l.handlers[id]
 	delete(l.handlers, id)
 
-	var namespaces []string
-
 	for ns := range handlers {
-		count := l.namespaces[ns] - 1
-		l.namespaces[ns] = count
-
-		if count == 0 {
-			namespaces = append(namespaces, ns)
-		}
-	}
-
-	for _, ns := range namespaces {
 		if err := l.unbindQueues(ns); err != nil {
 			return err
 		}
@@ -171,6 +141,13 @@ func (l *listener) UnlistenAll(id ident.SessionID) error {
 }
 
 func (l *listener) bindQueues(ns string) error {
+	count := l.namespaces[ns]
+	l.namespaces[ns] = count + 1
+
+	if count != 0 {
+		return nil
+	}
+
 	queue := notifyQueue(l.peerID)
 
 	if err := l.channel.QueueBind(
@@ -193,6 +170,13 @@ func (l *listener) bindQueues(ns string) error {
 }
 
 func (l *listener) unbindQueues(ns string) error {
+	count := l.namespaces[ns] - 1
+	l.namespaces[ns] = count
+
+	if count != 0 {
+		return nil
+	}
+
 	queue := notifyQueue(l.peerID)
 
 	if err := l.channel.QueueUnbind(
@@ -311,7 +295,16 @@ func (l *listener) finalize(err error) error {
 // dispatch validates an incoming notification and dispatches it the
 // appropriate handler.
 func (l *listener) dispatch(msg *amqp.Delivery) {
+	var err error
+
 	defer func() {
+		if err == nil {
+			_ = msg.Ack(false) // false = single message
+		} else {
+			_ = msg.Reject(false) // false = don't requeue
+			logInvalidMessageID(l.logger, l.peerID, msg.MessageId)
+		}
+
 		select {
 		case l.handled <- struct{}{}:
 		case <-l.sm.Forceful:
@@ -320,119 +313,44 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 
 	msgID, err := ident.ParseMessageID(msg.MessageId)
 	if err != nil {
-		_ = msg.Reject(false) // false = don't requeue
-		logInvalidMessageID(l.logger, l.peerID, msg.MessageId)
 		return
 	}
+
+	// create a prototype notification that is cloned for each handler
+	proto := &rinq.Notification{}
 
 	// find the source session revision
-	source, err := l.revisions.GetRevision(msgID.Ref)
+	proto.Source, err = l.revisions.GetRevision(msgID.Ref)
 	if err != nil {
-		_ = msg.Reject(false) // false = don't requeue
-		logIgnoredMessage(l.logger, l.peerID, msgID, err)
 		return
 	}
 
-	switch msg.Exchange {
-	case unicastExchange:
-		err = l.handleUnicast(msgID, msg, source)
-	case multicastExchange:
-		err = l.handleMulticast(msgID, msg, source)
-	default:
-		err = fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
-	}
-
-	if err == nil {
-		_ = msg.Ack(false) // false = single message
-	} else {
-		_ = msg.Reject(false) // false = don't requeue
-		logIgnoredMessage(l.logger, l.peerID, msgID, err)
-	}
-}
-
-// handleUnicast finds the target session for a unicast notification and
-// invokes the handler.
-func (l *listener) handleUnicast(
-	msgID ident.MessageID,
-	msg *amqp.Delivery,
-	source rinq.Revision,
-) error {
-	ns, t, p, err := unpackCommonAttributes(msg)
+	proto.Namespace, proto.Type, proto.Payload, err = unpackCommonAttributes(msg)
 	if err != nil {
-		return err
+		return
 	}
-
-	sessID, err := unpackTarget(msg)
-	if err != nil {
-		return err
-	}
-
-	sess, _, ok := l.sessions.Get(sessID)
-	if !ok {
-		return nil
-	} else if err != nil {
-		return err
-	}
-
-	ctx := amqputil.UnpackTrace(l.parentCtx, msg)
-
-	spanOpts, err := unpackSpanOptions(msg, l.tracer)
-	if err != nil {
-		return err
-	}
-
-	l.handle(
-		ctx,
-		msgID,
-		sess,
-		rinq.Notification{
-			Source:    source,
-			Namespace: ns,
-			Type:      t,
-			Payload:   p,
-		},
-		spanOpts,
-	)
-
-	return nil
-}
-
-// handleUnicast finds the target sessions for a multicast notification and
-// invokes the handlers.
-func (l *listener) handleMulticast(
-	msgID ident.MessageID,
-	msg *amqp.Delivery,
-	source rinq.Revision,
-) error {
-	ns, t, p, err := unpackCommonAttributes(msg)
-	if err != nil {
-		return err
-	}
-	defer p.Close()
-
-	con, err := unpackConstraint(msg)
-	if err != nil {
-		return err
-	}
+	defer proto.Payload.Close()
 
 	var sessions []rinq.Session
 
-	l.sessions.Each(func(session rinq.Session, catalog localsession.Catalog) {
-		_, attrs := catalog.Attrs()
-		if attrs.MatchConstraint(ns, con) {
-			sessions = append(sessions, session)
-		}
-	})
-
-	if len(sessions) == 0 {
-		return nil
+	switch msg.Exchange {
+	case unicastExchange:
+		sessions, err = l.findUnicastTarget(proto, msg)
+	case multicastExchange:
+		proto.IsMulticast = true
+		sessions, err = l.findMulticastTargets(proto, msg)
+	default:
+		err = fmt.Errorf("delivery via '%s' exchange is not expected", msg.Exchange)
+	}
+	if err != nil {
+		return
 	}
 
 	ctx := amqputil.UnpackTrace(l.parentCtx, msg)
 
 	spanOpts, err := unpackSpanOptions(msg, l.tracer)
 	if err != nil {
-		return err
+		return
 	}
 
 	for _, sess := range sessions {
@@ -440,19 +358,55 @@ func (l *listener) handleMulticast(
 			ctx,
 			msgID,
 			sess,
-			rinq.Notification{
-				Source:      source,
-				Namespace:   ns,
-				Type:        t,
-				Payload:     p.Clone(),
-				IsMulticast: true,
-				Constraint:  con,
-			},
+			proto,
 			spanOpts,
 		)
 	}
+}
 
-	return nil
+// findUnicastTarget returns the session that should receive the unicast
+// notificaton n.
+func (l *listener) findUnicastTarget(
+	n *rinq.Notification,
+	msg *amqp.Delivery,
+) ([]rinq.Session, error) {
+	var sessID ident.SessionID
+	sessID, err := unpackTarget(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	if sess, _, ok := l.sessions.Get(sessID); ok {
+		return []rinq.Session{sess}, nil
+	}
+
+	return nil, nil
+}
+
+// findMulticastTargets returns the sessions that should receive the multicast
+// notification n.
+func (l *listener) findMulticastTargets(
+	n *rinq.Notification,
+	msg *amqp.Delivery,
+) (
+	sessions []rinq.Session,
+	err error,
+) {
+	n.Constraint, err = unpackConstraint(msg)
+	if err != nil {
+		return
+	}
+
+	l.sessions.Each(
+		func(session rinq.Session, catalog localsession.Catalog) {
+			_, attrs := catalog.Attrs()
+			if attrs.MatchConstraint(n.Namespace, n.Constraint) {
+				sessions = append(sessions, session)
+			}
+		},
+	)
+
+	return
 }
 
 // handle invokes the notification handler for a specific session, if one is
@@ -461,20 +415,20 @@ func (l *listener) handle(
 	ctx context.Context,
 	msgID ident.MessageID,
 	sess rinq.Session,
-	n rinq.Notification,
+	proto *rinq.Notification,
 	spanOpts []opentracing.StartSpanOption,
 ) {
 	l.mutex.RLock()
-	handler := l.handlers[sess.ID()][n.Namespace]
+	h := l.handlers[sess.ID()][proto.Namespace]
 	l.mutex.RUnlock()
 
-	if handler == nil {
-		n.Payload.Close()
-	} else {
+	if h != nil {
+		n := *proto
+		n.Payload = n.Payload.Clone()
+
 		span := l.tracer.StartSpan("", spanOpts...)
 		defer span.Finish()
-
-		handler(
+		h(
 			opentracing.ContextWithSpan(ctx, span),
 			msgID,
 			sess,
