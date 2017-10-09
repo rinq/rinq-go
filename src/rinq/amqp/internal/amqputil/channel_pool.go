@@ -34,6 +34,7 @@ func NewChannelPool(
 	size uint,
 	logger rinq.Logger,
 ) ChannelPool {
+	duration := 60 * time.Second
 	p := &channelPool{
 		broker:     broker,
 		get:        make(chan getRequest),
@@ -41,8 +42,9 @@ func NewChannelPool(
 		amqpClosed: make(chan *amqp.Error, 1),
 		logger:     logger,
 
-		channels: make([]*amqp.Channel, 0, size),
-		ticker:   time.NewTicker(60 * time.Second),
+		channels:        make([]*amqp.Channel, 0, size),
+		cleanupDuration: duration,
+		cleanupTimer:    time.NewTimer(duration),
 	}
 
 	p.sm = service.NewStateMachine(p.run, p.finalize)
@@ -66,8 +68,9 @@ type channelPool struct {
 	logger     rinq.Logger
 
 	// state-machine data
-	channels []*amqp.Channel
-	ticker   *time.Ticker
+	channels        []*amqp.Channel
+	cleanupDuration time.Duration
+	cleanupTimer    *time.Timer
 }
 
 type getRequest struct {
@@ -155,6 +158,11 @@ func (p *channelPool) handlePut(channel *amqp.Channel) error {
 		return nil
 	}
 
+	// stop cleanup timer
+	if !p.cleanupTimer.Stop() {
+		<-p.cleanupTimer.C
+	}
+
 	// set the QoS state back to unlimited, both to "reset" the channel, and to
 	// verify that it is still usable.
 	if err := channel.Qos(0, 0, true); err != nil {
@@ -173,6 +181,9 @@ func (p *channelPool) handlePut(channel *amqp.Channel) error {
 			return err
 		}
 	}
+
+	// restart cleanup timer
+	p.cleanupTimer.Reset(p.cleanupDuration)
 
 	logChannelPoolPut(p.logger, len(p.channels), nil)
 
@@ -195,6 +206,9 @@ func (p *channelPool) handlePeriodicCleanup() error {
 		logChannelPoolCleanup(p.logger, len(p.channels))
 	}
 
+	// restart cleanup timer
+	p.cleanupTimer.Reset()
+
 	return nil
 }
 
@@ -213,7 +227,7 @@ func (p *channelPool) run() (service.State, error) {
 				return nil, err
 			}
 
-		case <-p.ticker.C:
+		case <-p.cleanupTimer.C:
 			if err := p.handlePeriodicCleanup(); err != nil {
 				return nil, err
 			}
