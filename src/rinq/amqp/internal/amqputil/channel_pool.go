@@ -40,8 +40,7 @@ func NewChannelPool(
 		amqpClosed: make(chan *amqp.Error, 1),
 		logger:     logger,
 
-		// TODO: make channels into a stack like slice
-		channels: make(chan *amqp.Channel, size),
+		channels: make([]*amqp.Channel, 0, size),
 	}
 
 	p.sm = service.NewStateMachine(p.run, p.finalize)
@@ -64,9 +63,8 @@ type channelPool struct {
 	amqpClosed chan *amqp.Error
 	logger     rinq.Logger
 
-	// TODO: make channels into a stack like slice
 	// state-machine data
-	channels chan *amqp.Channel
+	channels []*amqp.Channel
 }
 
 type getRequest struct {
@@ -122,36 +120,43 @@ func (p *channelPool) Put(channel *amqp.Channel) {
 	p.put <- channel
 }
 
-func (p *channelPool) handleGet(request getRequest) (service.State, error) {
+func (p *channelPool) handleGet(request getRequest) error {
 	var response getResponse
-	select {
-	case response.channel = <-p.channels: // fetch from the pool
-	default: // none available, make a new channel
+
+	index := len(p.channels) - 1
+	if index >= 0 {
+		// fetch from the pool
+		response.channel = p.channels[index]
+		p.channels = p.channels[:index]
+	} else {
+		// none available, make a new channel
 		response.channel, response.err = p.broker.Channel()
 	}
 	request.reply <- response
 
-	return nil, response.err
+	return response.err
 }
 
-func (p *channelPool) handlePut(channel *amqp.Channel) (service.State, error) {
+func (p *channelPool) handlePut(channel *amqp.Channel) error {
 	if channel == nil {
-		return nil, nil
+		return nil
 	}
 
 	// set the QoS state back to unlimited, both to "reset" the channel, and to
 	// verify that it is still usable.
 	if err := channel.Qos(0, 0, true); err != nil {
-		return nil, err
+		return err
 	}
 
-	select {
-	case p.channels <- channel: // return to the pool
-	default: // pool is full, close channel
+	if len(p.channels) < cap(p.channels) {
+		// return to the pool
+		p.channels = append(p.channels, channel)
+	} else {
+		// pool is full, close channel
 		_ = channel.Close()
 	}
 
-	return nil, nil
+	return nil
 }
 
 func (p *channelPool) run() (service.State, error) {
@@ -160,10 +165,14 @@ func (p *channelPool) run() (service.State, error) {
 	for {
 		select {
 		case request := <-p.get:
-			p.handleGet(request)
+			if err := p.handleGet(request); err != nil {
+				return nil, err
+			}
 
 		case channel := <-p.put:
-			p.handlePut(channel)
+			if err := p.handlePut(channel); err != nil {
+				return nil, err
+			}
 
 		// TODO: cleanupTick thing
 		// case <-p.nextCleanupTick
