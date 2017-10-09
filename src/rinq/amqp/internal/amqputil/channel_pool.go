@@ -3,6 +3,7 @@ package amqputil
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
@@ -41,6 +42,7 @@ func NewChannelPool(
 		logger:     logger,
 
 		channels: make([]*amqp.Channel, 0, size),
+		ticker:   time.NewTicker(60 * time.Second),
 	}
 
 	p.sm = service.NewStateMachine(p.run, p.finalize)
@@ -65,6 +67,7 @@ type channelPool struct {
 
 	// state-machine data
 	channels []*amqp.Channel
+	ticker   *time.Ticker
 }
 
 type getRequest struct {
@@ -159,6 +162,17 @@ func (p *channelPool) handlePut(channel *amqp.Channel) error {
 	return nil
 }
 
+func (p *channelPool) handlePeriodicCleanup() {
+	index := len(p.channels) - 1
+	if index >= 0 {
+		// fetch from the pool
+		channel := p.channels[index]
+		p.channels = p.channels[:index]
+		// close channel
+		_ = channel.Close()
+	}
+}
+
 func (p *channelPool) run() (service.State, error) {
 	logChannelPoolStart(p.logger)
 
@@ -174,8 +188,8 @@ func (p *channelPool) run() (service.State, error) {
 				return nil, err
 			}
 
-		// TODO: cleanupTick thing
-		// case <-p.nextCleanupTick
+		case <-p.ticker.C:
+			p.handlePeriodicCleanup()
 
 		case <-p.sm.Graceful:
 			return nil, nil
