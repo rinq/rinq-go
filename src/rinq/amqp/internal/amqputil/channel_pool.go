@@ -28,12 +28,17 @@ type ChannelPool interface {
 }
 
 // NewChannelPool returns a channel pool of the given size.
-func NewChannelPool(broker *amqp.Connection, size uint) ChannelPool {
+func NewChannelPool(
+	broker *amqp.Connection,
+	size uint,
+	logger rinq.Logger,
+) ChannelPool {
 	p := &channelPool{
 		broker:     broker,
 		get:        make(chan getRequest),
 		put:        make(chan *amqp.Channel),
 		amqpClosed: make(chan *amqp.Error, 1),
+		logger:     logger,
 
 		// TODO: make channels into a stack like slice
 		channels: make(chan *amqp.Channel, size),
@@ -65,7 +70,7 @@ type channelPool struct {
 }
 
 type getRequest struct {
-	reply chan<- getResponse
+	reply chan getResponse
 }
 
 type getResponse struct {
@@ -79,7 +84,7 @@ func (p *channelPool) Get() (channel *amqp.Channel, err error) {
 	select {
 	case p.get <- request:
 		response := <-request.reply
-		return response.channel, repsonse.err
+		return response.channel, response.err
 	case <-p.sm.Graceful:
 		return nil, context.Canceled
 	case <-p.sm.Forceful:
@@ -118,7 +123,7 @@ func (p *channelPool) Put(channel *amqp.Channel) {
 }
 
 func (p *channelPool) handleGet(request getRequest) (service.State, error) {
-	var response getReposne
+	var response getResponse
 	select {
 	case response.channel = <-p.channels: // fetch from the pool
 	default: // none available, make a new channel
@@ -155,10 +160,10 @@ func (p *channelPool) run() (service.State, error) {
 	for {
 		select {
 		case request := <-p.get:
-			return handleGet(request)
+			return p.handleGet(request)
 
 		case channel := <-p.put:
-			return handlePut(channel)
+			return p.handlePut(channel)
 
 		// TODO: cleanupTick thing
 		// case <-p.nextCleanupTick

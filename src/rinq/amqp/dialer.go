@@ -166,7 +166,7 @@ func (d *Dialer) Dial(
 		poolSize = DefaultPoolSize
 	}
 
-	channels := amqputil.NewChannelPool(broker, poolSize)
+	channels := amqputil.NewChannelPool(broker, poolSize, cfg.Logger)
 	peerID, err := d.establishIdentity(ctx, channels, cfg.Logger)
 	if err != nil {
 		return nil, err

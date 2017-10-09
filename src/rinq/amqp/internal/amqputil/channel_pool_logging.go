@@ -1,7 +1,7 @@
 package amqputil
 
 import (
-	"errors"
+	"github.com/rinq/rinq-go/src/rinq"
 )
 
 func logChannelPoolStart(
