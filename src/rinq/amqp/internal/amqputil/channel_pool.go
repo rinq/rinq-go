@@ -160,10 +160,10 @@ func (p *channelPool) run() (service.State, error) {
 	for {
 		select {
 		case request := <-p.get:
-			return p.handleGet(request)
+			p.handleGet(request)
 
 		case channel := <-p.put:
-			return p.handlePut(channel)
+			p.handlePut(channel)
 
 		// TODO: cleanupTick thing
 		// case <-p.nextCleanupTick
