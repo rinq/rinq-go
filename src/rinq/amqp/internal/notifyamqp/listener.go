@@ -30,17 +30,15 @@ type listener struct {
 	parentCtx context.Context // parent of all contexts passed to handlers
 	cancelCtx func()          // cancels parentCtx when the server stops
 
-	mutex      sync.RWMutex
-	channel    *amqp.Channel   // channel used for consuming
-	namespaces map[string]uint // map of namespace to listener count
-	handlers   map[ident.SessionID]map[string]notify.Handler
-
-	deliveries <-chan amqp.Delivery // incoming notifications
-	handled    chan struct{}        // signals a notification has been handled
-	amqpClosed chan *amqp.Error
-
 	// state-machine data
-	pending uint // number of notifications currently being handled
+	channel    *amqp.Channel        // channel used for consuming
+	namespaces map[string]uint      // map of namespace to listener count
+	deliveries <-chan amqp.Delivery // incoming notifications
+	amqpClosed chan *amqp.Error
+	pending    uint // number of notifications currently being handled
+
+	mutex    sync.RWMutex // guards handlers so handler can be read in dispatch() goroutine
+	handlers map[ident.SessionID]map[string]notify.Handler
 }
 
 // newListener creates, starts and returns a new listener.
@@ -60,13 +58,12 @@ func newListener(
 		revisions: revisions,
 		logger:    logger,
 		tracer:    tracer,
-		channel:   channel,
 
+		channel:    channel,
 		namespaces: map[string]uint{},
-		handlers:   map[ident.SessionID]map[string]notify.Handler{},
-
-		handled:    make(chan struct{}, preFetch),
 		amqpClosed: make(chan *amqp.Error, 1),
+
+		handlers: map[ident.SessionID]map[string]notify.Handler{},
 	}
 
 	l.sm = service.NewStateMachine(l.run, l.finalize)
@@ -81,63 +78,72 @@ func newListener(
 	return l, nil
 }
 
-func (l *listener) Listen(id ident.SessionID, ns string, handler notify.Handler) (bool, error) {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (l *listener) Listen(id ident.SessionID, ns string, h notify.Handler) (changed bool, err error) {
+	err = l.sm.Do(func() error {
+		l.mutex.Lock()
+		defer l.mutex.Unlock()
 
-	handlers, ok := l.handlers[id]
-	if !ok {
-		handlers = map[string]notify.Handler{}
-		l.handlers[id] = handlers
-	}
+		handlers, ok := l.handlers[id]
+		if !ok {
+			handlers = map[string]notify.Handler{}
+			l.handlers[id] = handlers
+		}
 
-	_, ok = handlers[ns]
-	handlers[ns] = handler
+		_, ok = handlers[ns]
+		handlers[ns] = h
 
-	if ok {
-		return false, nil
-	}
+		if ok {
+			return nil
+		}
 
-	return true, l.bindQueues(ns)
+		changed = true
+
+		return l.bindQueues(ns)
+	})
+
+	return
 }
 
-func (l *listener) Unlisten(id ident.SessionID, ns string) (bool, error) {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (l *listener) Unlisten(id ident.SessionID, ns string) (changed bool, err error) {
+	err = l.sm.Do(func() error {
+		l.mutex.Lock()
+		defer l.mutex.Unlock()
 
-	handlers, ok := l.handlers[id]
-	if !ok {
-		return false, nil
-	}
+		handlers, ok := l.handlers[id]
+		if !ok {
+			return nil
+		}
 
-	_, ok = handlers[ns]
-	if !ok {
-		return false, nil
-	}
+		_, ok = handlers[ns]
+		if !ok {
+			return nil
+		}
 
-	delete(handlers, ns)
+		delete(handlers, ns)
+		changed = true
 
-	if len(handlers) == 0 {
-		delete(l.handlers, id)
-	}
+		return l.unbindQueues(ns)
+	})
 
-	return true, l.unbindQueues(ns)
+	return
 }
 
 func (l *listener) UnlistenAll(id ident.SessionID) error {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+	return l.sm.Do(func() error {
+		l.mutex.Lock()
+		defer l.mutex.Unlock()
 
-	handlers := l.handlers[id]
-	delete(l.handlers, id)
+		handlers := l.handlers[id]
+		delete(l.handlers, id)
 
-	for ns := range handlers {
-		if err := l.unbindQueues(ns); err != nil {
-			return err
+		for ns := range handlers {
+			if err := l.unbindQueues(ns); err != nil {
+				return err
+			}
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 func (l *listener) bindQueues(ns string) error {
@@ -243,14 +249,14 @@ func (l *listener) run() (service.State, error) {
 			l.pending++
 			go l.dispatch(&msg)
 
-		case <-l.handled:
-			l.pending--
+		case req := <-l.sm.Commands:
+			l.sm.Execute(req)
 
 		case <-l.sm.Graceful:
-			return l.graceful, nil
+			return l.waitAndReject, nil
 
 		case <-l.sm.Forceful:
-			return l.forceful, nil
+			return nil, nil
 
 		case err := <-l.amqpClosed:
 			return nil, err
@@ -258,18 +264,29 @@ func (l *listener) run() (service.State, error) {
 	}
 }
 
-// graceful is the state entered when a graceful stop is requested
-func (l *listener) graceful() (service.State, error) {
+// waitAndReject is the state entered when a graceful stop is requested. It
+// waits for any pending handlers to finish, while also rejecting any messages
+// that were delivered before consuming is canceled.
+func (l *listener) waitAndReject() (service.State, error) {
 	logListenerStopping(l.logger, l.peerID, l.pending)
 
-	if err := l.closeChannel(); err != nil {
+	queue := notifyQueue(l.peerID)
+	if err := l.channel.Cancel(queue, false); err != nil { // false = wait for response
 		return nil, err
 	}
 
 	for l.pending > 0 {
 		select {
-		case <-l.handled:
-			l.pending--
+		case msg, ok := <-l.deliveries:
+			if !ok {
+				return l.wait, nil
+			}
+			if err := msg.Reject(false); err != nil { // false = don't requeue
+				return nil, err
+			}
+
+		case req := <-l.sm.Commands:
+			l.sm.Execute(req)
 
 		case <-l.sm.Forceful:
 			return nil, nil
@@ -279,9 +296,21 @@ func (l *listener) graceful() (service.State, error) {
 	return nil, nil
 }
 
-// forceful is the state entered when a stop is requested
-func (l *listener) forceful() (service.State, error) {
-	return nil, l.closeChannel()
+// wait is the state entered when performing a graceful stop and all remaining
+// incoming messages have been rejected. It waits for any pending handlers to
+// finish.
+func (l *listener) wait() (service.State, error) {
+	for l.pending > 0 {
+		select {
+		case req := <-l.sm.Commands:
+			l.sm.Execute(req)
+
+		case <-l.sm.Forceful:
+			return nil, nil
+		}
+	}
+
+	return nil, nil
 }
 
 // finalize is the state-machine finalizer, it is called immediately before the
@@ -289,32 +318,39 @@ func (l *listener) forceful() (service.State, error) {
 func (l *listener) finalize(err error) error {
 	l.cancelCtx()
 	logListenerStop(l.logger, l.peerID, err)
+
+	closeErr := l.channel.Close()
+
+	// only report the closeErr if there's no causal error.
+	if err == nil {
+		return closeErr
+	}
+
 	return err
 }
 
 // dispatch validates an incoming notification and dispatches it the
 // appropriate handler.
 func (l *listener) dispatch(msg *amqp.Delivery) {
-	var err error
+	defer l.sm.DoGraceful(func() error {
+		l.pending--
+		return nil
+	})
+
+	msgID, err := ident.ParseMessageID(msg.MessageId)
+	if err != nil {
+		_ = msg.Reject(false) // false = don't requeue
+		logInvalidMessageID(l.logger, l.peerID, msg.MessageId)
+	}
 
 	defer func() {
 		if err == nil {
 			_ = msg.Ack(false) // false = single message
 		} else {
 			_ = msg.Reject(false) // false = don't requeue
-			logInvalidMessageID(l.logger, l.peerID, msg.MessageId)
-		}
-
-		select {
-		case l.handled <- struct{}{}:
-		case <-l.sm.Forceful:
+			logIgnoredMessage(l.logger, l.peerID, msgID, err)
 		}
 	}()
-
-	msgID, err := ident.ParseMessageID(msg.MessageId)
-	if err != nil {
-		return
-	}
 
 	// create a prototype notification that is cloned for each handler
 	proto := &rinq.Notification{}
@@ -365,7 +401,7 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 }
 
 // findUnicastTarget returns the session that should receive the unicast
-// notificaton n.
+// notification n.
 func (l *listener) findUnicastTarget(
 	n *rinq.Notification,
 	msg *amqp.Delivery,
@@ -435,11 +471,4 @@ func (l *listener) handle(
 			n,
 		)
 	}
-}
-
-func (l *listener) closeChannel() error {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-
-	return l.channel.Close()
 }
