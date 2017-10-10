@@ -148,7 +148,9 @@ func (p *channelPool) handleGet(request getRequest) error {
 	}
 	request.reply <- response
 
-	logChannelPoolGet(p.logger, len(p.channels), response.err)
+	if response.err != nil {
+		logChannelPoolGet(p.logger, len(p.channels), response.err)
+	}
 
 	return response.err
 }
@@ -183,8 +185,6 @@ func (p *channelPool) handlePut(channel *amqp.Channel) error {
 
 	// restart cleanup timer
 	p.cleanupTimer.Reset(p.cleanupDuration)
-
-	logChannelPoolPut(p.logger, len(p.channels), nil)
 
 	return nil
 }
