@@ -78,7 +78,7 @@ func newListener(
 	return l, nil
 }
 
-func (l *listener) Listen(id ident.SessionID, ns string, h notify.Handler) (changed bool, err error) {
+func (l *listener) Listen(id ident.SessionID, ns string, h notify.Handler) (added bool, err error) {
 	err = l.sm.Do(func() error {
 		l.mutex.Lock()
 		defer l.mutex.Unlock()
@@ -96,15 +96,15 @@ func (l *listener) Listen(id ident.SessionID, ns string, h notify.Handler) (chan
 			return nil
 		}
 
-		changed = true
+		added = true
 
-		return l.bindQueues(ns)
+		return l.bind(ns)
 	})
 
 	return
 }
 
-func (l *listener) Unlisten(id ident.SessionID, ns string) (changed bool, err error) {
+func (l *listener) Unlisten(id ident.SessionID, ns string) (removed bool, err error) {
 	err = l.sm.Do(func() error {
 		l.mutex.Lock()
 		defer l.mutex.Unlock()
@@ -120,9 +120,9 @@ func (l *listener) Unlisten(id ident.SessionID, ns string) (changed bool, err er
 		}
 
 		delete(handlers, ns)
-		changed = true
+		removed = true
 
-		return l.unbindQueues(ns)
+		return l.unbind(ns)
 	})
 
 	return
@@ -137,7 +137,7 @@ func (l *listener) UnlistenAll(id ident.SessionID) error {
 		delete(l.handlers, id)
 
 		for ns := range handlers {
-			if err := l.unbindQueues(ns); err != nil {
+			if err := l.unbind(ns); err != nil {
 				return err
 			}
 		}
@@ -146,7 +146,7 @@ func (l *listener) UnlistenAll(id ident.SessionID) error {
 	})
 }
 
-func (l *listener) bindQueues(ns string) error {
+func (l *listener) bind(ns string) error {
 	count := l.namespaces[ns]
 	l.namespaces[ns] = count + 1
 
@@ -175,7 +175,7 @@ func (l *listener) bindQueues(ns string) error {
 	)
 }
 
-func (l *listener) unbindQueues(ns string) error {
+func (l *listener) unbind(ns string) error {
 	count := l.namespaces[ns] - 1
 	l.namespaces[ns] = count
 
@@ -253,7 +253,7 @@ func (l *listener) run() (service.State, error) {
 			l.sm.Execute(req)
 
 		case <-l.sm.Graceful:
-			return l.waitAndReject, nil
+			return l.stopConsuming, nil
 
 		case <-l.sm.Forceful:
 			return nil, nil
@@ -264,10 +264,8 @@ func (l *listener) run() (service.State, error) {
 	}
 }
 
-// waitAndReject is the state entered when a graceful stop is requested. It
-// waits for any pending handlers to finish, while also rejecting any messages
-// that were delivered before consuming is canceled.
-func (l *listener) waitAndReject() (service.State, error) {
+// stopConsuming is the first state entered when a graceful stop is requested.
+func (l *listener) stopConsuming() (service.State, error) {
 	logListenerStopping(l.logger, l.peerID, l.pending)
 
 	queue := notifyQueue(l.peerID)
@@ -275,31 +273,20 @@ func (l *listener) waitAndReject() (service.State, error) {
 		return nil, err
 	}
 
-	for l.pending > 0 {
-		select {
-		case msg, ok := <-l.deliveries:
-			if !ok {
-				return l.wait, nil
-			}
-			if err := msg.Reject(false); err != nil { // false = don't requeue
-				return nil, err
-			}
-
-		case req := <-l.sm.Commands:
-			l.sm.Execute(req)
-
-		case <-l.sm.Forceful:
-			return nil, nil
+	// reject any messages that have already been delivered
+	// l.deliveries is closed by the call to Cancel() above
+	for msg := range l.deliveries {
+		if err := msg.Reject(false); err != nil { // false = don't requeue
+			return nil, err
 		}
 	}
 
-	return nil, nil
+	return l.waitForHandlers, nil
 }
 
-// wait is the state entered when performing a graceful stop and all remaining
-// incoming messages have been rejected. It waits for any pending handlers to
-// finish.
-func (l *listener) wait() (service.State, error) {
+// waitForHandlers is the second phase of a graceful stop. It waits for any
+// pending notification handlers to complete.
+func (l *listener) waitForHandlers() (service.State, error) {
 	for l.pending > 0 {
 		select {
 		case req := <-l.sm.Commands:

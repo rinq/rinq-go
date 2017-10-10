@@ -12,6 +12,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
+	"github.com/rinq/rinq-go/src/rinq/internal/syncutil"
 	"github.com/streadway/amqp"
 )
 
@@ -30,16 +31,14 @@ type server struct {
 	parentCtx context.Context // parent of all contexts passed to handlers
 	cancelCtx func()          // cancels parentCtx when the server stops
 
-	mutex    sync.RWMutex
-	channel  *amqp.Channel              // channel used for consuming
-	handlers map[string]command.Handler // map of namespace to handler
-
-	deliveries chan amqp.Delivery // incoming command requests
-	handled    chan struct{}      // signals requests have been handled
-	amqpClosed chan *amqp.Error
-
 	// state-machine data
-	pending uint // number of requests currently being handled
+	channel    *amqp.Channel      // channel used for consuming
+	deliveries chan amqp.Delivery // incoming command requests
+	amqpClosed chan *amqp.Error
+	pending    uint // number of requests currently being handled
+
+	mutex    sync.RWMutex               // guards handlers so handler can be read in dispatch() goroutine
+	handlers map[string]command.Handler // map of namespace to handler
 }
 
 // newServer creates, starts and returns a new server.
@@ -61,11 +60,10 @@ func newServer(
 		logger:    logger,
 		tracer:    tracer,
 
-		handlers: map[string]command.Handler{},
-
 		deliveries: make(chan amqp.Delivery, preFetch),
-		handled:    make(chan struct{}, preFetch),
 		amqpClosed: make(chan *amqp.Error, 1),
+
+		handlers: map[string]command.Handler{},
 	}
 
 	s.sm = service.NewStateMachine(s.run, s.finalize)
@@ -80,29 +78,57 @@ func newServer(
 	return s, nil
 }
 
-func (s *server) Listen(namespace string, handler command.Handler) (bool, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+func (s *server) Listen(ns string, h command.Handler) (added bool, err error) {
+	err = s.sm.Do(func() error {
+		s.mutex.Lock()
+		defer s.mutex.Unlock()
 
-	// we're already listening, just swap the handler
-	if _, ok := s.handlers[namespace]; ok {
-		s.handlers[namespace] = handler
-		return false, nil
-	}
+		if _, ok := s.handlers[ns]; ok {
+			s.handlers[ns] = h
+			return nil
+		}
 
+		s.handlers[ns] = h
+		added = true
+
+		return s.bind(ns)
+	})
+
+	return
+}
+
+func (s *server) Unlisten(ns string) (removed bool, err error) {
+	err = s.sm.Do(func() error {
+		s.mutex.Lock()
+		defer s.mutex.Unlock()
+
+		if _, ok := s.handlers[ns]; !ok {
+			return nil
+		}
+
+		removed = true
+		delete(s.handlers, ns)
+
+		return s.unbind(ns)
+	})
+
+	return
+}
+
+func (s *server) bind(ns string) error {
 	if err := s.channel.QueueBind(
 		requestQueue(s.peerID),
-		namespace,
+		ns,
 		multicastExchange,
 		false, // noWait
 		nil,   //  args
 	); err != nil {
-		return false, err
+		return err
 	}
 
-	queue, err := s.queues.Get(s.channel, namespace)
+	queue, err := s.queues.Get(s.channel, ns)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	messages, err := s.channel.Consume(
@@ -115,42 +141,28 @@ func (s *server) Listen(namespace string, handler command.Handler) (bool, error)
 		nil,   // args
 	)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	s.handlers[namespace] = handler
 	go s.pipe(messages)
 
-	return true, nil
+	return nil
 }
 
-func (s *server) Unlisten(namespace string) (bool, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	if _, ok := s.handlers[namespace]; !ok {
-		return false, nil
-	}
-
+func (s *server) unbind(ns string) error {
 	if err := s.channel.QueueUnbind(
 		requestQueue(s.peerID),
-		namespace,
+		ns,
 		multicastExchange,
 		nil, //  args
 	); err != nil {
-		return false, err
+		return err
 	}
 
-	if err := s.channel.Cancel(
-		balancedRequestQueue(namespace), // use queue name as consumer tag
+	return s.channel.Cancel(
+		balancedRequestQueue(ns), // use queue name as consumer tag
 		false, // noWait
-	); err != nil {
-		return false, err
-	}
-
-	delete(s.handlers, namespace)
-
-	return true, nil
+	)
 }
 
 // initialize prepares the AMQP channel
@@ -216,14 +228,14 @@ func (s *server) run() (service.State, error) {
 			s.pending++
 			go s.dispatch(&msg)
 
-		case <-s.handled:
-			s.pending--
+		case req := <-s.sm.Commands:
+			s.sm.Execute(req)
 
 		case <-s.sm.Graceful:
-			return s.graceful, nil
+			return s.gracefulStopConsuming, nil
 
 		case <-s.sm.Forceful:
-			return s.forceful, nil
+			return nil, nil
 
 		case err := <-s.amqpClosed:
 			return nil, err
@@ -231,18 +243,55 @@ func (s *server) run() (service.State, error) {
 	}
 }
 
-// graceful is the state entered when a graceful stop is requested
-func (s *server) graceful() (service.State, error) {
+// gracefulStopConsuming is the first state entered when a graceful stop is
+// requested.
+func (s *server) gracefulStopConsuming() (service.State, error) {
 	logServerStopping(s.logger, s.peerID, s.pending)
 
-	if err := s.closeChannel(); err != nil {
+	queue := requestQueue(s.peerID)
+
+	if err := s.channel.QueueUnbind(
+		queue,
+		s.peerID.String(),
+		unicastExchange,
+		nil, // args
+	); err != nil {
 		return nil, err
 	}
 
+	if err := s.channel.Cancel(
+		queue, // use queue name as consumer tag
+		false, // noWait
+	); err != nil {
+		return nil, err
+	}
+
+	// stop consuming from all namespace-based queues
+	unlock := syncutil.RLock(&s.mutex)
+	defer unlock()
+	for ns := range s.handlers {
+		if err := s.unbind(ns); err != nil {
+			return nil, err
+		}
+	}
+	unlock()
+
+	return s.waitForHandlers, nil
+}
+
+// waitForHandlers is the second phase of a graceful stop. It waits for any
+// pending command handlers to complete, while also rejecting any messages
+// that have already been delivered.
+func (s *server) waitForHandlers() (service.State, error) {
 	for s.pending > 0 {
 		select {
-		case <-s.handled:
-			s.pending--
+		case msg := <-s.deliveries:
+			if err := msg.Reject(msg.Exchange == multicastExchange); err != nil { // (expr) = requeue
+				return nil, err
+			}
+
+		case req := <-s.sm.Commands:
+			s.sm.Execute(req)
 
 		case <-s.sm.Forceful:
 			return nil, nil
@@ -252,29 +301,29 @@ func (s *server) graceful() (service.State, error) {
 	return nil, nil
 }
 
-// forceful is the state entered when a stop is requested
-func (s *server) forceful() (service.State, error) {
-	return nil, s.closeChannel()
-}
-
 // finalize is the state-machine finalizer, it is called immediately before the
 // Done() channel is closed.
 func (s *server) finalize(err error) error {
 	s.cancelCtx()
 	logServerStop(s.logger, s.peerID, err)
-	return err
 
+	closeErr := s.channel.Close()
+
+	// only report the closeErr if there's no causal error.
+	if err == nil {
+		return closeErr
+	}
+
+	return err
 }
 
 // dispatch validates an incoming command request and dispatches it the
 // appropriate handler.
 func (s *server) dispatch(msg *amqp.Delivery) {
-	defer func() {
-		select {
-		case s.handled <- struct{}{}:
-		case <-s.sm.Forceful:
-		}
-	}()
+	defer s.sm.DoGraceful(func() error {
+		s.pending--
+		return nil
+	})
 
 	// validate message ID
 	msgID, err := ident.ParseMessageID(msg.MessageId)
@@ -383,7 +432,7 @@ func (s *server) handle(
 	}
 }
 
-// pipe aggregates AMQP messages from multiple consumers a single channel.
+// pipe aggregates AMQP messages from multiple consumers to a single channel.
 func (s *server) pipe(messages <-chan amqp.Delivery) {
 	for msg := range messages {
 		select {
@@ -391,11 +440,4 @@ func (s *server) pipe(messages <-chan amqp.Delivery) {
 		case <-s.sm.Finalized:
 		}
 	}
-}
-
-func (s *server) closeChannel() error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	return s.channel.Close()
 }
