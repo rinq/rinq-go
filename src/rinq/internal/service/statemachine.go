@@ -20,6 +20,7 @@ type StateMachine struct {
 	Forceful  chan struct{}
 	Graceful  chan struct{}
 	Finalized chan struct{}
+	Commands  chan request
 
 	state     State
 	finalizer Finalizer
@@ -39,6 +40,7 @@ func NewStateMachine(
 		Finalized: make(chan struct{}),
 
 		state:     s,
+		Commands:  make(chan request),
 		finalizer: f,
 	}
 }
@@ -102,7 +104,73 @@ func (s *StateMachine) GracefulStop() {
 	}
 }
 
+type request struct {
+	fn    func() error
+	reply chan<- error
+}
+
+// Do enqueues fn in the command channel to be processed by the state-machine.
+// It returns ErrStopped if the state-machine is stopping or has already stopped.
+func (s *StateMachine) Do(fn func() error) error {
+	reply := make(chan error, 1)
+	req := request{fn, reply}
+
+	select {
+	case s.Commands <- req:
+	case <-s.Graceful:
+		return ErrStopped
+	case <-s.Forceful:
+		return ErrStopped
+	case <-s.Finalized:
+		return ErrStopped
+	}
+
+	select {
+	case err := <-reply:
+		return err
+	case <-s.Graceful:
+		return ErrStopped
+	case <-s.Forceful:
+		return ErrStopped
+	case <-s.Finalized:
+		return ErrStopped
+	}
+}
+
+// DoGraceful enqueues fn in the command channel to be processed by the
+// state-machine. It differs from s.Call() in that it still enqueues the command
+// if the state-machine is stopping gracefully (but not if it has been stopped)
+// forcefully.
+func (s *StateMachine) DoGraceful(fn func() error) error {
+	reply := make(chan error, 1)
+	req := request{fn, reply}
+
+	select {
+	case s.Commands <- req:
+	case <-s.Forceful:
+		return ErrStopped
+	case <-s.Finalized:
+		return ErrStopped
+	}
+
+	select {
+	case err := <-reply:
+		return err
+	case <-s.Forceful:
+		return ErrStopped
+	case <-s.Finalized:
+		return ErrStopped
+	}
+}
+
+// Execute handles a command request.
+func (s *StateMachine) Execute(req request) {
+	req.reply <- req.fn()
+}
+
 func (s *StateMachine) close() {
+	// protect against panic() that could occur when closing already closed
+	// channels if s.close() were to be called concurrently.
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
