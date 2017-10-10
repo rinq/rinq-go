@@ -98,7 +98,7 @@ func logChannelPoolCleanup(
 
 func logChannelPoolStart(
 	logger rinq.Logger,
-	size uint,
+	size int,
 ) {
 	if !logger.IsDebug() {
 		return

@@ -25,7 +25,7 @@ type ChannelPool interface {
 	GetQOS(preFetch uint) (*amqp.Channel, error)
 
 	// Put returns a channel to the pool.
-	Put(*amqp.Channel)
+	Put(*amqp.Channel) error
 }
 
 // NewChannelPool returns a channel pool of the given size.
@@ -175,8 +175,7 @@ func (p *channelPool) handlePut(channel *amqp.Channel) error {
 		p.channels = append(p.channels, channel)
 	} else {
 		// pool is full, close channel
-		err = channel.Close()
-		if err != nil {
+		if err := channel.Close(); err != nil {
 			logChannelPoolPut(p.logger, len(p.channels), err)
 			return err
 		}
@@ -198,16 +197,14 @@ func (p *channelPool) handlePeriodicCleanup() error {
 		p.channels = p.channels[:index]
 		// close channel
 		err := channel.Close()
+		logChannelPoolCleanup(p.logger, len(p.channels), err)
 		if err != nil {
-			logChannelPoolCleanup(p.logger, len(p.channels), err)
 			return err
 		}
-
-		logChannelPoolCleanup(p.logger, len(p.channels))
 	}
 
 	// restart cleanup timer
-	p.cleanupTimer.Reset()
+	p.cleanupTimer.Reset(p.cleanupDuration)
 
 	return nil
 }
