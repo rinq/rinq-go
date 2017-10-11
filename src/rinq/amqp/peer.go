@@ -114,7 +114,6 @@ func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
 		namespace,
 		func(
 			ctx context.Context,
-			msgID ident.MessageID,
 			req rinq.Request,
 			res rinq.Response,
 		) {
@@ -122,7 +121,7 @@ func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
 
 			traceutil.SetupCommand(
 				span,
-				msgID,
+				req.ID,
 				req.Namespace,
 				req.Command,
 			)

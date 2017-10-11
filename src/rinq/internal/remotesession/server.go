@@ -38,7 +38,6 @@ func Listen(
 
 func (s *server) handle(
 	ctx context.Context,
-	_ ident.MessageID,
 	req rinq.Request,
 	res rinq.Response,
 ) {

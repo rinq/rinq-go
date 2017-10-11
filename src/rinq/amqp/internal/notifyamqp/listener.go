@@ -38,7 +38,7 @@ type listener struct {
 	pending    uint // number of notifications currently being handled
 
 	mutex    sync.RWMutex // guards handlers so handler can be read in dispatch() goroutine
-	handlers map[ident.SessionID]map[string]notify.Handler
+	handlers map[ident.SessionID]map[string]rinq.NotificationHandler
 }
 
 // newListener creates, starts and returns a new listener.
@@ -63,7 +63,7 @@ func newListener(
 		namespaces: map[string]uint{},
 		amqpClosed: make(chan *amqp.Error, 1),
 
-		handlers: map[ident.SessionID]map[string]notify.Handler{},
+		handlers: map[ident.SessionID]map[string]rinq.NotificationHandler{},
 	}
 
 	l.sm = service.NewStateMachine(l.run, l.finalize)
@@ -78,14 +78,14 @@ func newListener(
 	return l, nil
 }
 
-func (l *listener) Listen(id ident.SessionID, ns string, h notify.Handler) (added bool, err error) {
+func (l *listener) Listen(id ident.SessionID, ns string, h rinq.NotificationHandler) (added bool, err error) {
 	err = l.sm.Do(func() error {
 		l.mutex.Lock()
 		defer l.mutex.Unlock()
 
 		handlers, ok := l.handlers[id]
 		if !ok {
-			handlers = map[string]notify.Handler{}
+			handlers = map[string]rinq.NotificationHandler{}
 			l.handlers[id] = handlers
 		}
 
@@ -324,7 +324,11 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 		return nil
 	})
 
-	msgID, err := ident.ParseMessageID(msg.MessageId)
+	// create a prototype notification that is cloned for each handler
+	proto := &rinq.Notification{}
+
+	var err error
+	proto.ID, err = ident.ParseMessageID(msg.MessageId)
 	if err != nil {
 		_ = msg.Reject(false) // false = don't requeue
 		logInvalidMessageID(l.logger, l.peerID, msg.MessageId)
@@ -335,15 +339,12 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 			_ = msg.Ack(false) // false = single message
 		} else {
 			_ = msg.Reject(false) // false = don't requeue
-			logIgnoredMessage(l.logger, l.peerID, msgID, err)
+			logIgnoredMessage(l.logger, l.peerID, proto.ID, err)
 		}
 	}()
 
-	// create a prototype notification that is cloned for each handler
-	proto := &rinq.Notification{}
-
 	// find the source session revision
-	proto.Source, err = l.revisions.GetRevision(msgID.Ref)
+	proto.Source, err = l.revisions.GetRevision(proto.ID.Ref)
 	if err != nil {
 		return
 	}
@@ -379,7 +380,6 @@ func (l *listener) dispatch(msg *amqp.Delivery) {
 	for _, sess := range sessions {
 		l.handle(
 			ctx,
-			msgID,
 			sess,
 			proto,
 			spanOpts,
@@ -436,7 +436,6 @@ func (l *listener) findMulticastTargets(
 // present.
 func (l *listener) handle(
 	ctx context.Context,
-	msgID ident.MessageID,
 	sess rinq.Session,
 	proto *rinq.Notification,
 	spanOpts []opentracing.StartSpanOption,
@@ -451,9 +450,9 @@ func (l *listener) handle(
 
 		span := l.tracer.StartSpan("", spanOpts...)
 		defer span.Finish()
+
 		h(
 			opentracing.ContextWithSpan(ctx, span),
-			msgID,
 			sess,
 			n,
 		)
