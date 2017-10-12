@@ -37,8 +37,8 @@ type server struct {
 	amqpClosed chan *amqp.Error
 	pending    uint // number of requests currently being handled
 
-	mutex    sync.RWMutex               // guards handlers so handler can be read in dispatch() goroutine
-	handlers map[string]command.Handler // map of namespace to handler
+	mutex    sync.RWMutex                   // guards handlers so handler can be read in dispatch() goroutine
+	handlers map[string]rinq.CommandHandler // map of namespace to handler
 }
 
 // newServer creates, starts and returns a new server.
@@ -63,7 +63,7 @@ func newServer(
 		deliveries: make(chan amqp.Delivery, preFetch),
 		amqpClosed: make(chan *amqp.Error, 1),
 
-		handlers: map[string]command.Handler{},
+		handlers: map[string]rinq.CommandHandler{},
 	}
 
 	s.sm = service.NewStateMachine(s.run, s.finalize)
@@ -78,7 +78,7 @@ func newServer(
 	return s, nil
 }
 
-func (s *server) Listen(ns string, h command.Handler) (added bool, err error) {
+func (s *server) Listen(ns string, h rinq.CommandHandler) (added bool, err error) {
 	err = s.sm.Do(func() error {
 		s.mutex.Lock()
 		defer s.mutex.Unlock()
@@ -376,7 +376,7 @@ func (s *server) handle(
 	ns string,
 	cmd string,
 	source rinq.Revision,
-	handler command.Handler,
+	handler rinq.CommandHandler,
 	spanOpts []opentracing.StartSpanOption,
 ) {
 	ctx := amqputil.UnpackTrace(s.parentCtx, msg)
@@ -389,6 +389,7 @@ func (s *server) handle(
 	ctx = opentracing.ContextWithSpan(ctx, span)
 
 	req := rinq.Request{
+		ID:        msgID,
 		Source:    source,
 		Namespace: ns,
 		Command:   cmd,
@@ -398,7 +399,6 @@ func (s *server) handle(
 	res, finalize := newResponse(
 		ctx,
 		s.channels,
-		msgID,
 		req,
 		unpackReplyMode(msg),
 	)
@@ -408,7 +408,7 @@ func (s *server) handle(
 		logRequestBegin(ctx, s.logger, s.peerID, msgID, req)
 	}
 
-	handler(ctx, msgID, req, res)
+	handler(ctx, req, res)
 
 	if finalize() {
 		_ = msg.Ack(false) // false = single message

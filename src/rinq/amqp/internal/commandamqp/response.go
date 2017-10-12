@@ -7,7 +7,6 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
-	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/streadway/amqp"
 )
 
@@ -16,7 +15,6 @@ import (
 type response struct {
 	context  context.Context
 	channels amqputil.ChannelPool
-	msgID    ident.MessageID
 	request  rinq.Request
 
 	mutex     sync.RWMutex
@@ -27,14 +25,12 @@ type response struct {
 func newResponse(
 	ctx context.Context,
 	channels amqputil.ChannelPool,
-	msgID ident.MessageID,
 	request rinq.Request,
 	replyMode replyMode,
 ) (rinq.Response, func() bool) {
 	r := &response{
 		context:   ctx,
 		channels:  channels,
-		msgID:     msgID,
 		request:   request,
 		replyMode: replyMode,
 	}
@@ -166,7 +162,7 @@ func (r *response) respond(msg *amqp.Publishing) {
 
 	err = channel.Publish(
 		responseExchange,
-		r.msgID.String(),
+		r.request.ID.String(),
 		false, // mandatory,
 		false, // immediate,
 		*msg,

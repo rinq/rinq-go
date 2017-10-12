@@ -342,7 +342,6 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 		ns,
 		func(
 			ctx context.Context,
-			msgID ident.MessageID,
 			target rinq.Session,
 			n rinq.Notification,
 		) {
@@ -350,7 +349,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 			ref := rev.Ref()
 
 			span := opentracing.SpanFromContext(ctx)
-			traceutil.SetupNotification(span, msgID, n.Namespace, n.Type)
+			traceutil.SetupNotification(span, n.ID, n.Namespace, n.Type)
 			traceutil.LogListenerReceived(span, ref, n)
 
 			// TODO: move to function
