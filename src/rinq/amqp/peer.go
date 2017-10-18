@@ -9,8 +9,8 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
+	"github.com/rinq/rinq-go/src/rinq/internal/namespaces"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
-	"github.com/rinq/rinq-go/src/rinq/internal/nsutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
 	"github.com/rinq/rinq-go/src/rinq/internal/remotesession"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
@@ -106,7 +106,7 @@ func (p *peer) Session() rinq.Session {
 }
 
 func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
-	if err := nsutil.Validate(namespace); err != nil {
+	if err := namespaces.Validate(namespace); err != nil {
 		return err
 	}
 
@@ -150,7 +150,7 @@ func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
 }
 
 func (p *peer) Unlisten(namespace string) error {
-	if err := nsutil.Validate(namespace); err != nil {
+	if err := namespaces.Validate(namespace); err != nil {
 		return err
 	}
 

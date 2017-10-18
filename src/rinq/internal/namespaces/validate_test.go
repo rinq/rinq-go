@@ -1,15 +1,15 @@
-package nsutil_test
+package namespaces_test
 
 import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"github.com/rinq/rinq-go/src/rinq/internal/nsutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/namespaces"
 )
 
 var _ = DescribeTable(
 	"ValidateNamespace",
 	func(namespace string, expected string) {
-		err := nsutil.Validate(namespace)
+		err := namespaces.Validate(namespace)
 
 		if expected == "" {
 			Expect(err).ShouldNot(HaveOccurred())

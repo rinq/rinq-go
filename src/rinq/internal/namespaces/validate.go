@@ -1,4 +1,4 @@
-package nsutil
+package namespaces
 
 import (
 	"errors"

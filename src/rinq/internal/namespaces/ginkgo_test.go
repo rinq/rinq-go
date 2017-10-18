@@ -1,4 +1,4 @@
-package nsutil_test
+package namespaces_test
 
 import (
 	"testing"
@@ -9,5 +9,5 @@ import (
 
 func TestSuite(t *testing.T) {
 	gomega.RegisterFailHandler(ginkgo.Fail)
-	ginkgo.RunSpecs(t, "nsutil")
+	ginkgo.RunSpecs(t, "namespaces")
 }
