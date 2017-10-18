@@ -1,4 +1,4 @@
-package optutil_test
+package options_test
 
 import (
 	"runtime"
@@ -8,15 +8,15 @@ import (
 	. "github.com/onsi/gomega"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/internal/optutil"
+	"github.com/rinq/rinq-go/src/rinq/options"
 )
 
-var _ = Describe("Apply", func() {
+var _ = Describe("NewOptions", func() {
 	It("uses the correct defaults", func() {
-		cfg, err := optutil.NewConfig()
+		opts, err := options.NewOptions()
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(cfg).To(Equal(optutil.Config{
+		Expect(opts).To(Equal(options.Options{
 			DefaultTimeout: 5 * time.Second,
 			CommandWorkers: uint(runtime.GOMAXPROCS(0)),
 			SessionWorkers: uint(runtime.GOMAXPROCS(0)) * 10,

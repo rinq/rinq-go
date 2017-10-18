@@ -7,7 +7,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/internal/optutil"
 	"github.com/rinq/rinq-go/src/rinq/options"
 )
 
@@ -35,10 +34,10 @@ var _ = Describe("FromEnv", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 
-			cfg, err := optutil.NewConfig(o...)
+			opts, err := options.NewOptions(o...)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cfg.DefaultTimeout).To(Equal(500 * time.Millisecond))
+			Expect(opts.DefaultTimeout).To(Equal(500 * time.Millisecond))
 		})
 
 		It("returns an error if the value is not a positive integer", func() {
@@ -56,10 +55,10 @@ var _ = Describe("FromEnv", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 
-			cfg, err := optutil.NewConfig(o...)
+			opts, err := options.NewOptions(o...)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cfg.Logger).To(Equal(rinq.NewLogger(true)))
+			Expect(opts.Logger).To(Equal(rinq.NewLogger(true)))
 		})
 
 		It("returns a Logger option when set to false", func() {
@@ -68,10 +67,10 @@ var _ = Describe("FromEnv", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 
-			cfg, err := optutil.NewConfig(o...)
+			opts, err := options.NewOptions(o...)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cfg.Logger).To(Equal(rinq.NewLogger(false)))
+			Expect(opts.Logger).To(Equal(rinq.NewLogger(false)))
 		})
 
 		It("returns an error if the value is not a boolean", func() {
@@ -89,10 +88,10 @@ var _ = Describe("FromEnv", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 
-			cfg, err := optutil.NewConfig(o...)
+			opts, err := options.NewOptions(o...)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cfg.CommandWorkers).To(Equal(uint(15)))
+			Expect(opts.CommandWorkers).To(Equal(uint(15)))
 		})
 
 		It("returns an error if the value is not a positive integer", func() {
@@ -110,10 +109,10 @@ var _ = Describe("FromEnv", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 
-			cfg, err := optutil.NewConfig(o...)
+			opts, err := options.NewOptions(o...)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cfg.SessionWorkers).To(Equal(uint(25)))
+			Expect(opts.SessionWorkers).To(Equal(uint(25)))
 		})
 
 		It("returns an error if the value is not a positive integer", func() {
@@ -131,10 +130,10 @@ var _ = Describe("FromEnv", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 
-			cfg, err := optutil.NewConfig(o...)
+			opts, err := options.NewOptions(o...)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cfg.PruneInterval).To(Equal(1500 * time.Millisecond))
+			Expect(opts.PruneInterval).To(Equal(1500 * time.Millisecond))
 		})
 
 		It("returns an error if the value is not a positive integer", func() {
@@ -152,10 +151,10 @@ var _ = Describe("FromEnv", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 
-			cfg, err := optutil.NewConfig(o...)
+			opts, err := options.NewOptions(o...)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(cfg.Product).To(Equal("my-app"))
+			Expect(opts.Product).To(Equal("my-app"))
 		})
 	})
 })

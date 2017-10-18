@@ -5,14 +5,14 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
-	"github.com/rinq/rinq-go/src/rinq/internal/optutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
+	"github.com/rinq/rinq-go/src/rinq/options"
 )
 
 // New returns a pair of invoker and server.
 func New(
 	peerID ident.PeerID,
-	cfg optutil.Config,
+	opts options.Options,
 	sessions localsession.Store,
 	revisions revision.Store,
 	channels amqputil.ChannelPool,
@@ -31,13 +31,13 @@ func New(
 
 	invoker, err := newInvoker(
 		peerID,
-		cfg.SessionWorkers,
-		cfg.DefaultTimeout,
+		opts.SessionWorkers,
+		opts.DefaultTimeout,
 		sessions,
 		queues,
 		channels,
-		cfg.Logger,
-		cfg.Tracer,
+		opts.Logger,
+		opts.Tracer,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -45,12 +45,12 @@ func New(
 
 	server, err := newServer(
 		peerID,
-		cfg.CommandWorkers,
+		opts.CommandWorkers,
 		revisions,
 		queues,
 		channels,
-		cfg.Logger,
-		cfg.Tracer,
+		opts.Logger,
+		opts.Tracer,
 	)
 	if err != nil {
 		invoker.Stop()

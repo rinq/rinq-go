@@ -5,19 +5,19 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
-	"github.com/rinq/rinq-go/src/rinq/internal/optutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
+	"github.com/rinq/rinq-go/src/rinq/options"
 )
 
 // New returns a pair of notifier and listener.
 func New(
 	peerID ident.PeerID,
-	cfg optutil.Config,
+	opts options.Options,
 	sessions localsession.Store,
 	revisions revision.Store,
 	channels amqputil.ChannelPool,
 ) (notify.Notifier, notify.Listener, error) {
-	channel, err := channels.GetQOS(cfg.SessionWorkers) // do not return to pool, use for listener
+	channel, err := channels.GetQOS(opts.SessionWorkers) // do not return to pool, use for listener
 	if err != nil {
 		return nil, nil, err
 	}
@@ -28,16 +28,16 @@ func New(
 
 	listener, err := newListener(
 		peerID,
-		cfg.SessionWorkers,
+		opts.SessionWorkers,
 		sessions,
 		revisions,
 		channel,
-		cfg.Logger,
-		cfg.Tracer,
+		opts.Logger,
+		opts.Tracer,
 	)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return newNotifier(peerID, channels, cfg.Logger), listener, nil
+	return newNotifier(peerID, channels, opts.Logger), listener, nil
 }
