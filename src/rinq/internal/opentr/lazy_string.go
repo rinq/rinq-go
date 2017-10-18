@@ -1,4 +1,4 @@
-package traceutil
+package opentr
 
 import "github.com/opentracing/opentracing-go/log"
 

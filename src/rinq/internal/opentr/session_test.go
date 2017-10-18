@@ -1,4 +1,4 @@
-package traceutil_test
+package opentr_test
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
-	. "github.com/rinq/rinq-go/src/rinq/internal/traceutil"
+	. "github.com/rinq/rinq-go/src/rinq/internal/opentr"
 )
 
 var _ = Describe("SetupSessionFetch", func() {

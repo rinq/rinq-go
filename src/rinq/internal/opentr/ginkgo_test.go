@@ -1,4 +1,4 @@
-package traceutil_test
+package opentr_test
 
 import (
 	"testing"
@@ -9,5 +9,5 @@ import (
 
 func TestSuite(t *testing.T) {
 	gomega.RegisterFailHandler(ginkgo.Fail)
-	ginkgo.RunSpecs(t, "traceutil")
+	ginkgo.RunSpecs(t, "opentr")
 }

@@ -7,7 +7,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
-	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
 	"github.com/streadway/amqp"
 )
 
@@ -169,7 +169,7 @@ func unpackSpanOptions(
 	sc, err := amqputil.UnpackSpanContext(msg, t)
 
 	if err == nil {
-		opts = append(opts, traceutil.CommonSpanOptions...)
+		opts = append(opts, opentr.CommonSpanOptions...)
 		opts = append(opts, spanKind)
 
 		if sc != nil {

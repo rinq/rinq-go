@@ -1,4 +1,4 @@
-package traceutil
+package opentr
 
 import (
 	opentracing "github.com/opentracing/opentracing-go"

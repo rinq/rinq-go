@@ -6,7 +6,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
 )
 
 // response wraps a "parent" response and performs logging and tracing when the
@@ -55,7 +55,7 @@ func (r *response) Done(payload *rinq.Payload) {
 	r.res.Done(payload)
 	r.logSuccess(payload)
 
-	traceutil.LogServerSuccess(r.span, payload)
+	opentr.LogServerSuccess(r.span, payload)
 }
 
 func (r *response) Error(err error) {
@@ -67,13 +67,13 @@ func (r *response) Error(err error) {
 		r.logError(err)
 	}
 
-	traceutil.LogServerError(r.span, err)
+	opentr.LogServerError(r.span, err)
 }
 
 func (r *response) Fail(f, t string, v ...interface{}) rinq.Failure {
 	err := r.res.Fail(f, t, v...)
 	r.logFailure(f, nil)
-	traceutil.LogServerError(r.span, err)
+	opentr.LogServerError(r.span, err)
 
 	return err
 }
@@ -81,7 +81,7 @@ func (r *response) Fail(f, t string, v ...interface{}) rinq.Failure {
 func (r *response) Close() bool {
 	if r.res.Close() {
 		r.logSuccess(nil)
-		traceutil.LogServerSuccess(r.span, nil)
+		opentr.LogServerSuccess(r.span, nil)
 		return true
 	}
 
