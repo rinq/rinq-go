@@ -12,7 +12,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
-	"github.com/rinq/rinq-go/src/rinq/internal/syncutil"
 	"github.com/streadway/amqp"
 )
 
@@ -267,14 +266,14 @@ func (s *server) gracefulStopConsuming() (service.State, error) {
 	}
 
 	// stop consuming from all namespace-based queues
-	unlock := syncutil.RLock(&s.mutex)
-	defer unlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	for ns := range s.handlers {
 		if err := s.unbind(ns); err != nil {
 			return nil, err
 		}
 	}
-	unlock()
 
 	return s.waitForHandlers, nil
 }
