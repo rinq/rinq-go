@@ -1,4 +1,4 @@
-package strutil
+package repr
 
 import (
 	"encoding/json"

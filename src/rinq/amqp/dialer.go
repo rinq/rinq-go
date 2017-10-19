@@ -14,10 +14,10 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/commandamqp"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/notifyamqp"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/envutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/remotesession"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
+	"github.com/rinq/rinq-go/src/rinq/internal/x/env"
 	"github.com/rinq/rinq-go/src/rinq/options"
 	"github.com/streadway/amqp"
 )
@@ -68,7 +68,7 @@ func Dial(dsn string, opts ...options.Option) (rinq.Peer, error) {
 func DialEnv(opts ...options.Option) (rinq.Peer, error) {
 	d := Dialer{}
 
-	hb, ok, err := envutil.Duration("RINQ_AMQP_HEARTBEAT")
+	hb, ok, err := env.Duration("RINQ_AMQP_HEARTBEAT")
 	if err != nil {
 		return nil, err
 	} else if ok {
@@ -80,7 +80,7 @@ func DialEnv(opts ...options.Option) (rinq.Peer, error) {
 		}
 	}
 
-	chans, ok, err := envutil.UInt("RINQ_AMQP_CHANNELS")
+	chans, ok, err := env.UInt("RINQ_AMQP_CHANNELS")
 	if err != nil {
 		return nil, err
 	} else if ok {
@@ -89,7 +89,7 @@ func DialEnv(opts ...options.Option) (rinq.Peer, error) {
 
 	ctx := context.Background()
 
-	timeout, ok, err := envutil.Duration("RINQ_AMQP_CONNECTION_TIMEOUT")
+	timeout, ok, err := env.Duration("RINQ_AMQP_CONNECTION_TIMEOUT")
 	if err != nil {
 		return nil, err
 	} else if ok {

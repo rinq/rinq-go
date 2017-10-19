@@ -4,7 +4,7 @@ import (
 	"bytes"
 
 	"github.com/rinq/rinq-go/src/rinq/constraint"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq/internal/x/bufferpool"
 )
 
 // Table maps namespace to attribute table.

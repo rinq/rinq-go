@@ -8,7 +8,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 	revisionpkg "github.com/rinq/rinq-go/src/rinq/internal/revision"
-	"github.com/rinq/rinq-go/src/rinq/internal/syncutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/x/syncx"
 )
 
 type catalog struct {
@@ -31,7 +31,7 @@ func newCatalog(id ident.SessionID, client *client) *catalog {
 }
 
 func (c *catalog) Head(ctx context.Context) (rinq.Revision, error) {
-	unlock := syncutil.RLock(&c.mutex)
+	unlock := syncx.RLock(&c.mutex)
 	defer unlock()
 
 	if c.isClosed {
@@ -153,7 +153,7 @@ func (c *catalog) TryUpdate(
 	ns string,
 	attrs attrutil.List,
 ) (rinq.Revision, error) {
-	unlock := syncutil.RLock(&c.mutex)
+	unlock := syncx.RLock(&c.mutex)
 	defer unlock()
 
 	if c.isClosed {
@@ -229,7 +229,7 @@ func (c *catalog) TryClear(
 	rev ident.Revision,
 	ns string,
 ) (rinq.Revision, error) {
-	unlock := syncutil.RLock(&c.mutex)
+	unlock := syncx.RLock(&c.mutex)
 	defer unlock()
 
 	if c.isClosed {
@@ -285,7 +285,7 @@ func (c *catalog) TryDestroy(
 	ctx context.Context,
 	rev ident.Revision,
 ) error {
-	unlock := syncutil.RLock(&c.mutex)
+	unlock := syncx.RLock(&c.mutex)
 	defer unlock()
 
 	if c.isClosed {

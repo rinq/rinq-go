@@ -4,7 +4,7 @@ import (
 	"bytes"
 
 	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq/internal/x/bufferpool"
 )
 
 // List is a sequence of attributes.
