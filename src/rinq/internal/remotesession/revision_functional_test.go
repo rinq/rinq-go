@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/internal/testutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/functest"
 )
 
 var _ = Describe("revision (functional)", func() {
@@ -22,22 +22,22 @@ var _ = Describe("revision (functional)", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		ns = testutil.NewNamespace()
-		client = testutil.NewPeer()
+		ns = functest.NewNamespace()
+		client = functest.NewPeer()
 		session = client.Session()
-		server = testutil.NewPeer()
+		server = functest.NewPeer()
 
-		testutil.Must(server.Listen(ns, func(ctx context.Context, req rinq.Request, res rinq.Response) {
+		functest.Must(server.Listen(ns, func(ctx context.Context, req rinq.Request, res rinq.Response) {
 			remote = req.Source
 			res.Close()
 		}))
 
 		local, _ = session.CurrentRevision()
-		testutil.Must(session.Call(ctx, ns, "", nil))
+		functest.Must(session.Call(ctx, ns, "", nil))
 	})
 
 	AfterEach(func() {
-		testutil.TearDownNamespaces()
+		functest.TearDownNamespaces()
 
 		client.Stop()
 		server.Stop()
@@ -114,7 +114,7 @@ var _ = Describe("revision (functional)", func() {
 
 		It("returns an attribute updated on the remote peer from the cache", func() {
 			// setup a handler that updates an attribute remotely
-			testutil.Must(server.Listen(ns, func(ctx context.Context, req rinq.Request, res rinq.Response) {
+			functest.Must(server.Listen(ns, func(ctx context.Context, req rinq.Request, res rinq.Response) {
 				var err error
 				remote, err = req.Source.Update(ctx, ns, rinq.Set("a", "1"))
 				Expect(err).NotTo(HaveOccurred())

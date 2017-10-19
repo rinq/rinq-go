@@ -1,4 +1,4 @@
-package testutil
+package functest
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func AlwaysPanic() rinq.CommandHandler {
 	return func(ctx context.Context, req rinq.Request, res rinq.Response) {
 		req.Payload.Close()
 		res.Close()
-		panic("testutil.AlwaysPanic!")
+		panic("functest.AlwaysPanic!")
 	}
 }
 

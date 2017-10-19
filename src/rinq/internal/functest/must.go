@@ -1,4 +1,4 @@
-package testutil
+package functest
 
 // Must panics if the right-most argument is a non-nil error.
 func Must(v ...interface{}) {
