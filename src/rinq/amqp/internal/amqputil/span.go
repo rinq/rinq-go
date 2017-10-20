@@ -6,7 +6,7 @@ import (
 	"errors"
 
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq/internal/x/bufferpool"
 	"github.com/streadway/amqp"
 )
 

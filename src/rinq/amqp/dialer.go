@@ -14,11 +14,10 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/commandamqp"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/notifyamqp"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/envutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
-	"github.com/rinq/rinq-go/src/rinq/internal/optutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/remotesession"
 	"github.com/rinq/rinq-go/src/rinq/internal/revision"
+	"github.com/rinq/rinq-go/src/rinq/internal/x/env"
 	"github.com/rinq/rinq-go/src/rinq/options"
 	"github.com/streadway/amqp"
 )
@@ -69,7 +68,7 @@ func Dial(dsn string, opts ...options.Option) (rinq.Peer, error) {
 func DialEnv(opts ...options.Option) (rinq.Peer, error) {
 	d := Dialer{}
 
-	hb, ok, err := envutil.Duration("RINQ_AMQP_HEARTBEAT")
+	hb, ok, err := env.Duration("RINQ_AMQP_HEARTBEAT")
 	if err != nil {
 		return nil, err
 	} else if ok {
@@ -81,7 +80,7 @@ func DialEnv(opts ...options.Option) (rinq.Peer, error) {
 		}
 	}
 
-	chans, ok, err := envutil.UInt("RINQ_AMQP_CHANNELS")
+	chans, ok, err := env.UInt("RINQ_AMQP_CHANNELS")
 	if err != nil {
 		return nil, err
 	} else if ok {
@@ -90,7 +89,7 @@ func DialEnv(opts ...options.Option) (rinq.Peer, error) {
 
 	ctx := context.Background()
 
-	timeout, ok, err := envutil.Duration("RINQ_AMQP_CONNECTION_TIMEOUT")
+	timeout, ok, err := env.Duration("RINQ_AMQP_CONNECTION_TIMEOUT")
 	if err != nil {
 		return nil, err
 	} else if ok {
@@ -116,20 +115,20 @@ func DialEnv(opts ...options.Option) (rinq.Peer, error) {
 func (d *Dialer) Dial(
 	ctx context.Context,
 	dsn string,
-	opts ...options.Option,
+	o ...options.Option,
 ) (rinq.Peer, error) {
 	if dsn == "" {
 		dsn = DefaultDSN
 	}
 
-	cfg, err := optutil.NewConfig(opts...)
+	opts, err := options.NewOptions(o...)
 	if err != nil {
 		return nil, err
 	}
 
 	amqpCfg := d.AMQPConfig
 	if amqpCfg.Properties == nil {
-		product := cfg.Product
+		product := opts.Product
 		if product == "" {
 			product = path.Base(os.Args[0])
 		}
@@ -167,12 +166,12 @@ func (d *Dialer) Dial(
 	}
 
 	channels := amqputil.NewChannelPool(broker, poolSize)
-	peerID, err := d.establishIdentity(ctx, channels, cfg.Logger)
+	peerID, err := d.establishIdentity(ctx, channels, opts.Logger)
 	if err != nil {
 		return nil, err
 	}
 
-	cfg.Logger.Log(
+	opts.Logger.Log(
 		"%s connected to '%s' as %s",
 		peerID.ShortString(),
 		dsn,
@@ -186,20 +185,20 @@ func (d *Dialer) Dial(
 		nil, // Remote revision store depends on invoker, created below
 	)
 
-	invoker, server, err := commandamqp.New(peerID, cfg, localStore, revStore, channels)
+	invoker, server, err := commandamqp.New(peerID, opts, localStore, revStore, channels)
 	if err != nil {
 		return nil, err
 	}
 
-	notifier, listener, err := notifyamqp.New(peerID, cfg, localStore, revStore, channels)
+	notifier, listener, err := notifyamqp.New(peerID, opts, localStore, revStore, channels)
 	if err != nil {
 		return nil, err
 	}
 
-	remoteStore := remotesession.NewStore(peerID, invoker, cfg.PruneInterval, cfg.Logger, cfg.Tracer)
+	remoteStore := remotesession.NewStore(peerID, invoker, opts.PruneInterval, opts.Logger, opts.Tracer)
 	revStore.Remote = remoteStore
 
-	if err := remotesession.Listen(server, peerID, localStore, cfg.Logger); err != nil {
+	if err := remotesession.Listen(server, peerID, localStore, opts.Logger); err != nil {
 		return nil, err
 	}
 
@@ -212,8 +211,8 @@ func (d *Dialer) Dial(
 		server,
 		notifier,
 		listener,
-		cfg.Logger,
-		cfg.Tracer,
+		opts.Logger,
+		opts.Tracer,
 	), nil
 }
 

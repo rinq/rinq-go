@@ -9,23 +9,23 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/rinq/rinq-go/src/rinq/internal/testutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/functest"
 )
 
 var _ = Describe("peer (functional)", func() {
 	var ns string
 
 	BeforeEach(func() {
-		ns = testutil.NewNamespace()
+		ns = functest.NewNamespace()
 	})
 
 	AfterEach(func() {
-		testutil.TearDownNamespaces()
+		functest.TearDownNamespaces()
 	})
 
 	Describe("ID", func() {
 		It("returns a valid peer ID", func() {
-			subject := testutil.SharedPeer()
+			subject := functest.SharedPeer()
 
 			err := subject.ID().Validate()
 			Expect(err).ShouldNot(HaveOccurred())
@@ -34,7 +34,7 @@ var _ = Describe("peer (functional)", func() {
 
 	Describe("Session", func() {
 		It("returns a session that belongs to this peer", func() {
-			subject := testutil.SharedPeer()
+			subject := functest.SharedPeer()
 
 			sess := subject.Session()
 			defer sess.Destroy()
@@ -43,7 +43,7 @@ var _ = Describe("peer (functional)", func() {
 		})
 
 		It("returns a session with a non-zero seq component", func() {
-			subject := testutil.SharedPeer()
+			subject := functest.SharedPeer()
 
 			sess := subject.Session()
 			defer sess.Destroy()
@@ -52,7 +52,7 @@ var _ = Describe("peer (functional)", func() {
 		})
 
 		It("returns a session even if the peer is stopped", func() {
-			subject := testutil.NewPeer()
+			subject := functest.NewPeer()
 
 			subject.Stop()
 			<-subject.Done()
@@ -66,10 +66,10 @@ var _ = Describe("peer (functional)", func() {
 
 	Describe("Listen", func() {
 		It("accepts command requests for the specified namespace", func() {
-			subject := testutil.SharedPeer()
+			subject := functest.SharedPeer()
 
 			nonce := rand.Int63()
-			err := subject.Listen(ns, testutil.AlwaysReturn(nonce))
+			err := subject.Listen(ns, functest.AlwaysReturn(nonce))
 			Expect(err).Should(BeNil())
 
 			sess := subject.Session()
@@ -83,9 +83,9 @@ var _ = Describe("peer (functional)", func() {
 		})
 
 		It("does not accept command requests for other namespaces", func() {
-			subject := testutil.SharedPeer()
+			subject := functest.SharedPeer()
 
-			err := subject.Listen(ns, testutil.AlwaysPanic())
+			err := subject.Listen(ns, functest.AlwaysPanic())
 			Expect(err).Should(BeNil())
 
 			sess := subject.Session()
@@ -94,16 +94,16 @@ var _ = Describe("peer (functional)", func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 			defer cancel()
 
-			_, err = sess.Call(ctx, testutil.NewNamespace(), "", nil)
+			_, err = sess.Call(ctx, functest.NewNamespace(), "", nil)
 			Expect(err).To(Equal(context.DeadlineExceeded))
 		})
 
 		It("changes the handler when invoked a second time", func() {
-			subject := testutil.SharedPeer()
-			testutil.Must(subject.Listen(ns, testutil.AlwaysPanic()))
+			subject := functest.SharedPeer()
+			functest.Must(subject.Listen(ns, functest.AlwaysPanic()))
 
 			nonce := rand.Int63()
-			err := subject.Listen(ns, testutil.AlwaysReturn(nonce))
+			err := subject.Listen(ns, functest.AlwaysReturn(nonce))
 			Expect(err).Should(BeNil())
 
 			sess := subject.Session()
@@ -117,27 +117,27 @@ var _ = Describe("peer (functional)", func() {
 		})
 
 		It("returns an error if the namespace is invalid", func() {
-			subject := testutil.SharedPeer()
+			subject := functest.SharedPeer()
 
-			err := subject.Listen("_invalid", testutil.AlwaysPanic())
+			err := subject.Listen("_invalid", functest.AlwaysPanic())
 			Expect(err).Should(HaveOccurred())
 		})
 
 		It("returns an error if the peer is stopped", func() {
-			subject := testutil.NewPeer()
+			subject := functest.NewPeer()
 
 			subject.Stop()
 			<-subject.Done()
 
-			err := subject.Listen(ns, testutil.AlwaysPanic())
+			err := subject.Listen(ns, functest.AlwaysPanic())
 			Expect(err).Should(HaveOccurred())
 		})
 	})
 
 	Describe("Unlisten", func() {
 		It("stops accepting command requests", func() {
-			subject := testutil.SharedPeer()
-			testutil.Must(subject.Listen(ns, testutil.AlwaysPanic()))
+			subject := functest.SharedPeer()
+			functest.Must(subject.Listen(ns, functest.AlwaysPanic()))
 
 			err := subject.Unlisten(ns)
 			Expect(err).Should(BeNil())
@@ -153,22 +153,22 @@ var _ = Describe("peer (functional)", func() {
 		})
 
 		It("can be invoked when not listening", func() {
-			subject := testutil.SharedPeer()
+			subject := functest.SharedPeer()
 
 			err := subject.Unlisten("unused-namespace")
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
 		It("returns an error if the namespace is invalid", func() {
-			subject := testutil.SharedPeer()
+			subject := functest.SharedPeer()
 
 			err := subject.Unlisten("_invalid")
 			Expect(err).Should(HaveOccurred())
 		})
 
 		It("returns an error if the peer is stopped", func() {
-			subject := testutil.NewPeer()
-			testutil.Must(subject.Listen(ns, testutil.AlwaysPanic()))
+			subject := functest.NewPeer()
+			functest.Must(subject.Listen(ns, functest.AlwaysPanic()))
 
 			subject.Stop()
 			<-subject.Done()
@@ -181,11 +181,11 @@ var _ = Describe("peer (functional)", func() {
 	Describe("Stop", func() {
 		Context("when running normally", func() {
 			It("cancels pending calls", func() {
-				server := testutil.SharedPeer()
+				server := functest.SharedPeer()
 				barrier := make(chan struct{})
-				testutil.Must(server.Listen(ns, testutil.Barrier(barrier)))
+				functest.Must(server.Listen(ns, functest.Barrier(barrier)))
 
-				subject := testutil.NewPeer()
+				subject := functest.NewPeer()
 
 				go func() {
 					<-barrier
@@ -203,11 +203,11 @@ var _ = Describe("peer (functional)", func() {
 
 		Context("when stopping gracefully", func() {
 			It("cancels pending calls", func() {
-				server := testutil.SharedPeer()
+				server := functest.SharedPeer()
 				barrier := make(chan struct{})
-				testutil.Must(server.Listen(ns, testutil.Barrier(barrier)))
+				functest.Must(server.Listen(ns, functest.Barrier(barrier)))
 
-				subject := testutil.NewPeer()
+				subject := functest.NewPeer()
 
 				go func() {
 					<-barrier
@@ -227,11 +227,11 @@ var _ = Describe("peer (functional)", func() {
 
 	Describe("GracefulStop", func() {
 		It("waits for pending calls", func() {
-			server := testutil.SharedPeer()
+			server := functest.SharedPeer()
 			barrier := make(chan struct{})
-			testutil.Must(server.Listen(ns, testutil.Barrier(barrier)))
+			functest.Must(server.Listen(ns, functest.Barrier(barrier)))
 
-			subject := testutil.NewPeer()
+			subject := functest.NewPeer()
 
 			go func() {
 				<-barrier

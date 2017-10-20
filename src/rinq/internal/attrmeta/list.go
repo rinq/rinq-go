@@ -3,7 +3,7 @@ package attrmeta
 import (
 	"bytes"
 
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq/internal/x/bufferpool"
 )
 
 // List is a sequence of attributes with revision information.

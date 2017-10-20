@@ -3,7 +3,7 @@ package constraint
 import (
 	"bytes"
 
-	"github.com/rinq/rinq-go/src/rinq/internal/strutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/x/repr"
 )
 
 type stringer struct {
@@ -28,11 +28,11 @@ func (s *stringer) Equal(k, v string) {
 
 	if v == "" {
 		s.buf.WriteRune('!')
-		s.buf.WriteString(strutil.Escape(k))
+		s.buf.WriteString(repr.Escape(k))
 	} else {
-		s.buf.WriteString(strutil.Escape(k))
+		s.buf.WriteString(repr.Escape(k))
 		s.buf.WriteRune('=')
-		s.buf.WriteString(strutil.Escape(v))
+		s.buf.WriteString(repr.Escape(v))
 	}
 
 	s.close()
@@ -42,11 +42,11 @@ func (s *stringer) NotEqual(k, v string) {
 	s.open()
 
 	if v == "" {
-		s.buf.WriteString(strutil.Escape(k))
+		s.buf.WriteString(repr.Escape(k))
 	} else {
-		s.buf.WriteString(strutil.Escape(k))
+		s.buf.WriteString(repr.Escape(k))
 		s.buf.WriteString("!=")
-		s.buf.WriteString(strutil.Escape(v))
+		s.buf.WriteString(repr.Escape(v))
 	}
 
 	s.close()

@@ -2,10 +2,10 @@ package rinq
 
 import (
 	"bytes"
+	"reflect"
 	"sync"
 
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
-	"github.com/rinq/rinq-go/src/rinq/internal/reflectutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/x/bufferpool"
 	"github.com/ugorji/go/codec"
 )
 
@@ -34,7 +34,12 @@ type Payload struct {
 
 // NewPayload creates a new payload from an arbitrary value.
 func NewPayload(v interface{}) *Payload {
-	if reflectutil.IsNil(v) {
+	if v == nil {
+		return nil
+	}
+
+	r := reflect.ValueOf(v)
+	if r.Kind() == reflect.Ptr && r.IsNil() {
 		return nil
 	}
 

@@ -12,9 +12,9 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
+	"github.com/rinq/rinq-go/src/rinq/internal/namespaces"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
-	"github.com/rinq/rinq-go/src/rinq/internal/nsutil"
-	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
@@ -79,7 +79,7 @@ func (s *session) CurrentRevision() (rinq.Revision, error) {
 }
 
 func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (*rinq.Payload, error) {
-	if err := nsutil.Validate(ns); err != nil {
+	if err := namespaces.Validate(ns); err != nil {
 		return nil, err
 	}
 
@@ -94,20 +94,20 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 
 	msgID, attrs := s.catalog.NextMessageID()
 
-	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
+	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupCommand(span, msgID, ns, cmd)
-	traceutil.LogInvokerCall(span, attrs, out)
+	opentr.SetupCommand(span, msgID, ns, cmd)
+	opentr.LogInvokerCall(span, attrs, out)
 
 	start := time.Now()
 	traceID, in, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, out)
 	elapsed := time.Since(start) / time.Millisecond
 
 	if err == nil {
-		traceutil.LogInvokerSuccess(span, in)
+		opentr.LogInvokerSuccess(span, in)
 	} else {
-		traceutil.LogInvokerError(span, err)
+		opentr.LogInvokerError(span, err)
 	}
 
 	logCall(s.logger, msgID, ns, cmd, elapsed, out, in, err, traceID)
@@ -118,7 +118,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Payload) (ident.MessageID, error) {
 	var msgID ident.MessageID
 
-	if err := nsutil.Validate(ns); err != nil {
+	if err := namespaces.Validate(ns); err != nil {
 		return msgID, err
 	}
 
@@ -133,16 +133,16 @@ func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 
 	msgID, attrs := s.catalog.NextMessageID()
 
-	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
+	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupCommand(span, msgID, ns, cmd)
-	traceutil.LogInvokerCallAsync(span, attrs, out)
+	opentr.SetupCommand(span, msgID, ns, cmd)
+	opentr.LogInvokerCallAsync(span, attrs, out)
 
 	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
 
 	if err != nil {
-		traceutil.LogInvokerError(span, err)
+		opentr.LogInvokerError(span, err)
 	}
 
 	logAsyncRequest(s.logger, msgID, ns, cmd, out, err, traceID)
@@ -176,12 +176,12 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 			err error,
 		) {
 			span := opentracing.SpanFromContext(ctx)
-			traceutil.SetupCommand(span, msgID, ns, cmd)
+			opentr.SetupCommand(span, msgID, ns, cmd)
 
 			if err == nil {
-				traceutil.LogInvokerSuccess(span, in)
+				opentr.LogInvokerSuccess(span, in)
 			} else {
-				traceutil.LogInvokerError(span, err)
+				opentr.LogInvokerError(span, err)
 			}
 
 			logAsyncResponse(ctx, s.logger, msgID, ns, cmd, in, err)
@@ -194,7 +194,7 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 }
 
 func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) error {
-	if err := nsutil.Validate(ns); err != nil {
+	if err := namespaces.Validate(ns); err != nil {
 		return err
 	}
 
@@ -206,16 +206,16 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 
 	msgID, attrs := s.catalog.NextMessageID()
 
-	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
+	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupCommand(span, msgID, ns, cmd)
-	traceutil.LogInvokerCallAsync(span, attrs, p)
+	opentr.SetupCommand(span, msgID, ns, cmd)
+	opentr.LogInvokerCallAsync(span, attrs, p)
 
 	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
 
 	if err != nil {
-		traceutil.LogInvokerError(span, err)
+		opentr.LogInvokerError(span, err)
 	}
 
 	// TODO: move to function
@@ -238,7 +238,7 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 		return fmt.Errorf("session ID %s is invalid", target)
 	}
 
-	if err := nsutil.Validate(ns); err != nil {
+	if err := namespaces.Validate(ns); err != nil {
 		return err
 	}
 
@@ -250,16 +250,16 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 
 	msgID, attrs := s.catalog.NextMessageID()
 
-	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
+	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
-	traceutil.SetupNotification(span, msgID, ns, t)
-	traceutil.LogNotifierUnicast(span, attrs, target, p)
+	opentr.SetupNotification(span, msgID, ns, t)
+	opentr.LogNotifierUnicast(span, attrs, target, p)
 
 	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, t, p)
 
 	if err != nil {
-		traceutil.LogNotifierError(span, err)
+		opentr.LogNotifierError(span, err)
 	}
 
 	// TODO: move to function
@@ -279,7 +279,7 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 }
 
 func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.Constraint, p *rinq.Payload) error {
-	if err := nsutil.Validate(ns); err != nil {
+	if err := namespaces.Validate(ns); err != nil {
 		return err
 	}
 
@@ -291,16 +291,16 @@ func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 
 	msgID, attrs := s.catalog.NextMessageID()
 
-	span, ctx := traceutil.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
+	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
-	traceutil.SetupNotification(span, msgID, ns, t)
-	traceutil.LogNotifierMulticast(span, attrs, con, p)
+	opentr.SetupNotification(span, msgID, ns, t)
+	opentr.LogNotifierMulticast(span, attrs, con, p)
 
 	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, t, p)
 
 	if err != nil {
-		traceutil.LogNotifierError(span, err)
+		opentr.LogNotifierError(span, err)
 	}
 
 	// TODO: move to function
@@ -320,7 +320,7 @@ func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 }
 
 func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
-	if err := nsutil.Validate(ns); err != nil {
+	if err := namespaces.Validate(ns); err != nil {
 		return err
 	}
 
@@ -349,8 +349,8 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 			ref := rev.Ref()
 
 			span := opentracing.SpanFromContext(ctx)
-			traceutil.SetupNotification(span, n.ID, n.Namespace, n.Type)
-			traceutil.LogListenerReceived(span, ref, n)
+			opentr.SetupNotification(span, n.ID, n.Namespace, n.Type)
+			opentr.LogListenerReceived(span, ref, n)
 
 			// TODO: move to function
 			s.logger.Log(
@@ -381,7 +381,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 }
 
 func (s *session) Unlisten(ns string) error {
-	if err := nsutil.Validate(ns); err != nil {
+	if err := namespaces.Validate(ns); err != nil {
 		return err
 	}
 

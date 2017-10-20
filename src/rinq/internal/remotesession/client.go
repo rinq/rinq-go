@@ -11,7 +11,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
-	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
 )
 
 type client struct {
@@ -46,11 +46,11 @@ func (c *client) Fetch(
 	attrmeta.List,
 	error,
 ) {
-	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
+	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupSessionFetch(span, ns, sessID)
-	traceutil.LogSessionFetchRequest(span, keys)
+	opentr.SetupSessionFetch(span, ns, sessID)
+	opentr.LogSessionFetchRequest(span, keys)
 
 	out := rinq.NewPayload(fetchRequest{
 		Seq:       sessID.Seq,
@@ -70,7 +70,7 @@ func (c *client) Fetch(
 	defer in.Close()
 
 	if err != nil {
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return 0, nil, failureToError(sessID.At(0), err)
 	}
 
@@ -78,12 +78,12 @@ func (c *client) Fetch(
 	err = in.Decode(&rsp)
 
 	if err != nil {
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 
 		return 0, nil, err
 	}
 
-	traceutil.LogSessionFetchSuccess(span, rsp.Rev, rsp.Attrs)
+	opentr.LogSessionFetchSuccess(span, rsp.Rev, rsp.Attrs)
 
 	return rsp.Rev, rsp.Attrs, nil
 }
@@ -98,11 +98,11 @@ func (c *client) Update(
 	attrmeta.List,
 	error,
 ) {
-	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
+	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupSessionUpdate(span, ns, ref.ID)
-	traceutil.LogSessionUpdateRequest(span, ref.Rev, attrs)
+	opentr.SetupSessionUpdate(span, ns, ref.ID)
+	opentr.LogSessionUpdateRequest(span, ref.Rev, attrs)
 
 	out := rinq.NewPayload(updateRequest{
 		Seq:       ref.ID.Seq,
@@ -123,7 +123,7 @@ func (c *client) Update(
 	defer in.Close()
 
 	if err != nil {
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return 0, nil, failureToError(ref, err)
 	}
 
@@ -131,7 +131,7 @@ func (c *client) Update(
 	err = in.Decode(&rsp)
 
 	if err != nil {
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 
 		return 0, nil, err
 	}
@@ -149,7 +149,7 @@ func (c *client) Update(
 	}
 
 	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), diff)
-	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
+	opentr.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 
 	return rsp.Rev, diff.Attrs, nil
 }
@@ -162,11 +162,11 @@ func (c *client) Clear(
 	ident.Revision,
 	error,
 ) {
-	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
+	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupSessionClear(span, ns, ref.ID)
-	traceutil.LogSessionClearRequest(span, ref.Rev)
+	opentr.SetupSessionClear(span, ns, ref.ID)
+	opentr.LogSessionClearRequest(span, ref.Rev)
 
 	out := rinq.NewPayload(updateRequest{
 		Seq:       ref.ID.Seq,
@@ -186,7 +186,7 @@ func (c *client) Clear(
 	defer in.Close()
 
 	if err != nil {
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return 0, failureToError(ref, err)
 	}
 
@@ -194,13 +194,13 @@ func (c *client) Clear(
 	err = in.Decode(&rsp)
 
 	if err != nil {
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 
 		return 0, err
 	}
 
 	logClear(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), ns)
-	traceutil.LogSessionClearSuccess(span, rsp.Rev, nil)
+	opentr.LogSessionClearSuccess(span, rsp.Rev, nil)
 
 	return rsp.Rev, nil
 }
@@ -209,11 +209,11 @@ func (c *client) Destroy(
 	ctx context.Context,
 	ref ident.Ref,
 ) error {
-	span, ctx := traceutil.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
+	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
-	traceutil.SetupSessionDestroy(span, ref.ID)
-	traceutil.LogSessionDestroyRequest(span, ref.Rev)
+	opentr.SetupSessionDestroy(span, ref.ID)
+	opentr.LogSessionDestroyRequest(span, ref.Rev)
 
 	out := rinq.NewPayload(destroyRequest{
 		Seq: ref.ID.Seq,
@@ -232,12 +232,12 @@ func (c *client) Destroy(
 	defer in.Close()
 
 	if err != nil {
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return failureToError(ref, err)
 	}
 
 	logClose(ctx, c.logger, c.peerID, ref)
-	traceutil.LogSessionDestroySuccess(span)
+	opentr.LogSessionDestroySuccess(span)
 
 	return nil
 }

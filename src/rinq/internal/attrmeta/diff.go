@@ -4,7 +4,7 @@ import (
 	"bytes"
 
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq/internal/x/bufferpool"
 )
 
 // Diff is a sequence of attributes that have changed.

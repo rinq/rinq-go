@@ -3,7 +3,7 @@ package constraint
 import (
 	"errors"
 
-	"github.com/rinq/rinq-go/src/rinq/internal/nsutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/namespaces"
 )
 
 type validator struct{}
@@ -12,7 +12,7 @@ func (v *validator) None() {
 }
 
 func (v *validator) Within(ns string, cons []Constraint) {
-	if err := nsutil.Validate(ns); err != nil {
+	if err := namespaces.Validate(ns); err != nil {
 		panic(errors.New("WITHIN constraint has invalid namespace: " + err.Error()))
 	}
 

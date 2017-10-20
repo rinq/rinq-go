@@ -10,7 +10,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
-	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
 )
 
 type server struct {
@@ -68,19 +68,19 @@ func (s *server) fetch(
 
 	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
 	sessID := s.peerID.Session(args.Seq)
 
-	traceutil.SetupSessionFetch(span, args.Namespace, sessID)
-	traceutil.LogSessionFetchRequest(span, args.Keys)
+	opentr.SetupSessionFetch(span, args.Namespace, sessID)
+	opentr.LogSessionFetchRequest(span, args.Keys)
 
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
@@ -102,7 +102,7 @@ func (s *server) fetch(
 
 	res.Done(payload)
 
-	traceutil.LogSessionFetchSuccess(span, rsp.Rev, rsp.Attrs)
+	opentr.LogSessionFetchSuccess(span, rsp.Rev, rsp.Attrs)
 }
 
 func (s *server) update(
@@ -116,26 +116,26 @@ func (s *server) update(
 
 	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
 	sessID := s.peerID.Session(args.Seq)
 
-	traceutil.SetupSessionUpdate(span, args.Namespace, sessID)
-	traceutil.LogSessionUpdateRequest(span, args.Rev, args.Attrs)
+	opentr.SetupSessionUpdate(span, args.Namespace, sessID)
+	opentr.LogSessionUpdateRequest(span, args.Rev, args.Attrs)
 
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
 	rev, diff, err := cat.TryUpdate(sessID.At(args.Rev), args.Namespace, args.Attrs)
 	if err != nil {
 		res.Error(errorToFailure(err))
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
@@ -159,7 +159,7 @@ func (s *server) update(
 
 	res.Done(payload)
 
-	traceutil.LogSessionUpdateSuccess(span, rsp.Rev, diff)
+	opentr.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 }
 
 func (s *server) clear(
@@ -173,26 +173,26 @@ func (s *server) clear(
 
 	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
 	sessID := s.peerID.Session(args.Seq)
 
-	traceutil.SetupSessionClear(span, args.Namespace, sessID)
-	traceutil.LogSessionClearRequest(span, args.Rev)
+	opentr.SetupSessionClear(span, args.Namespace, sessID)
+	opentr.LogSessionClearRequest(span, args.Rev)
 
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
 	rev, diff, err := cat.TryClear(sessID.At(args.Rev), args.Namespace)
 	if err != nil {
 		res.Error(errorToFailure(err))
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
@@ -207,7 +207,7 @@ func (s *server) clear(
 
 	res.Done(payload)
 
-	traceutil.LogSessionClearSuccess(span, rsp.Rev, diff)
+	opentr.LogSessionClearSuccess(span, rsp.Rev, diff)
 }
 
 func (s *server) destroy(
@@ -221,19 +221,19 @@ func (s *server) destroy(
 
 	if err := req.Payload.Decode(&args); err != nil {
 		res.Error(err)
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
 	sessID := s.peerID.Session(args.Seq)
 
-	traceutil.SetupSessionDestroy(span, sessID)
-	traceutil.LogSessionDestroyRequest(span, args.Rev)
+	opentr.SetupSessionDestroy(span, sessID)
+	opentr.LogSessionDestroyRequest(span, args.Rev)
 
 	_, cat, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
@@ -241,7 +241,7 @@ func (s *server) destroy(
 
 	if err := cat.TryDestroy(ref); err != nil {
 		res.Error(errorToFailure(err))
-		traceutil.LogSessionError(span, err)
+		opentr.LogSessionError(span, err)
 		return
 	}
 
@@ -249,5 +249,5 @@ func (s *server) destroy(
 
 	res.Close()
 
-	traceutil.LogSessionDestroySuccess(span)
+	opentr.LogSessionDestroySuccess(span)
 }

@@ -9,12 +9,11 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
+	"github.com/rinq/rinq-go/src/rinq/internal/namespaces"
 	"github.com/rinq/rinq-go/src/rinq/internal/notify"
-	"github.com/rinq/rinq-go/src/rinq/internal/nsutil"
+	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
 	"github.com/rinq/rinq-go/src/rinq/internal/remotesession"
 	"github.com/rinq/rinq-go/src/rinq/internal/service"
-	"github.com/rinq/rinq-go/src/rinq/internal/syncutil"
-	"github.com/rinq/rinq-go/src/rinq/internal/traceutil"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/streadway/amqp"
 )
@@ -106,7 +105,7 @@ func (p *peer) Session() rinq.Session {
 }
 
 func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
-	if err := nsutil.Validate(namespace); err != nil {
+	if err := namespaces.Validate(namespace); err != nil {
 		return err
 	}
 
@@ -119,13 +118,13 @@ func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
 		) {
 			span := opentracing.SpanFromContext(ctx)
 
-			traceutil.SetupCommand(
+			opentr.SetupCommand(
 				span,
 				req.ID,
 				req.Namespace,
 				req.Command,
 			)
-			traceutil.LogServerRequest(span, p.id, req.Payload)
+			opentr.LogServerRequest(span, p.id, req.Payload)
 
 			handler(
 				ctx,
@@ -150,7 +149,7 @@ func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
 }
 
 func (p *peer) Unlisten(namespace string) error {
-	if err := nsutil.Validate(namespace); err != nil {
+	if err := namespaces.Validate(namespace); err != nil {
 		return err
 	}
 
@@ -194,11 +193,11 @@ func (p *peer) graceful() (service.State, error) {
 	p.remoteStore.GracefulStop()
 	p.listener.GracefulStop()
 
-	done := syncutil.Group(
-		p.remoteStore.Done(),
-		p.invoker.Done(),
-		p.server.Done(),
-		p.listener.Done(),
+	done := service.WaitAll(
+		p.remoteStore,
+		p.invoker,
+		p.server,
+		p.listener,
 	)
 
 	select {
@@ -223,11 +222,11 @@ func (p *peer) finalize(err error) error {
 		sess.Destroy()
 	})
 
-	<-syncutil.Group(
-		p.remoteStore.Done(),
-		p.invoker.Done(),
-		p.server.Done(),
-		p.listener.Done(),
+	<-service.WaitAll(
+		p.remoteStore,
+		p.invoker,
+		p.server,
+		p.listener,
 	)
 
 	closeErr := p.broker.Close()

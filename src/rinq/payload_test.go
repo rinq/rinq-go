@@ -156,6 +156,10 @@ var _ = Describe("Payload", func() {
 	})
 })
 
+type x interface {
+	Func()
+}
+
 var _ = Describe("NewPayload", func() {
 	DescribeTable(
 		"returns nil when the value is nil",
@@ -166,11 +170,19 @@ var _ = Describe("NewPayload", func() {
 			Expect(p).To(BeNil())
 		},
 		Entry("nil", nil),
-		Entry("nil channel", (*int)(nil)),
-		Entry("nil function", (func())(nil)),
-		Entry("nil map", (map[int]int)(nil)),
 		Entry("nil pointer", (*int)(nil)),
-		Entry("nil interface", (interface{})(nil)),
+		Entry("nil interface", (x)(nil)),
+	)
+
+	DescribeTable(
+		"returns a non-nil payload when the value is a nil container",
+		func(v interface{}) {
+			p := rinq.NewPayload(v)
+			defer p.Close()
+
+			Expect(p).NotTo(BeNil())
+		},
+		Entry("nil map", (map[int]int)(nil)),
 		Entry("nil slice", ([]int)(nil)),
 	)
 })

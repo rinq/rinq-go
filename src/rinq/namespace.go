@@ -1,6 +1,6 @@
 package rinq
 
-import "github.com/rinq/rinq-go/src/rinq/internal/nsutil"
+import "github.com/rinq/rinq-go/src/rinq/internal/namespaces"
 
 // ValidateNamespace checks if ns is a valid namespace.
 //
@@ -11,5 +11,5 @@ import "github.com/rinq/rinq-go/src/rinq/internal/nsutil"
 //
 // The return value is nil if ns is a valid, unreserved namespace.
 func ValidateNamespace(ns string) error {
-	return nsutil.Validate(ns)
+	return namespaces.Validate(ns)
 }
