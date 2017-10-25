@@ -8,8 +8,8 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
 )
@@ -92,7 +92,7 @@ func (c *client) Update(
 	ctx context.Context,
 	ref ident.Ref,
 	ns string,
-	attrs attrutil.List,
+	attrs attributes.List,
 ) (
 	ident.Revision,
 	attrmeta.List,

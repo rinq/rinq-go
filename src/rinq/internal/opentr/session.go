@@ -8,8 +8,8 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 )
 
 const (
@@ -75,7 +75,7 @@ func SetupSessionUpdate(s opentracing.Span, ns string, sessID ident.SessionID) {
 }
 
 // LogSessionUpdateRequest logs information about a session update attempt to s.
-func LogSessionUpdateRequest(s opentracing.Span, rev ident.Revision, attrs attrutil.List) {
+func LogSessionUpdateRequest(s opentracing.Span, rev ident.Revision, attrs attributes.List) {
 	fields := []log.Field{
 		updateEvent,
 		log.Uint32("rev", uint32(rev)),
