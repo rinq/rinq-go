@@ -421,8 +421,8 @@ func (l *listener) findMulticastTargets(
 	}
 
 	l.sessions.Each(
-		func(session rinq.Session, catalog localsession.Catalog) {
-			_, attrs := catalog.Attrs()
+		func(session rinq.Session, state *localsession.State) {
+			_, attrs := state.Attrs()
 			if attrs.MatchConstraint(n.Namespace, n.Constraint) {
 				sessions = append(sessions, session)
 			}

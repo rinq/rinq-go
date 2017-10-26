@@ -56,7 +56,7 @@ func logClear(
 func logDestroy(
 	ctx context.Context,
 	logger rinq.Logger,
-	cat Catalog,
+	state *State,
 ) {
-	logSessionDestroy(logger, cat, trace.Get(ctx))
+	logSessionDestroy(logger, state, trace.Get(ctx))
 }

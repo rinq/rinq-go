@@ -45,10 +45,10 @@ func logRemoteClear(
 func logRemoteDestroy(
 	ctx context.Context,
 	logger rinq.Logger,
-	cat localsession.Catalog,
+	state *localsession.State,
 	peerID ident.PeerID,
 ) {
-	ref, attrs := cat.Attrs()
+	ref, attrs := state.Attrs()
 
 	logger.Log(
 		"%s session destroyed by %s %s [%s]",

@@ -20,7 +20,7 @@ import (
 
 type session struct {
 	id       ident.SessionID
-	catalog  Catalog
+	state    State
 	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
@@ -37,16 +37,19 @@ type session struct {
 // NewSession returns a new local session.
 func NewSession(
 	id ident.SessionID,
-	catalog Catalog,
 	invoker command.Invoker,
 	notifier notify.Notifier,
 	listener notify.Listener,
 	logger rinq.Logger,
 	tracer opentracing.Tracer,
-) rinq.Session {
+) (rinq.Session, *State) {
 	sess := &session{
-		id:       id,
-		catalog:  catalog,
+		id: id,
+		state: State{
+			ref:    id.At(0),
+			done:   make(chan struct{}),
+			logger: logger,
+		},
 		invoker:  invoker,
 		notifier: notifier,
 		logger:   logger,
@@ -55,14 +58,14 @@ func NewSession(
 		done:     make(chan struct{}),
 	}
 
-	logCreated(logger, catalog.Ref())
+	logCreated(logger, sess.state.Ref())
 
 	go func() {
-		<-catalog.Done()
+		<-sess.state.Done()
 		sess.destroy()
 	}()
 
-	return sess
+	return sess, &sess.state
 }
 
 func (s *session) ID() ident.SessionID {
@@ -74,7 +77,7 @@ func (s *session) CurrentRevision() (rinq.Revision, error) {
 	case <-s.done:
 		return nil, rinq.NotFoundError{ID: s.id}
 	default:
-		return s.catalog.Head(), nil
+		return s.state.Head(), nil
 	}
 }
 
@@ -92,7 +95,7 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 	default:
 	}
 
-	msgID, attrs := s.catalog.NextMessageID()
+	msgID, attrs := s.state.NextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
@@ -131,7 +134,7 @@ func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 	default:
 	}
 
-	msgID, attrs := s.catalog.NextMessageID()
+	msgID, attrs := s.state.NextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
@@ -204,7 +207,7 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 	default:
 	}
 
-	msgID, attrs := s.catalog.NextMessageID()
+	msgID, attrs := s.state.NextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
@@ -248,7 +251,7 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 	default:
 	}
 
-	msgID, attrs := s.catalog.NextMessageID()
+	msgID, attrs := s.state.NextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
@@ -289,7 +292,7 @@ func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 	default:
 	}
 
-	msgID, attrs := s.catalog.NextMessageID()
+	msgID, attrs := s.state.NextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
@@ -345,7 +348,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 			target rinq.Session,
 			n rinq.Notification,
 		) {
-			rev := s.catalog.Head()
+			rev := s.state.Head()
 			ref := rev.Ref()
 
 			span := opentracing.SpanFromContext(ctx)
@@ -372,7 +375,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 	} else if changed && s.logger.IsDebug() {
 		s.logger.Log(
 			"%s started listening for notifications in '%s' namespace",
-			s.catalog.Ref().ShortString(),
+			s.state.Ref().ShortString(),
 			ns,
 		)
 	}
@@ -401,7 +404,7 @@ func (s *session) Unlisten(ns string) error {
 	} else if changed && s.logger.IsDebug() {
 		s.logger.Log(
 			"%s stopped listening for notifications in '%s' namespace",
-			s.catalog.Ref().ShortString(),
+			s.state.Ref().ShortString(),
 			ns,
 		)
 	}
@@ -411,7 +414,7 @@ func (s *session) Unlisten(ns string) error {
 
 func (s *session) Destroy() {
 	if s.destroy() {
-		logSessionDestroy(s.logger, s.catalog, "")
+		logSessionDestroy(s.logger, &s.state, "")
 	}
 }
 
@@ -424,7 +427,7 @@ func (s *session) destroy() bool {
 		return false
 	default:
 		close(s.done)
-		s.catalog.Close()
+		s.state.Close()
 		s.invoker.SetAsyncHandler(s.id, nil)
 		_ = s.listener.UnlistenAll(s.id)
 		return true
