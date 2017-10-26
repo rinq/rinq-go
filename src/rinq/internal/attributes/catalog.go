@@ -25,12 +25,7 @@ func (c Catalog) WithNamespace(ns string, t VTable) Catalog {
 // attrs. The ns namespace is the default namespace used if there is no 'within'
 // constraint.
 func (c Catalog) MatchConstraint(ns string, con constraint.Constraint) bool {
-	isMatch, err := con.Accept(&catalogMatcher{c}, ns)
-
-	if err != nil {
-		panic(err)
-	}
-
+	isMatch, _ := con.Accept(&catalogMatcher{c}, ns)
 	return isMatch.(bool)
 }
 

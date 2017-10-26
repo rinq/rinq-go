@@ -238,6 +238,26 @@ var _ = Describe("Catalog", func() {
 		)
 	})
 
+	Describe("IsEmpty", func() {
+		It("returns true when the catalog is empty", func() {
+			Expect(Catalog{}.IsEmpty()).To(BeTrue())
+		})
+
+		It("returns true when the catalog contains only empty namespaces", func() {
+			Expect(Catalog{"ns": {}}.IsEmpty()).To(BeTrue())
+		})
+
+		It("returns false when the table is not empty", func() {
+			cat := Catalog{
+				"ns1": {
+					"a": {Attr: rinq.Set("a", "1")},
+				},
+			}
+
+			Expect(cat.IsEmpty()).To(BeFalse())
+		})
+	})
+
 	Describe("String", func() {
 		Context("when the table is empty", func() {
 			cat := Catalog{}
@@ -249,7 +269,7 @@ var _ = Describe("Catalog", func() {
 
 		Context("when the table is not empty", func() {
 			It("writes namespaces in any order", func() {
-				c := Catalog{
+				cat := Catalog{
 					"ns1": {
 						"a": {Attr: rinq.Set("a", "1")},
 					},
@@ -258,7 +278,7 @@ var _ = Describe("Catalog", func() {
 					},
 				}
 
-				Expect(c.String()).To(SatisfyAny(
+				Expect(cat.String()).To(SatisfyAny(
 					Equal("ns1::{a=1} ns2::{b=2}"),
 					Equal("ns2::{b=2} ns1::{a=1}"),
 				))
@@ -266,14 +286,14 @@ var _ = Describe("Catalog", func() {
 		})
 
 		It("excludes empty namespaces", func() {
-			c := Catalog{
+			cat := Catalog{
 				"ns1": {
 					"a": {Attr: rinq.Set("a", "1")},
 				},
 				"ns2": {},
 			}
 
-			Expect(c.String()).To(Equal("ns1::{a=1}"))
+			Expect(cat.String()).To(Equal("ns1::{a=1}"))
 		})
 	})
 })

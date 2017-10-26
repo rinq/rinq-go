@@ -7,22 +7,14 @@ import (
 	. "github.com/rinq/rinq-go/src/rinq/internal/attributes"
 )
 
-var _ = Describe("Table", func() {
-	var table Table
+var _ = Describe("VTable", func() {
+	var table VTable
 
 	BeforeEach(func() {
-		table = Table{
-			"a": rinq.Set("a", "1"),
-			"b": rinq.Set("b", "2"),
+		table = VTable{
+			"a": {Attr: rinq.Set("a", "1")},
+			"b": {Attr: rinq.Set("b", "2")},
 		}
-	})
-
-	Describe("Get", func() {
-		It("returns the attribute", func() {
-			attr, _ := table.Get("a")
-
-			Expect(attr).To(Equal(rinq.Set("a", "1")))
-		})
 	})
 
 	Describe("Each", func() {
@@ -66,6 +58,29 @@ var _ = Describe("Table", func() {
 				Equal("{a=1, b=2}"),
 				Equal("{b=2, a=1}"),
 			))
+		})
+	})
+
+	Describe("Clone", func() {
+		It("returns a different instance", func() {
+			t := table.Clone()
+			t["c"] = VAttr{Attr: rinq.Set("c", "3")}
+
+			Expect(table).NotTo(HaveKey("c"))
+		})
+
+		It("contains the same attributes", func() {
+			t := table.Clone()
+
+			Expect(t).To(Equal(table))
+		})
+
+		It("returns a non-nil table when cloning a nil table", func() {
+			table = nil
+			t := table.Clone()
+
+			Expect(t).To(BeEmpty())
+			Expect(t).NotTo(BeNil())
 		})
 	})
 })

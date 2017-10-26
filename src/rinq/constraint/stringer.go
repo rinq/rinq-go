@@ -63,7 +63,7 @@ func (s *stringer) NotEqual(k, v string, _ ...interface{}) (interface{}, error) 
 func (s *stringer) Not(con Constraint, _ ...interface{}) (interface{}, error) {
 	s.open()
 	s.buf.WriteString("! ")
-	con.Accept(s)
+	_, _ = con.Accept(s)
 	s.close()
 
 	return nil, nil
@@ -83,7 +83,7 @@ func (s *stringer) Or(cons []Constraint, _ ...interface{}) (interface{}, error) 
 
 func (s *stringer) join(sep string, cons []Constraint) {
 	if len(cons) == 1 {
-		cons[0].Accept(s)
+		_, _ = cons[0].Accept(s)
 		return
 	}
 
@@ -94,7 +94,7 @@ func (s *stringer) join(sep string, cons []Constraint) {
 		if i != 0 {
 			s.buf.WriteString(sep)
 		}
-		con.Accept(s)
+		_, _ = con.Accept(s)
 	}
 
 	s.pop()

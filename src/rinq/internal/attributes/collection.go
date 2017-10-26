@@ -29,7 +29,7 @@ func ToMap(attrs Collection) map[string]rinq.Attr {
 	return m
 }
 
-// ToString provides an implementatio of Collection.String() using
+// ToString provides an implementation of Collection.String() using
 // Collection.Each().
 func ToString(attrs Collection) string {
 	buf := bufferpool.Get()

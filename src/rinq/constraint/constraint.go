@@ -60,7 +60,7 @@ func (c Constraint) String() string {
 	defer bufferpool.Put(buf)
 
 	v := &stringer{buf, nil}
-	c.Accept(v)
+	_, _ = c.Accept(v)
 
 	return buf.String()
 }

@@ -51,4 +51,10 @@ var _ = Describe("VList", func() {
 			Expect(list.IsEmpty()).To(BeFalse())
 		})
 	})
+
+	Describe("String", func() {
+		It("returns a comma-separated string representation", func() {
+			Expect(list.String()).To(Equal("{a=1, b=2}"))
+		})
+	})
 })
