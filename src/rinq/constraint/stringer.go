@@ -11,19 +11,23 @@ type stringer struct {
 	hasBraces []bool
 }
 
-func (s *stringer) None() {
+func (s *stringer) None(...interface{}) (interface{}, error) {
 	s.open()
 	s.buf.WriteString("*")
 	s.close()
+
+	return nil, nil
 }
 
-func (s *stringer) Within(ns string, cons []Constraint) {
+func (s *stringer) Within(ns string, cons []Constraint, _ ...interface{}) (interface{}, error) {
 	s.buf.WriteString(ns)
 	s.buf.WriteString("::")
 	s.join(", ", cons)
+
+	return nil, nil
 }
 
-func (s *stringer) Equal(k, v string) {
+func (s *stringer) Equal(k, v string, _ ...interface{}) (interface{}, error) {
 	s.open()
 
 	if v == "" {
@@ -36,9 +40,11 @@ func (s *stringer) Equal(k, v string) {
 	}
 
 	s.close()
+
+	return nil, nil
 }
 
-func (s *stringer) NotEqual(k, v string) {
+func (s *stringer) NotEqual(k, v string, _ ...interface{}) (interface{}, error) {
 	s.open()
 
 	if v == "" {
@@ -50,21 +56,29 @@ func (s *stringer) NotEqual(k, v string) {
 	}
 
 	s.close()
+
+	return nil, nil
 }
 
-func (s *stringer) Not(con Constraint) {
+func (s *stringer) Not(con Constraint, _ ...interface{}) (interface{}, error) {
 	s.open()
 	s.buf.WriteString("! ")
 	con.Accept(s)
 	s.close()
+
+	return nil, nil
 }
 
-func (s *stringer) And(cons []Constraint) {
+func (s *stringer) And(cons []Constraint, _ ...interface{}) (interface{}, error) {
 	s.join(", ", cons)
+
+	return nil, nil
 }
 
-func (s *stringer) Or(cons []Constraint) {
+func (s *stringer) Or(cons []Constraint, _ ...interface{}) (interface{}, error) {
 	s.join("|", cons)
+
+	return nil, nil
 }
 
 func (s *stringer) join(sep string, cons []Constraint) {
