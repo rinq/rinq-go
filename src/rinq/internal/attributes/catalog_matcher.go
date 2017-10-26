@@ -19,10 +19,8 @@ func (m *catalogMatcher) None(_ ...interface{}) (interface{}, error) {
 
 func (m *catalogMatcher) Within(ns string, cons []constraint.Constraint, _ ...interface{}) (interface{}, error) {
 	for _, con := range cons {
-		isMatch, err := con.Accept(m, ns)
-		if err != nil {
-			return nil, err
-		} else if !isMatch.(bool) {
+		isMatch, _ := con.Accept(m, ns)
+		if !isMatch.(bool) {
 			return false, nil
 		}
 	}
@@ -41,20 +39,14 @@ func (m *catalogMatcher) NotEqual(k, v string, args ...interface{}) (interface{}
 }
 
 func (m *catalogMatcher) Not(con constraint.Constraint, args ...interface{}) (interface{}, error) {
-	isMatch, err := con.Accept(m, args...)
-	if err != nil {
-		return nil, err
-	}
-
+	isMatch, _ := con.Accept(m, args...)
 	return !isMatch.(bool), nil
 }
 
 func (m *catalogMatcher) And(cons []constraint.Constraint, args ...interface{}) (interface{}, error) {
 	for _, con := range cons {
-		isMatch, err := con.Accept(m, args...)
-		if err != nil {
-			return nil, err
-		} else if !isMatch.(bool) {
+		isMatch, _ := con.Accept(m, args...)
+		if !isMatch.(bool) {
 			return false, nil
 		}
 	}
@@ -64,10 +56,8 @@ func (m *catalogMatcher) And(cons []constraint.Constraint, args ...interface{}) 
 
 func (m *catalogMatcher) Or(cons []constraint.Constraint, args ...interface{}) (interface{}, error) {
 	for _, con := range cons {
-		isMatch, err := con.Accept(m, args...)
-		if err != nil {
-			return nil, err
-		} else if isMatch.(bool) {
+		isMatch, _ := con.Accept(m, args...)
+		if isMatch.(bool) {
 			return true, nil
 		}
 	}
