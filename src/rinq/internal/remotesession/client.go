@@ -9,7 +9,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
 )
@@ -43,7 +42,7 @@ func (c *client) Fetch(
 	keys []string,
 ) (
 	ident.Revision,
-	attrmeta.List,
+	attributes.VList,
 	error,
 ) {
 	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
@@ -95,7 +94,7 @@ func (c *client) Update(
 	attrs attributes.List,
 ) (
 	ident.Revision,
-	attrmeta.List,
+	attributes.VList,
 	error,
 ) {
 	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)

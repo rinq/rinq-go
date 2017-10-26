@@ -4,7 +4,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
 
 const (
@@ -25,8 +24,8 @@ type fetchRequest struct {
 }
 
 type fetchResponse struct {
-	Rev   ident.Revision `json:"r"`
-	Attrs attrmeta.List  `json:"a,omitempty"`
+	Rev   ident.Revision   `json:"r"`
+	Attrs attributes.VList `json:"a,omitempty"`
 }
 
 type updateRequest struct {
