@@ -162,7 +162,7 @@ func (c *catalog) TryUpdate(
 
 	nextRev := ref.Rev + 1
 	nextAttrs := c.attrs[ns].Clone()
-	diff := attrmeta.NewDiff(ns, nextRev, len(attrs))
+	diff := attributes.NewDiff(ns, nextRev)
 
 	for _, attr := range attrs {
 		entry, exists := nextAttrs[attr.Key]
@@ -189,7 +189,7 @@ func (c *catalog) TryUpdate(
 	c.seq = 0
 
 	if !diff.IsEmpty() {
-		c.attrs = c.attrs.CloneAndMerge(ns, nextAttrs)
+		c.attrs = c.attrs.WithNamespace(ns, nextAttrs)
 	}
 
 	return &revision{
@@ -220,7 +220,7 @@ func (c *catalog) TryClear(
 	attrs := c.attrs[ns]
 	nextRev := ref.Rev + 1
 	nextAttrs := attrmeta.Namespace{}
-	diff := attrmeta.NewDiff(ns, nextRev, len(nextAttrs))
+	diff := attributes.NewDiff(ns, nextRev)
 
 	for _, entry := range attrs {
 		if entry.Value != "" {
@@ -240,7 +240,7 @@ func (c *catalog) TryClear(
 	c.seq = 0
 
 	if !diff.IsEmpty() {
-		c.attrs = c.attrs.CloneAndMerge(ns, nextAttrs)
+		c.attrs = c.attrs.WithNamespace(ns, nextAttrs)
 	}
 
 	return &revision{

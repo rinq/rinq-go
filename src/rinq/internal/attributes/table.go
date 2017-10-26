@@ -26,7 +26,6 @@ func (t Table) IsEmpty() bool {
 	return len(t) == 0
 }
 
-// Len returns the number of attributes in the table.
-func (t Table) Len() int {
-	return len(t)
+func (t Table) String() string {
+	return ToString(t)
 }

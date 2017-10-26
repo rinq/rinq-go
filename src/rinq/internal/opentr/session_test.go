@@ -127,7 +127,7 @@ var _ = Describe("LogSessionUpdateSuccess", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		diff := attrmeta.NewDiff("ns", 23, 0)
+		diff := attributes.NewDiff("ns", 23)
 		diff.Append(
 			attrmeta.Attr{Attr: rinq.Set("a", "1")},
 			attrmeta.Attr{Attr: rinq.Set("b", "2")},
@@ -192,7 +192,7 @@ var _ = Describe("LogSessionClearSuccess", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		diff := attrmeta.NewDiff("ns", 32, 0)
+		diff := attributes.NewDiff("ns", 32)
 		diff.Append(
 			attrmeta.Attr{Attr: rinq.Set("a", ""), UpdatedAt: 23},
 			attrmeta.Attr{Attr: rinq.Set("b", ""), UpdatedAt: 23},

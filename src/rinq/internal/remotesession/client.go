@@ -136,7 +136,7 @@ func (c *client) Update(
 		return 0, nil, err
 	}
 
-	diff := attrmeta.NewDiff(ns, rsp.Rev, len(attrs))
+	diff := attributes.NewDiff(ns, rsp.Rev)
 
 	for index, attr := range attrs {
 		diff.Append(
@@ -151,7 +151,7 @@ func (c *client) Update(
 	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), diff)
 	opentr.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 
-	return rsp.Rev, diff.Attrs, nil
+	return rsp.Rev, diff.VList, nil
 }
 
 func (c *client) Clear(

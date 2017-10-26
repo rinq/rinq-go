@@ -55,13 +55,13 @@ func LogSessionFetchRequest(s opentracing.Span, keys []string) {
 }
 
 // LogSessionFetchSuccess logs information about a successful session fetch to s.
-func LogSessionFetchSuccess(s opentracing.Span, rev ident.Revision, attrs attrmeta.List) {
+func LogSessionFetchSuccess(s opentracing.Span, rev ident.Revision, attrs attributes.Collection) {
 	fields := []log.Field{
 		successEvent,
 		log.Uint32("rev", uint32(rev)),
 	}
 
-	if len(attrs) != 0 {
+	if !attrs.IsEmpty() {
 		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
@@ -75,13 +75,13 @@ func SetupSessionUpdate(s opentracing.Span, ns string, sessID ident.SessionID) {
 }
 
 // LogSessionUpdateRequest logs information about a session update attempt to s.
-func LogSessionUpdateRequest(s opentracing.Span, rev ident.Revision, attrs attributes.List) {
+func LogSessionUpdateRequest(s opentracing.Span, rev ident.Revision, attrs attributes.Collection) {
 	fields := []log.Field{
 		updateEvent,
 		log.Uint32("rev", uint32(rev)),
 	}
 
-	if len(attrs) != 0 {
+	if !attrs.IsEmpty() {
 		fields = append(fields, lazyString("changes", attrs.String))
 	}
 
