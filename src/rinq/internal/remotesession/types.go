@@ -3,8 +3,8 @@ package remotesession
 import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 )
 
 const (
@@ -30,10 +30,10 @@ type fetchResponse struct {
 }
 
 type updateRequest struct {
-	Seq       uint32         `json:"s"`
-	Rev       ident.Revision `json:"r"`
-	Namespace string         `json:"ns"`
-	Attrs     attrutil.List  `json:"a,omitempty"` // omitted for "clear" command
+	Seq       uint32          `json:"s"`
+	Rev       ident.Revision  `json:"r"`
+	Namespace string          `json:"ns"`
+	Attrs     attributes.List `json:"a,omitempty"` // omitted for "clear" command
 }
 
 type updateResponse struct {

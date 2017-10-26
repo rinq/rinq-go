@@ -1,4 +1,4 @@
-package attrutil_test
+package attributes_test
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
-	. "github.com/rinq/rinq-go/src/rinq/internal/attrutil"
+	. "github.com/rinq/rinq-go/src/rinq/internal/attributes"
 )
 
 var _ = Describe("List", func() {

@@ -1,4 +1,4 @@
-package attrutil
+package attributes
 
 import (
 	"bytes"

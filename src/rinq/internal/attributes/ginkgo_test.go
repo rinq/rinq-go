@@ -1,4 +1,4 @@
-package attrutil_test
+package attributes_test
 
 import (
 	"testing"
@@ -9,5 +9,5 @@ import (
 
 func TestSuite(t *testing.T) {
 	gomega.RegisterFailHandler(ginkgo.Fail)
-	ginkgo.RunSpecs(t, "attrutil")
+	ginkgo.RunSpecs(t, "attributes")
 }

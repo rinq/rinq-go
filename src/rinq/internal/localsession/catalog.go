@@ -6,8 +6,8 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 )
 
 // Catalog is an interface for manipulating an attribute table.
@@ -42,7 +42,7 @@ type Catalog interface {
 	TryUpdate(
 		ref ident.Ref,
 		ns string,
-		attrs attrutil.List,
+		attrs attributes.List,
 	) (rinq.Revision, *attrmeta.Diff, error)
 
 	// TryClear updates all attributes in the ns namespace of the attribute
@@ -145,7 +145,7 @@ func (c *catalog) AttrsIn(ns string) (ident.Ref, attrmeta.Namespace) {
 func (c *catalog) TryUpdate(
 	ref ident.Ref,
 	ns string,
-	attrs attrutil.List,
+	attrs attributes.List,
 ) (rinq.Revision, *attrmeta.Diff, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()

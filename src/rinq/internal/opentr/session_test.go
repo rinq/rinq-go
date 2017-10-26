@@ -7,8 +7,8 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrutil"
 	. "github.com/rinq/rinq-go/src/rinq/internal/opentr"
 )
 
@@ -104,7 +104,7 @@ var _ = Describe("LogSessionUpdateRequest", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		attrs := attrutil.List{
+		attrs := attributes.List{
 			rinq.Set("a", "1"),
 			rinq.Set("b", "2"),
 		}
