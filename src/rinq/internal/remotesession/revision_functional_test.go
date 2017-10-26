@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/internal/functest"
 )
 
@@ -178,7 +179,7 @@ var _ = Describe("revision (functional)", func() {
 		It("returns empty attributes at revision zero", func() {
 			attrs, err := remote.GetMany(ctx, ns, "a", "b")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(rinq.ToMap(attrs)).To(Equal(
+			Expect(attributes.ToMap(attrs)).To(Equal(
 				map[string]rinq.Attr{
 					"a": {Key: "a"},
 					"b": {Key: "b"},
@@ -191,7 +192,7 @@ var _ = Describe("revision (functional)", func() {
 
 			attrs, err := remote.GetMany(ctx, ns, "a", "b")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(rinq.ToMap(attrs)).To(Equal(
+			Expect(attributes.ToMap(attrs)).To(Equal(
 				map[string]rinq.Attr{
 					"a": {Key: "a"},
 					"b": {Key: "b"},
@@ -209,7 +210,7 @@ var _ = Describe("revision (functional)", func() {
 
 			attrs, err := remote.GetMany(ctx, ns, "b", "c")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(rinq.ToMap(attrs)).To(Equal(
+			Expect(attributes.ToMap(attrs)).To(Equal(
 				map[string]rinq.Attr{
 					"b": {Key: "b"},
 					"c": {Key: "c"},
@@ -240,7 +241,7 @@ var _ = Describe("revision (functional)", func() {
 
 			attrs, err := remote.GetMany(ctx, ns, "a", "b")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(rinq.ToMap(attrs)).To(Equal(
+			Expect(attributes.ToMap(attrs)).To(Equal(
 				map[string]rinq.Attr{
 					"a": rinq.Set("a", "1"),
 					"b": rinq.Set("b", "2"),

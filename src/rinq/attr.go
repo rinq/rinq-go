@@ -62,15 +62,3 @@ type AttrTable interface {
 	// Len returns the number of attributes in the table.
 	Len() int
 }
-
-// ToMap returns a new attribute map from the attributes in t.
-func ToMap(t AttrTable) map[string]Attr {
-	m := map[string]Attr{}
-
-	t.Each(func(a Attr) bool {
-		m[a.Key] = a
-		return true
-	})
-
-	return m
-}
