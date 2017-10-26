@@ -129,8 +129,8 @@ var _ = Describe("LogSessionUpdateSuccess", func() {
 
 		diff := attributes.NewDiff("ns", 23)
 		diff.Append(
-			attrmeta.Attr{Attr: rinq.Set("a", "1")},
-			attrmeta.Attr{Attr: rinq.Set("b", "2")},
+			attributes.VAttr{Attr: rinq.Set("a", "1")},
+			attributes.VAttr{Attr: rinq.Set("b", "2")},
 		)
 
 		LogSessionUpdateSuccess(span, 23, diff)
@@ -194,8 +194,8 @@ var _ = Describe("LogSessionClearSuccess", func() {
 
 		diff := attributes.NewDiff("ns", 32)
 		diff.Append(
-			attrmeta.Attr{Attr: rinq.Set("a", ""), UpdatedAt: 23},
-			attrmeta.Attr{Attr: rinq.Set("b", ""), UpdatedAt: 23},
+			attributes.VAttr{Attr: rinq.Set("a", ""), UpdatedAt: 23},
+			attributes.VAttr{Attr: rinq.Set("b", ""), UpdatedAt: 23},
 		)
 
 		LogSessionClearSuccess(span, 23, diff)

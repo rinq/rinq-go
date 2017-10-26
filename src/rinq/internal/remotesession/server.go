@@ -7,7 +7,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
@@ -89,7 +89,7 @@ func (s *server) fetch(
 	count := len(args.Keys)
 
 	if count != 0 {
-		rsp.Attrs = make([]attrmeta.Attr, 0, count)
+		rsp.Attrs = make([]attributes.VAttr, 0, count)
 		for _, key := range args.Keys {
 			if attr, ok := attrs[key]; ok {
 				rsp.Attrs = append(rsp.Attrs, attr)

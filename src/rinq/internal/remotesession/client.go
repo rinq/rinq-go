@@ -140,7 +140,7 @@ func (c *client) Update(
 
 	for index, attr := range attrs {
 		diff.Append(
-			attrmeta.Attr{
+			attributes.VAttr{
 				Attr:      attr,
 				CreatedAt: rsp.CreatedRevs[index],
 				UpdatedAt: rsp.Rev,
