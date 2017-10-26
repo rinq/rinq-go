@@ -28,7 +28,7 @@ type store struct {
 	logger   rinq.Logger
 
 	mutex sync.Mutex
-	cache map[ident.SessionID]*catalogCacheEntry
+	cache map[ident.SessionID]*cacheEntry
 }
 
 // NewStore returns a new store for revisions of remote sessions.
@@ -44,7 +44,7 @@ func NewStore(
 		client:   newClient(peerID, invoker, logger, tracer),
 		interval: pruneInterval,
 		logger:   logger,
-		cache:    map[ident.SessionID]*catalogCacheEntry{},
+		cache:    map[ident.SessionID]*cacheEntry{},
 	}
 
 	s.sm = service.NewStateMachine(s.run, nil)
@@ -55,30 +55,30 @@ func NewStore(
 	return s
 }
 
-type catalogCacheEntry struct {
-	Catalog *catalog
+type cacheEntry struct {
+	Session *session
 	Marked  bool
 }
 
 func (s *store) GetRevision(ref ident.Ref) (rinq.Revision, error) {
-	cat := s.getCatalog(ref.ID)
-	return cat.At(ref.Rev), nil
+	sess := s.getSession(ref.ID)
+	return sess.At(ref.Rev), nil
 }
 
-func (s *store) getCatalog(id ident.SessionID) *catalog {
+func (s *store) getSession(id ident.SessionID) *session {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if entry, ok := s.cache[id]; ok {
 		entry.Marked = false
-		return entry.Catalog
+		return entry.Session
 	}
 
-	cat := newCatalog(id, s.client)
-	s.cache[id] = &catalogCacheEntry{cat, false}
+	sess := newSession(id, s.client)
+	s.cache[id] = &cacheEntry{sess, false}
 	logCacheAdd(s.logger, s.peerID, id)
 
-	return cat
+	return sess
 }
 
 func (s *store) run() (service.State, error) {

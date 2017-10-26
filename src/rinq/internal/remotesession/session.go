@@ -11,7 +11,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/internal/x/syncx"
 )
 
-type catalog struct {
+type session struct {
 	id     ident.SessionID
 	client *client
 
@@ -21,8 +21,8 @@ type catalog struct {
 	isClosed   bool
 }
 
-func newCatalog(id ident.SessionID, client *client) *catalog {
-	return &catalog{
+func newSession(id ident.SessionID, client *client) *session {
+	return &session{
 		id:     id,
 		client: client,
 
@@ -30,67 +30,67 @@ func newCatalog(id ident.SessionID, client *client) *catalog {
 	}
 }
 
-func (c *catalog) Head(ctx context.Context) (rinq.Revision, error) {
-	unlock := syncx.RLock(&c.mutex)
+func (s *session) Head(ctx context.Context) (rinq.Revision, error) {
+	unlock := syncx.RLock(&s.mutex)
 	defer unlock()
 
-	if c.isClosed {
-		return nil, rinq.NotFoundError{ID: c.id}
+	if s.isClosed {
+		return nil, rinq.NotFoundError{ID: s.id}
 	}
 
 	unlock()
 
-	rev, _, err := c.client.Fetch(ctx, c.id, "", nil)
+	rev, _, err := s.client.Fetch(ctx, s.id, "", nil)
 
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	c.updateState(rev, err)
+	s.updateState(rev, err)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return &revision{
-		c.id.At(c.highestRev),
-		c,
+		s.id.At(s.highestRev),
+		s,
 	}, nil
 }
 
-func (c *catalog) At(rev ident.Revision) rinq.Revision {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+func (s *session) At(rev ident.Revision) rinq.Revision {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	ref := c.id.At(rev)
+	ref := s.id.At(rev)
 
-	if c.isClosed {
+	if s.isClosed {
 		return revisionpkg.Closed(ref)
 	}
 
-	c.updateState(rev, nil)
+	s.updateState(rev, nil)
 
-	return &revision{ref, c}
+	return &revision{ref, s}
 }
 
-func (c *catalog) Fetch(
+func (s *session) Fetch(
 	ctx context.Context,
 	rev ident.Revision,
 	ns string,
 	keys ...string,
 ) (attributes.List, error) {
-	solvedAttrs, unsolvedKeys, err := c.fetchLocal(rev, ns, keys)
+	solvedAttrs, unsolvedKeys, err := s.fetchLocal(rev, ns, keys)
 	if err != nil {
 		return nil, err
 	} else if len(unsolvedKeys) == 0 {
 		return solvedAttrs, nil
 	}
 
-	fetchedRev, fetchedAttrs, err := c.client.Fetch(ctx, c.id, ns, unsolvedKeys)
+	fetchedRev, fetchedAttrs, err := s.client.Fetch(ctx, s.id, ns, unsolvedKeys)
 
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	c.updateState(fetchedRev, err)
+	s.updateState(fetchedRev, err)
 
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func (c *catalog) Fetch(
 	}
 
 	isStaleFetch := false
-	cache, isExistingNamespace := c.cache[ns]
+	cache, isExistingNamespace := s.cache[ns]
 
 	for _, attr := range fetchedAttrs {
 		entry := cache[attr.Key]
@@ -137,38 +137,38 @@ func (c *catalog) Fetch(
 	}
 
 	if !isExistingNamespace && cache != nil {
-		c.cache[ns] = cache
+		s.cache[ns] = cache
 	}
 
 	if isStaleFetch {
-		return nil, rinq.StaleFetchError{Ref: c.id.At(rev)}
+		return nil, rinq.StaleFetchError{Ref: s.id.At(rev)}
 	}
 
 	return solvedAttrs, nil
 }
 
-func (c *catalog) TryUpdate(
+func (s *session) TryUpdate(
 	ctx context.Context,
 	rev ident.Revision,
 	ns string,
 	attrs attributes.List,
 ) (rinq.Revision, error) {
-	unlock := syncx.RLock(&c.mutex)
+	unlock := syncx.RLock(&s.mutex)
 	defer unlock()
 
-	if c.isClosed {
-		return nil, rinq.NotFoundError{ID: c.id}
+	if s.isClosed {
+		return nil, rinq.NotFoundError{ID: s.id}
 	}
 
-	ref := c.id.At(rev)
+	ref := s.id.At(rev)
 
-	if c.highestRev > rev {
+	if s.highestRev > rev {
 		return nil, rinq.StaleUpdateError{Ref: ref}
 	}
 
 	updateAttrs := make(attributes.List, 0, len(attrs))
 
-	cache := c.cache[ns]
+	cache := s.cache[ns]
 
 	for _, attr := range attrs {
 		if entry, ok := cache[attr.Key]; ok {
@@ -190,18 +190,18 @@ func (c *catalog) TryUpdate(
 
 	unlock()
 
-	updatedRev, returnedAttrs, err := c.client.Update(ctx, ref, ns, updateAttrs)
+	updatedRev, returnedAttrs, err := s.client.Update(ctx, ref, ns, updateAttrs)
 
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	c.updateState(updatedRev, err)
+	s.updateState(updatedRev, err)
 
 	if err != nil {
 		return nil, err
 	}
 
-	cache, isExistingNamespace := c.cache[ns]
+	cache, isExistingNamespace := s.cache[ns]
 
 	for _, attr := range returnedAttrs {
 		entry := cache[attr.Key]
@@ -215,34 +215,34 @@ func (c *catalog) TryUpdate(
 	}
 
 	if !isExistingNamespace && cache != nil {
-		c.cache[ns] = cache
+		s.cache[ns] = cache
 	}
 
 	return &revision{
-		c.id.At(c.highestRev),
-		c,
+		s.id.At(s.highestRev),
+		s,
 	}, nil
 }
 
-func (c *catalog) TryClear(
+func (s *session) TryClear(
 	ctx context.Context,
 	rev ident.Revision,
 	ns string,
 ) (rinq.Revision, error) {
-	unlock := syncx.RLock(&c.mutex)
+	unlock := syncx.RLock(&s.mutex)
 	defer unlock()
 
-	if c.isClosed {
-		return nil, rinq.NotFoundError{ID: c.id}
+	if s.isClosed {
+		return nil, rinq.NotFoundError{ID: s.id}
 	}
 
-	ref := c.id.At(rev)
+	ref := s.id.At(rev)
 
-	if c.highestRev > rev {
+	if s.highestRev > rev {
 		return nil, rinq.StaleUpdateError{Ref: ref}
 	}
 
-	for _, entry := range c.cache[ns] {
+	for _, entry := range s.cache[ns] {
 		if entry.Attr.IsFrozen {
 			if entry.Attr.Value == "" {
 				continue
@@ -254,18 +254,18 @@ func (c *catalog) TryClear(
 
 	unlock()
 
-	updatedRev, err := c.client.Clear(ctx, ref, ns)
+	updatedRev, err := s.client.Clear(ctx, ref, ns)
 
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	c.updateState(updatedRev, err)
+	s.updateState(updatedRev, err)
 
 	if err != nil {
 		return nil, err
 	}
 
-	cache := c.cache[ns]
+	cache := s.cache[ns]
 
 	for key, entry := range cache {
 		if updatedRev > entry.FetchedAt {
@@ -276,44 +276,44 @@ func (c *catalog) TryClear(
 	}
 
 	return &revision{
-		c.id.At(c.highestRev),
-		c,
+		s.id.At(s.highestRev),
+		s,
 	}, nil
 }
 
-func (c *catalog) TryDestroy(
+func (s *session) TryDestroy(
 	ctx context.Context,
 	rev ident.Revision,
 ) error {
-	unlock := syncx.RLock(&c.mutex)
+	unlock := syncx.RLock(&s.mutex)
 	defer unlock()
 
-	if c.isClosed {
-		return rinq.NotFoundError{ID: c.id}
+	if s.isClosed {
+		return rinq.NotFoundError{ID: s.id}
 	}
 
-	ref := c.id.At(rev)
+	ref := s.id.At(rev)
 
-	if c.highestRev > rev {
+	if s.highestRev > rev {
 		return rinq.StaleUpdateError{Ref: ref}
 	}
 
 	unlock()
 
-	err := c.client.Destroy(ctx, ref)
+	err := s.client.Destroy(ctx, ref)
 	if err != nil {
 		return err
 	}
 
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	c.isClosed = true
+	s.isClosed = true
 
 	return nil
 }
 
-func (c *catalog) fetchLocal(
+func (s *session) fetchLocal(
 	rev ident.Revision,
 	ns string,
 	keys []string,
@@ -322,14 +322,14 @@ func (c *catalog) fetchLocal(
 	unsolved []string,
 	err error,
 ) {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	count := len(keys)
 	solved = make(attributes.List, 0, count)
 	unsolved = make([]string, 0, count)
 
-	cache := c.cache[ns]
+	cache := s.cache[ns]
 
 	for _, key := range keys {
 		if entry, ok := cache[key]; ok {
@@ -342,7 +342,7 @@ func (c *catalog) fetchLocal(
 			// The attribute has been changed since this revision, so we can't
 			// even fetch if from the remote peer.
 			if entry.Attr.UpdatedAt > rev {
-				err = rinq.StaleFetchError{Ref: c.id.At(rev)}
+				err = rinq.StaleFetchError{Ref: s.id.At(rev)}
 				return
 			}
 
@@ -358,19 +358,19 @@ func (c *catalog) fetchLocal(
 		unsolved = append(unsolved, key)
 	}
 
-	if len(unsolved) > 0 && c.isClosed {
-		err = rinq.NotFoundError{ID: c.id}
+	if len(unsolved) > 0 && s.isClosed {
+		err = rinq.NotFoundError{ID: s.id}
 	}
 
 	return
 }
 
-func (c *catalog) updateState(rev ident.Revision, err error) {
+func (s *session) updateState(rev ident.Revision, err error) {
 	if err != nil {
 		if rinq.IsNotFound(err) {
-			c.isClosed = true
+			s.isClosed = true
 		}
-	} else if rev > c.highestRev {
-		c.highestRev = rev
+	} else if rev > s.highestRev {
+		s.highestRev = rev
 	}
 }

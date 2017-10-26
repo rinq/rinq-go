@@ -11,7 +11,7 @@ import (
 
 type revision struct {
 	ref     ident.Ref
-	catalog *catalog
+	session *session
 }
 
 func (r *revision) Ref() ident.Ref {
@@ -19,7 +19,7 @@ func (r *revision) Ref() ident.Ref {
 }
 
 func (r *revision) Refresh(ctx context.Context) (rinq.Revision, error) {
-	return r.catalog.Head(ctx)
+	return r.session.Head(ctx)
 }
 
 func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
@@ -31,7 +31,7 @@ func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
 		return rinq.Attr{Key: key}, nil
 	}
 
-	attrs, err := r.catalog.Fetch(ctx, r.ref.Rev, ns, key)
+	attrs, err := r.session.Fetch(ctx, r.ref.Rev, ns, key)
 	if err != nil {
 		return rinq.Attr{}, err
 	} else if len(attrs) == 0 {
@@ -56,7 +56,7 @@ func (r *revision) GetMany(ctx context.Context, ns string, keys ...string) (rinq
 		return table, nil
 	}
 
-	attrs, err := r.catalog.Fetch(ctx, r.ref.Rev, ns, keys...)
+	attrs, err := r.session.Fetch(ctx, r.ref.Rev, ns, keys...)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (r
 		return nil, err
 	}
 
-	rev, err := r.catalog.TryUpdate(ctx, r.ref.Rev, ns, attrs)
+	rev, err := r.session.TryUpdate(ctx, r.ref.Rev, ns, attrs)
 	if err != nil {
 		return r, err
 	}
@@ -86,7 +86,7 @@ func (r *revision) Clear(ctx context.Context, ns string) (rinq.Revision, error) 
 		return nil, err
 	}
 
-	rev, err := r.catalog.TryClear(ctx, r.ref.Rev, ns)
+	rev, err := r.session.TryClear(ctx, r.ref.Rev, ns)
 	if err != nil {
 		return r, err
 	}
@@ -95,5 +95,5 @@ func (r *revision) Clear(ctx context.Context, ns string) (rinq.Revision, error) 
 }
 
 func (r *revision) Destroy(ctx context.Context) error {
-	return r.catalog.TryDestroy(ctx, r.ref.Rev)
+	return r.session.TryDestroy(ctx, r.ref.Rev)
 }

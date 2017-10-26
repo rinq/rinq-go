@@ -55,10 +55,11 @@ var _ = Describe("revision (functional)", func() {
 
 	Describe("Refresh", func() {
 		It("returns a revision with the same ref as the lastest local revision", func() {
-			local, err := local.Update(ctx, ns, rinq.Set("a", "1"))
+			var err error
+			local, err = local.Update(ctx, ns, rinq.Set("a", "1"))
 			Expect(err).NotTo(HaveOccurred())
 
-			remote, err := remote.Refresh(ctx)
+			remote, err = remote.Refresh(ctx)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(remote.Ref()).To(Equal(local.Ref()))
 		})
@@ -126,7 +127,7 @@ var _ = Describe("revision (functional)", func() {
 			_, err := session.Call(ctx, ns, "", nil)
 			Expect(err).NotTo(HaveOccurred())
 
-			local, err := session.CurrentRevision()
+			local, err = session.CurrentRevision()
 			Expect(err).NotTo(HaveOccurred())
 
 			// update the attribute locally such that the server does not know
