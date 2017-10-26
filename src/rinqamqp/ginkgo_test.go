@@ -1,4 +1,4 @@
-package amqp_test
+package rinqamqp_test
 
 import (
 	"testing"

@@ -11,8 +11,8 @@ import (
 	"github.com/rinq/rinq-go/src/internal/revision"
 	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
 	"github.com/streadway/amqp"
 )
 

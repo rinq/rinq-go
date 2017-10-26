@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	. "github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/amqp"
+	"github.com/rinq/rinq-go/src/rinqamqp"
 )
 
 // This example illustrates how to read an attribute from a session.
@@ -15,7 +15,7 @@ import (
 // It includes logic necessary to fetch the attribute even if the Revision in
 // use is out-of-date, by retrying on the latest revision.
 func ExampleRevision_get() {
-	peer, err := amqp.DialEnv()
+	peer, err := rinqamqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +60,7 @@ func ExampleRevision_get() {
 // It includes logic to retry in the face of an optimistic-lock failure, which
 // occurs if the revision is out of date.
 func ExampleRevision_update() {
-	peer, err := amqp.DialEnv()
+	peer, err := rinqamqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}

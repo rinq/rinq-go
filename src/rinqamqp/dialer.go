@@ -1,4 +1,4 @@
-package amqp
+package rinqamqp
 
 import (
 	"context"
@@ -14,11 +14,11 @@ import (
 	"github.com/rinq/rinq-go/src/internal/revision"
 	"github.com/rinq/rinq-go/src/internal/x/env"
 	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
-	"github.com/rinq/rinq-go/src/rinq/amqp/internal/commandamqp"
-	"github.com/rinq/rinq-go/src/rinq/amqp/internal/notifyamqp"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/options"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/commandamqp"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/notifyamqp"
 	"github.com/streadway/amqp"
 )
 

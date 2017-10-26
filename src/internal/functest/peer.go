@@ -4,8 +4,8 @@ import (
 	"sync"
 
 	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/amqp"
 	"github.com/rinq/rinq-go/src/rinq/options"
+	"github.com/rinq/rinq-go/src/rinqamqp"
 )
 
 var sharedPeer struct {
@@ -27,7 +27,7 @@ func SharedPeer() rinq.Peer {
 
 // NewPeer returns a new peer for use in functional tests.
 func NewPeer() rinq.Peer {
-	peer, err := amqp.DialEnv(
+	peer, err := rinqamqp.DialEnv(
 		options.Logger(rinq.NewLogger(true)),
 	)
 

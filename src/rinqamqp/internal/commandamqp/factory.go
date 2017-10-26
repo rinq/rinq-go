@@ -1,37 +1,41 @@
-package notifyamqp
+package commandamqp
 
 import (
+	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/localsession"
-	"github.com/rinq/rinq-go/src/internal/notify"
 	"github.com/rinq/rinq-go/src/internal/revision"
-	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/options"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
 )
 
-// New returns a pair of notifier and listener.
+// New returns a pair of invoker and server.
 func New(
 	peerID ident.PeerID,
 	opts options.Options,
 	sessions localsession.Store,
 	revisions revision.Store,
 	channels amqputil.ChannelPool,
-) (notify.Notifier, notify.Listener, error) {
-	channel, err := channels.GetQOS(opts.SessionWorkers) // do not return to pool, use for listener
+) (command.Invoker, command.Server, error) {
+	channel, err := channels.Get()
 	if err != nil {
 		return nil, nil, err
 	}
+	defer channels.Put(channel)
 
 	if err = declareExchanges(channel); err != nil {
 		return nil, nil, err
 	}
 
-	listener, err := newListener(
+	queues := &queueSet{}
+
+	invoker, err := newInvoker(
 		peerID,
 		opts.SessionWorkers,
+		opts.DefaultTimeout,
 		sessions,
-		revisions,
-		channel,
+		queues,
+		channels,
 		opts.Logger,
 		opts.Tracer,
 	)
@@ -39,5 +43,20 @@ func New(
 		return nil, nil, err
 	}
 
-	return newNotifier(peerID, channels, opts.Logger), listener, nil
+	server, err := newServer(
+		peerID,
+		opts.CommandWorkers,
+		revisions,
+		queues,
+		channels,
+		opts.Logger,
+		opts.Tracer,
+	)
+	if err != nil {
+		invoker.Stop()
+		<-invoker.Done()
+		return nil, nil, err
+	}
+
+	return invoker, server, nil
 }

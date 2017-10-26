@@ -1,14 +1,14 @@
 // +build !without_amqp,!without_examples
 
-package amqp_test
+package rinqamqp_test
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	. "github.com/rinq/rinq-go/src/rinq/amqp"
 	"github.com/rinq/rinq-go/src/rinq/options"
+	. "github.com/rinq/rinq-go/src/rinqamqp"
 )
 
 // This example demonstrates how to establish a peer on a Rinq network using

@@ -1,6 +1,6 @@
 // +build !without_amqp,!without_functests
 
-package amqp_test
+package rinqamqp_test
 
 import (
 	"context"

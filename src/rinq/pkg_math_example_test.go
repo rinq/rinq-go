@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/amqp"
+	"github.com/rinq/rinq-go/src/rinqamqp"
 )
 
 // arguments contains the parameters for the commands in the "math" namespace
@@ -60,7 +60,7 @@ func mathHandler(
 func Example_mathService() {
 	// create a new peer to act as the "server" and start listening for commands
 	// in the "math" namespace.
-	serverPeer, err := amqp.DialEnv()
+	serverPeer, err := rinqamqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
@@ -69,7 +69,7 @@ func Example_mathService() {
 
 	// create a new peer to act as the "client", and a session to make the
 	// call.
-	clientPeer, err := amqp.DialEnv()
+	clientPeer, err := rinqamqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}

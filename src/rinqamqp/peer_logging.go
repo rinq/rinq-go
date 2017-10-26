@@ -1,4 +1,4 @@
-package amqp
+package rinqamqp
 
 import (
 	"github.com/rinq/rinq-go/src/rinq"
