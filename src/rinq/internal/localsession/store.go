@@ -8,14 +8,14 @@ import (
 	revisionpkg "github.com/rinq/rinq-go/src/rinq/internal/revision"
 )
 
-// Store is a collection of sessions and their catalogs.
+// Store is a collection of sessions and their state.
 type Store interface {
 	revisionpkg.Store
 
-	Add(rinq.Session, Catalog)
+	Add(rinq.Session, *State)
 	Remove(ident.SessionID)
-	Get(ident.SessionID) (rinq.Session, Catalog, bool)
-	Each(fn func(rinq.Session, Catalog))
+	Get(ident.SessionID) (rinq.Session, *State, bool)
+	Each(fn func(rinq.Session, *State))
 }
 
 type store struct {
@@ -32,14 +32,14 @@ func NewStore() Store {
 
 type storeEntry struct {
 	Session rinq.Session
-	Catalog Catalog
+	State   *State
 }
 
-func (s *store) Add(sess rinq.Session, cat Catalog) {
+func (s *store) Add(sess rinq.Session, state *State) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.entries[sess.ID()] = storeEntry{sess, cat}
+	s.entries[sess.ID()] = storeEntry{sess, state}
 }
 
 func (s *store) Remove(id ident.SessionID) {
@@ -49,27 +49,27 @@ func (s *store) Remove(id ident.SessionID) {
 	delete(s.entries, id)
 }
 
-func (s *store) Get(id ident.SessionID) (rinq.Session, Catalog, bool) {
+func (s *store) Get(id ident.SessionID) (rinq.Session, *State, bool) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
 	e, ok := s.entries[id]
-	return e.Session, e.Catalog, ok
+	return e.Session, e.State, ok
 }
 
-func (s *store) Each(fn func(rinq.Session, Catalog)) {
+func (s *store) Each(fn func(rinq.Session, *State)) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
 	for _, e := range s.entries {
-		fn(e.Session, e.Catalog)
+		fn(e.Session, e.State)
 	}
 }
 
 func (s *store) GetRevision(ref ident.Ref) (rinq.Revision, error) {
-	_, cat, ok := s.Get(ref.ID)
+	_, state, ok := s.Get(ref.ID)
 	if ok {
-		return cat.At(ref.Rev)
+		return state.At(ref.Rev)
 	}
 
 	return revisionpkg.Closed(ref), nil

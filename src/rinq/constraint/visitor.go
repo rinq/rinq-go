@@ -14,11 +14,11 @@ const (
 
 // Visitor is used to walk a constraint hierarchy.
 type Visitor interface {
-	None()
-	Within(ns string, cons []Constraint)
-	Equal(k, v string)
-	NotEqual(k, v string)
-	Not(con Constraint)
-	And(cons []Constraint)
-	Or(cons []Constraint)
+	None(args ...interface{}) (interface{}, error)
+	Within(ns string, cons []Constraint, args ...interface{}) (interface{}, error)
+	Equal(k, v string, args ...interface{}) (interface{}, error)
+	NotEqual(k, v string, args ...interface{}) (interface{}, error)
+	Not(con Constraint, args ...interface{}) (interface{}, error)
+	And(cons []Constraint, args ...interface{}) (interface{}, error)
+	Or(cons []Constraint, args ...interface{}) (interface{}, error)
 }

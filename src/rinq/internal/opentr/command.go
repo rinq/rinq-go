@@ -6,7 +6,7 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 )
 
 var (
@@ -41,7 +41,7 @@ func SetupCommand(
 // LogInvokerCall logs information about a "call" style invocation to s.
 func LogInvokerCall(
 	s opentracing.Span,
-	attrs attrmeta.Table,
+	attrs attributes.Catalog,
 	p *rinq.Payload,
 ) {
 	fields := []log.Field{
@@ -49,7 +49,7 @@ func LogInvokerCall(
 		log.Int("size", p.Len()),
 	}
 
-	if len(attrs) > 0 {
+	if !attrs.IsEmpty() {
 		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
@@ -59,7 +59,7 @@ func LogInvokerCall(
 // LogInvokerCallAsync logs information about a "call-sync" style invocation to s.
 func LogInvokerCallAsync(
 	span opentracing.Span,
-	attrs attrmeta.Table,
+	attrs attributes.Catalog,
 	p *rinq.Payload,
 ) {
 	fields := []log.Field{
@@ -67,7 +67,7 @@ func LogInvokerCallAsync(
 		log.Int("size", p.Len()),
 	}
 
-	if len(attrs) > 0 {
+	if !attrs.IsEmpty() {
 		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
@@ -77,7 +77,7 @@ func LogInvokerCallAsync(
 // LogInvokerExecute logs information about an "execute" style invoation to s.
 func LogInvokerExecute(
 	span opentracing.Span,
-	attrs attrmeta.Table,
+	attrs attributes.Catalog,
 	p *rinq.Payload,
 ) {
 	fields := []log.Field{
@@ -85,7 +85,7 @@ func LogInvokerExecute(
 		log.Int("size", p.Len()),
 	}
 
-	if len(attrs) > 0 {
+	if !attrs.IsEmpty() {
 		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 

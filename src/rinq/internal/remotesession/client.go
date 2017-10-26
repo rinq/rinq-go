@@ -9,7 +9,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
 )
@@ -43,7 +42,7 @@ func (c *client) Fetch(
 	keys []string,
 ) (
 	ident.Revision,
-	attrmeta.List,
+	attributes.VList,
 	error,
 ) {
 	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
@@ -95,7 +94,7 @@ func (c *client) Update(
 	attrs attributes.List,
 ) (
 	ident.Revision,
-	attrmeta.List,
+	attributes.VList,
 	error,
 ) {
 	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
@@ -136,11 +135,11 @@ func (c *client) Update(
 		return 0, nil, err
 	}
 
-	diff := attrmeta.NewDiff(ns, rsp.Rev, len(attrs))
+	diff := attributes.NewDiff(ns, rsp.Rev)
 
 	for index, attr := range attrs {
 		diff.Append(
-			attrmeta.Attr{
+			attributes.VAttr{
 				Attr:      attr,
 				CreatedAt: rsp.CreatedRevs[index],
 				UpdatedAt: rsp.Rev,
@@ -151,7 +150,7 @@ func (c *client) Update(
 	logUpdate(ctx, c.logger, c.peerID, ref.ID.At(rsp.Rev), diff)
 	opentr.LogSessionUpdateSuccess(span, rsp.Rev, diff)
 
-	return rsp.Rev, diff.Attrs, nil
+	return rsp.Rev, diff.VList, nil
 }
 
 func (c *client) Clear(

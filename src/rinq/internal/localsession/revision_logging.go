@@ -5,7 +5,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
@@ -13,7 +13,7 @@ func logUpdate(
 	ctx context.Context,
 	logger rinq.Logger,
 	ref ident.Ref,
-	diff *attrmeta.Diff,
+	diff *attributes.Diff,
 ) {
 	if traceID := trace.Get(ctx); traceID != "" {
 		logger.Log(
@@ -35,7 +35,7 @@ func logClear(
 	ctx context.Context,
 	logger rinq.Logger,
 	ref ident.Ref,
-	diff *attrmeta.Diff,
+	diff *attributes.Diff,
 ) {
 	if traceID := trace.Get(ctx); traceID != "" {
 		logger.Log(
@@ -56,7 +56,7 @@ func logClear(
 func logDestroy(
 	ctx context.Context,
 	logger rinq.Logger,
-	cat Catalog,
+	state *State,
 ) {
-	logSessionDestroy(logger, cat, trace.Get(ctx))
+	logSessionDestroy(logger, state, trace.Get(ctx))
 }

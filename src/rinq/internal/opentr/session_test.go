@@ -8,7 +8,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	. "github.com/rinq/rinq-go/src/rinq/internal/opentr"
 )
 
@@ -57,7 +56,7 @@ var _ = Describe("LogSessionFetchSuccess", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		attrs := attrmeta.List{
+		attrs := attributes.VList{
 			{Attr: rinq.Set("a", "1")},
 			{Attr: rinq.Set("b", "2")},
 		}
@@ -127,10 +126,10 @@ var _ = Describe("LogSessionUpdateSuccess", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		diff := attrmeta.NewDiff("ns", 23, 0)
+		diff := attributes.NewDiff("ns", 23)
 		diff.Append(
-			attrmeta.Attr{Attr: rinq.Set("a", "1")},
-			attrmeta.Attr{Attr: rinq.Set("b", "2")},
+			attributes.VAttr{Attr: rinq.Set("a", "1")},
+			attributes.VAttr{Attr: rinq.Set("b", "2")},
 		)
 
 		LogSessionUpdateSuccess(span, 23, diff)
@@ -192,10 +191,10 @@ var _ = Describe("LogSessionClearSuccess", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		diff := attrmeta.NewDiff("ns", 32, 0)
+		diff := attributes.NewDiff("ns", 32)
 		diff.Append(
-			attrmeta.Attr{Attr: rinq.Set("a", ""), UpdatedAt: 23},
-			attrmeta.Attr{Attr: rinq.Set("b", ""), UpdatedAt: 23},
+			attributes.VAttr{Attr: rinq.Set("a", ""), UpdatedAt: 23},
+			attributes.VAttr{Attr: rinq.Set("b", ""), UpdatedAt: 23},
 		)
 
 		LogSessionClearSuccess(span, 23, diff)

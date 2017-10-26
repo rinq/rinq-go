@@ -9,7 +9,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
 
 const (
@@ -55,13 +54,13 @@ func LogSessionFetchRequest(s opentracing.Span, keys []string) {
 }
 
 // LogSessionFetchSuccess logs information about a successful session fetch to s.
-func LogSessionFetchSuccess(s opentracing.Span, rev ident.Revision, attrs attrmeta.List) {
+func LogSessionFetchSuccess(s opentracing.Span, rev ident.Revision, attrs attributes.Collection) {
 	fields := []log.Field{
 		successEvent,
 		log.Uint32("rev", uint32(rev)),
 	}
 
-	if len(attrs) != 0 {
+	if !attrs.IsEmpty() {
 		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
@@ -75,13 +74,13 @@ func SetupSessionUpdate(s opentracing.Span, ns string, sessID ident.SessionID) {
 }
 
 // LogSessionUpdateRequest logs information about a session update attempt to s.
-func LogSessionUpdateRequest(s opentracing.Span, rev ident.Revision, attrs attributes.List) {
+func LogSessionUpdateRequest(s opentracing.Span, rev ident.Revision, attrs attributes.Collection) {
 	fields := []log.Field{
 		updateEvent,
 		log.Uint32("rev", uint32(rev)),
 	}
 
-	if len(attrs) != 0 {
+	if !attrs.IsEmpty() {
 		fields = append(fields, lazyString("changes", attrs.String))
 	}
 
@@ -89,7 +88,7 @@ func LogSessionUpdateRequest(s opentracing.Span, rev ident.Revision, attrs attri
 }
 
 // LogSessionUpdateSuccess logs information about a successful session update to s.
-func LogSessionUpdateSuccess(s opentracing.Span, rev ident.Revision, diff *attrmeta.Diff) {
+func LogSessionUpdateSuccess(s opentracing.Span, rev ident.Revision, diff *attributes.Diff) {
 	fields := []log.Field{
 		successEvent,
 		log.Uint32("rev", uint32(rev)),
@@ -120,7 +119,7 @@ func LogSessionClearRequest(s opentracing.Span, rev ident.Revision) {
 
 // LogSessionClearSuccess logs information about a successful session clear to s.
 // diff is optional, as the information is not known on the remote end.
-func LogSessionClearSuccess(s opentracing.Span, rev ident.Revision, diff *attrmeta.Diff) {
+func LogSessionClearSuccess(s opentracing.Span, rev ident.Revision, diff *attributes.Diff) {
 	fields := []log.Field{
 		successEvent,
 		log.Uint32("rev", uint32(rev)),

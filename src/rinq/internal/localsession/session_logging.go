@@ -147,10 +147,10 @@ func logAsyncResponse(
 
 func logSessionDestroy(
 	logger rinq.Logger,
-	cat Catalog,
+	state *State,
 	traceID string,
 ) {
-	ref, attrs := cat.Attrs()
+	ref, attrs := state.Attrs()
 
 	if traceID == "" {
 		logger.Log(

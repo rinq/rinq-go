@@ -7,7 +7,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 )
 
 var (
@@ -34,7 +34,7 @@ func SetupNotification(
 // LogNotifierUnicast logs information about a unicast notification to s.
 func LogNotifierUnicast(
 	s opentracing.Span,
-	attrs attrmeta.Table,
+	attrs attributes.Catalog,
 	target ident.SessionID,
 	p *rinq.Payload,
 ) {
@@ -54,7 +54,7 @@ func LogNotifierUnicast(
 // LogNotifierMulticast logs informatin about a multicast notification to s.
 func LogNotifierMulticast(
 	s opentracing.Span,
-	attrs attrmeta.Table,
+	attrs attributes.Catalog,
 	con constraint.Constraint,
 	p *rinq.Payload,
 ) {

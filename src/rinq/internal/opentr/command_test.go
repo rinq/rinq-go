@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	. "github.com/rinq/rinq-go/src/rinq/internal/opentr"
 )
 
@@ -40,9 +40,9 @@ var _ = Describe("LogInvokerCall", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		attrs := attrmeta.Table{
+		attrs := attributes.Catalog{
 			"ns": {
-				"foo": attrmeta.Attr{
+				"foo": attributes.VAttr{
 					Attr: rinq.Freeze("foo", "bar"),
 				},
 			},
@@ -69,9 +69,9 @@ var _ = Describe("LogInvokerCallAsync", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		attrs := attrmeta.Table{
+		attrs := attributes.Catalog{
 			"ns": {
-				"foo": attrmeta.Attr{
+				"foo": attributes.VAttr{
 					Attr: rinq.Freeze("foo", "bar"),
 				},
 			},
@@ -98,9 +98,9 @@ var _ = Describe("LogInvokerExecute", func() {
 	It("logs the appropriate fields", func() {
 		span := &mockSpan{}
 
-		attrs := attrmeta.Table{
+		attrs := attributes.Catalog{
 			"ns": {
-				"foo": attrmeta.Attr{
+				"foo": attributes.VAttr{
 					Attr: rinq.Freeze("foo", "bar"),
 				},
 			},

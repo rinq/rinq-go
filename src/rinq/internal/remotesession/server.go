@@ -7,7 +7,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/internal/command"
 	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
 	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
@@ -77,19 +77,19 @@ func (s *server) fetch(
 	opentr.SetupSessionFetch(span, args.Namespace, sessID)
 	opentr.LogSessionFetchRequest(span, args.Keys)
 
-	_, cat, ok := s.sessions.Get(sessID)
+	_, state, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	ref, attrs := cat.AttrsIn(args.Namespace)
+	ref, attrs := state.AttrsIn(args.Namespace)
 	rsp := fetchResponse{Rev: ref.Rev}
 	count := len(args.Keys)
 
 	if count != 0 {
-		rsp.Attrs = make([]attrmeta.Attr, 0, count)
+		rsp.Attrs = make([]attributes.VAttr, 0, count)
 		for _, key := range args.Keys {
 			if attr, ok := attrs[key]; ok {
 				rsp.Attrs = append(rsp.Attrs, attr)
@@ -125,14 +125,14 @@ func (s *server) update(
 	opentr.SetupSessionUpdate(span, args.Namespace, sessID)
 	opentr.LogSessionUpdateRequest(span, args.Rev, args.Attrs)
 
-	_, cat, ok := s.sessions.Get(sessID)
+	_, state, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	rev, diff, err := cat.TryUpdate(sessID.At(args.Rev), args.Namespace, args.Attrs)
+	rev, diff, err := state.TryUpdate(sessID.At(args.Rev), args.Namespace, args.Attrs)
 	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
@@ -145,7 +145,7 @@ func (s *server) update(
 		Rev:         rev.Ref().Rev,
 		CreatedRevs: make([]ident.Revision, 0, len(args.Attrs)),
 	}
-	_, attrs := cat.AttrsIn(args.Namespace)
+	_, attrs := state.AttrsIn(args.Namespace)
 
 	for _, attr := range args.Attrs {
 		rsp.CreatedRevs = append(
@@ -182,14 +182,14 @@ func (s *server) clear(
 	opentr.SetupSessionClear(span, args.Namespace, sessID)
 	opentr.LogSessionClearRequest(span, args.Rev)
 
-	_, cat, ok := s.sessions.Get(sessID)
+	_, state, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	rev, diff, err := cat.TryClear(sessID.At(args.Rev), args.Namespace)
+	rev, diff, err := state.TryClear(sessID.At(args.Rev), args.Namespace)
 	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
@@ -230,7 +230,7 @@ func (s *server) destroy(
 	opentr.SetupSessionDestroy(span, sessID)
 	opentr.LogSessionDestroyRequest(span, args.Rev)
 
-	_, cat, ok := s.sessions.Get(sessID)
+	_, state, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
 		opentr.LogSessionError(span, err)
@@ -239,13 +239,13 @@ func (s *server) destroy(
 
 	ref := sessID.At(args.Rev)
 
-	if err := cat.TryDestroy(ref); err != nil {
+	if err := state.TryDestroy(ref); err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	logRemoteDestroy(ctx, s.logger, cat, req.Source.Ref().ID.Peer)
+	logRemoteDestroy(ctx, s.logger, state, req.Source.Ref().ID.Peer)
 
 	res.Close()
 

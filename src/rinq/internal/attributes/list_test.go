@@ -1,8 +1,6 @@
 package attributes_test
 
 import (
-	"bytes"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/rinq/rinq-go/src/rinq"
@@ -10,40 +8,53 @@ import (
 )
 
 var _ = Describe("List", func() {
-	Describe("WriteTo", func() {
-		It("writes only braces when the list is empty", func() {
-			var buf bytes.Buffer
+	var list List
 
-			List{}.WriteTo(&buf)
+	BeforeEach(func() {
+		list = List{
+			rinq.Set("a", "1"),
+			rinq.Set("b", "2"),
+		}
+	})
 
-			Expect(buf.String()).To(Equal("{}"))
-		})
+	Describe("Each", func() {
+		It("calls the function for each attribute in the table", func() {
+			var attrs []rinq.Attr
+			list.Each(func(attr rinq.Attr) bool {
+				attrs = append(attrs, attr)
+				return true
+			})
 
-		It("writes key/value pairs in order", func() {
-			var buf bytes.Buffer
-			l := List{
+			Expect(attrs).To(ConsistOf(
 				rinq.Set("a", "1"),
 				rinq.Set("b", "2"),
-			}
+			))
+		})
 
-			l.WriteTo(&buf)
+		It("stops iteration if the function returns false", func() {
+			var attrs []rinq.Attr
+			list.Each(func(attr rinq.Attr) bool {
+				attrs = append(attrs, attr)
+				return false
+			})
 
-			Expect(buf.String()).To(Equal("{a=1, b=2}"))
+			Expect(len(attrs)).To(Equal(1))
+		})
+	})
+
+	Describe("IsEmpty", func() {
+		It("returns true when the table is empty", func() {
+			Expect(Table{}.IsEmpty()).To(BeTrue())
+		})
+
+		It("returns false when the table is not empty", func() {
+			Expect(list.IsEmpty()).To(BeFalse())
 		})
 	})
 
 	Describe("String", func() {
-		It("returns only braces when the list is empty", func() {
-			Expect(List{}.String()).To(Equal("{}"))
-		})
-
-		It("returns key/value pairs in order", func() {
-			l := List{
-				rinq.Set("a", "1"),
-				rinq.Set("b", "2"),
-			}
-
-			Expect(l.String()).To(Equal("{a=1, b=2}"))
+		It("returns a comma-separated string representation", func() {
+			Expect(list.String()).To(Equal("{a=1, b=2}"))
 		})
 	})
 })

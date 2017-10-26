@@ -26,40 +26,30 @@ func (c Constraint) Or(con Constraint) Constraint {
 }
 
 // Validate returns nil if c is a valid constraint.
-func (c Constraint) Validate() (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			if e, ok := r.(error); ok {
-				err = e
-			} else {
-				panic(r)
-			}
-		}
-	}()
-
+func (c Constraint) Validate() error {
 	v := &validator{}
-	c.Accept(v)
+	_, err := c.Accept(v)
 
-	return
+	return err
 }
 
 // Accept calls the method on v that corresponds to the operation type of c.
-func (c Constraint) Accept(v Visitor) {
+func (c Constraint) Accept(v Visitor, args ...interface{}) (interface{}, error) {
 	switch c.Op {
 	case noneOp:
-		v.None()
+		return v.None(args...)
 	case withinOp:
-		v.Within(c.Value, c.Terms)
+		return v.Within(c.Value, c.Terms, args...)
 	case equalOp:
-		v.Equal(c.Key, c.Value)
+		return v.Equal(c.Key, c.Value, args...)
 	case notEqualOp:
-		v.NotEqual(c.Key, c.Value)
+		return v.NotEqual(c.Key, c.Value, args...)
 	case notOp:
-		v.Not(c.Terms[0])
+		return v.Not(c.Terms[0], args...)
 	case andOp:
-		v.And(c.Terms)
+		return v.And(c.Terms, args...)
 	case orOp:
-		v.Or(c.Terms)
+		return v.Or(c.Terms, args...)
 	default:
 		panic("unrecognized constraint operation: " + c.Op)
 	}
@@ -70,7 +60,7 @@ func (c Constraint) String() string {
 	defer bufferpool.Put(buf)
 
 	v := &stringer{buf, nil}
-	c.Accept(v)
+	_, _ = c.Accept(v)
 
 	return buf.String()
 }
