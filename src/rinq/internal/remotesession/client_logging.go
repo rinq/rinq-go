@@ -5,7 +5,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
@@ -14,7 +14,7 @@ func logUpdate(
 	logger rinq.Logger,
 	peerID ident.PeerID,
 	ref ident.Ref,
-	diff *attrmeta.Diff,
+	diff *attributes.Diff,
 ) {
 	logger.Log(
 		"%s updated remote session %s %s [%s]",

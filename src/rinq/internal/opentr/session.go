@@ -9,7 +9,6 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
 
 const (
@@ -89,7 +88,7 @@ func LogSessionUpdateRequest(s opentracing.Span, rev ident.Revision, attrs attri
 }
 
 // LogSessionUpdateSuccess logs information about a successful session update to s.
-func LogSessionUpdateSuccess(s opentracing.Span, rev ident.Revision, diff *attrmeta.Diff) {
+func LogSessionUpdateSuccess(s opentracing.Span, rev ident.Revision, diff *attributes.Diff) {
 	fields := []log.Field{
 		successEvent,
 		log.Uint32("rev", uint32(rev)),
@@ -120,7 +119,7 @@ func LogSessionClearRequest(s opentracing.Span, rev ident.Revision) {
 
 // LogSessionClearSuccess logs information about a successful session clear to s.
 // diff is optional, as the information is not known on the remote end.
-func LogSessionClearSuccess(s opentracing.Span, rev ident.Revision, diff *attrmeta.Diff) {
+func LogSessionClearSuccess(s opentracing.Span, rev ident.Revision, diff *attributes.Diff) {
 	fields := []log.Field{
 		successEvent,
 		log.Uint32("rev", uint32(rev)),

@@ -43,7 +43,7 @@ type Catalog interface {
 		ref ident.Ref,
 		ns string,
 		attrs attributes.List,
-	) (rinq.Revision, *attrmeta.Diff, error)
+	) (rinq.Revision, *attributes.Diff, error)
 
 	// TryClear updates all attributes in the ns namespace of the attribute
 	// table to the empty string and returns the new head revision.
@@ -53,7 +53,7 @@ type Catalog interface {
 	TryClear(
 		ref ident.Ref,
 		ns string,
-	) (rinq.Revision, *attrmeta.Diff, error)
+	) (rinq.Revision, *attributes.Diff, error)
 
 	// TryDestroy closes the catalog, preventing further updates.
 	//
@@ -146,7 +146,7 @@ func (c *catalog) TryUpdate(
 	ref ident.Ref,
 	ns string,
 	attrs attributes.List,
-) (rinq.Revision, *attrmeta.Diff, error) {
+) (rinq.Revision, *attributes.Diff, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -203,7 +203,7 @@ func (c *catalog) TryUpdate(
 func (c *catalog) TryClear(
 	ref ident.Ref,
 	ns string,
-) (rinq.Revision, *attrmeta.Diff, error) {
+) (rinq.Revision, *attributes.Diff, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
