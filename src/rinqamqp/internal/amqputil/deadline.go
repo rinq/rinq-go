@@ -30,7 +30,7 @@ func PackDeadline(ctx context.Context, msg *amqp.Publishing) (bool, error) {
 
 	// calculate the expiration based on current time
 	msg.Expiration = "0"
-	remainingMillis := deadline.Sub(time.Now()) / time.Millisecond
+	remainingMillis := time.Until(deadline) / time.Millisecond
 
 	select {
 	case <-ctx.Done():
