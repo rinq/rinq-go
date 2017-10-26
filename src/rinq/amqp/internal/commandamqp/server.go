@@ -9,9 +9,9 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/command"
-	"github.com/rinq/rinq-go/src/rinq/internal/revision"
-	"github.com/rinq/rinq-go/src/rinq/internal/service"
+	"github.com/rinq/rinq-go/src/internal/command"
+	"github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/streadway/amqp"
 )
 

@@ -1,6 +1,6 @@
 package constraint
 
-import "github.com/rinq/rinq-go/src/rinq/internal/x/bufferpool"
+import "github.com/rinq/rinq-go/src/internal/x/bufferpool"
 
 // Constraint is a boolean expression evaluated against session attribute values
 // to determine which sessions receive a multicast notification.

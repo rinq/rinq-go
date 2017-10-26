@@ -9,10 +9,10 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/localsession"
-	"github.com/rinq/rinq-go/src/rinq/internal/notify"
-	"github.com/rinq/rinq-go/src/rinq/internal/revision"
-	"github.com/rinq/rinq-go/src/rinq/internal/service"
+	"github.com/rinq/rinq-go/src/internal/localsession"
+	"github.com/rinq/rinq-go/src/internal/notify"
+	"github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/streadway/amqp"
 )
 

@@ -1,6 +1,6 @@
 package rinq
 
-import "github.com/rinq/rinq-go/src/rinq/internal/x/bufferpool"
+import "github.com/rinq/rinq-go/src/internal/x/bufferpool"
 
 // Attr is a sesssion attribute.
 //

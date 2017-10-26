@@ -9,7 +9,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinq/internal/opentr"
+	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/streadway/amqp"
 )
 

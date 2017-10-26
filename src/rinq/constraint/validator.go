@@ -3,7 +3,7 @@ package constraint
 import (
 	"errors"
 
-	"github.com/rinq/rinq-go/src/rinq/internal/namespaces"
+	"github.com/rinq/rinq-go/src/internal/namespaces"
 )
 
 type validator struct{}

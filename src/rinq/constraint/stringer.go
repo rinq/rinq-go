@@ -3,7 +3,7 @@ package constraint
 import (
 	"bytes"
 
-	"github.com/rinq/rinq-go/src/rinq/internal/x/repr"
+	"github.com/rinq/rinq-go/src/internal/x/repr"
 )
 
 type stringer struct {

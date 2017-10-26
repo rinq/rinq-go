@@ -1,6 +1,6 @@
 package rinq
 
-import "github.com/rinq/rinq-go/src/rinq/internal/namespaces"
+import "github.com/rinq/rinq-go/src/internal/namespaces"
 
 // ValidateNamespace checks if ns is a valid namespace.
 //
