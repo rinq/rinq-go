@@ -178,8 +178,8 @@ var _ = Describe("revision (functional)", func() {
 		It("returns empty attributes at revision zero", func() {
 			attrs, err := remote.GetMany(ctx, ns, "a", "b")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(attrs).To(Equal(
-				rinq.AttrTable{
+			Expect(rinq.ToMap(attrs)).To(Equal(
+				map[string]rinq.Attr{
 					"a": {Key: "a"},
 					"b": {Key: "b"},
 				},
@@ -191,8 +191,8 @@ var _ = Describe("revision (functional)", func() {
 
 			attrs, err := remote.GetMany(ctx, ns, "a", "b")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(attrs).To(Equal(
-				rinq.AttrTable{
+			Expect(rinq.ToMap(attrs)).To(Equal(
+				map[string]rinq.Attr{
 					"a": {Key: "a"},
 					"b": {Key: "b"},
 				},
@@ -209,8 +209,8 @@ var _ = Describe("revision (functional)", func() {
 
 			attrs, err := remote.GetMany(ctx, ns, "b", "c")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(attrs).To(Equal(
-				rinq.AttrTable{
+			Expect(rinq.ToMap(attrs)).To(Equal(
+				map[string]rinq.Attr{
 					"b": {Key: "b"},
 					"c": {Key: "c"},
 				},
@@ -222,7 +222,7 @@ var _ = Describe("revision (functional)", func() {
 
 			attrs, err := remote.GetMany(ctx, ns)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(attrs).To(BeEmpty())
+			Expect(attrs.IsEmpty()).To(BeTrue())
 		})
 
 		It("returns attributes created on the owning peer", func() {
@@ -240,8 +240,8 @@ var _ = Describe("revision (functional)", func() {
 
 			attrs, err := remote.GetMany(ctx, ns, "a", "b")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(attrs).To(Equal(
-				rinq.AttrTable{
+			Expect(rinq.ToMap(attrs)).To(Equal(
+				map[string]rinq.Attr{
 					"a": rinq.Set("a", "1"),
 					"b": rinq.Set("b", "2"),
 				},
@@ -326,8 +326,10 @@ var _ = Describe("revision (functional)", func() {
 			attrs, err := local.GetMany(ctx, ns, "a", "b")
 			Expect(err).NotTo(HaveOccurred())
 
-			Expect(attrs["a"].Value).To(BeEmpty())
-			Expect(attrs["b"].Value).To(BeEmpty())
+			a, _ := attrs.Get("a")
+			b, _ := attrs.Get("b")
+			Expect(a.Value).To(BeEmpty())
+			Expect(b.Value).To(BeEmpty())
 		})
 
 		It("returns an error if any frozen attribute exists", func() {

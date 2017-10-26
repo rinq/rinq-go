@@ -44,5 +44,33 @@ func (attr Attr) String() string {
 	return attr.Key + sep + attr.Value
 }
 
-// AttrTable is a map of attribute key to Attr.
-type AttrTable map[string]Attr
+// AttrTable is a read-only attribute table.
+//
+// Attribute tables are not safe for current use. It is the application's
+// responsibility to synchronize access to the table.
+type AttrTable interface {
+	// Get returns the attribute with key k.
+	Get(k string) (Attr, bool)
+
+	// Each calls fn for each attribute in the collection. Iteration stops
+	// when fn returns false.
+	Each(fn func(Attr) bool)
+
+	// IsEmpty returns true if there are no attributes in the table.
+	IsEmpty() bool
+
+	// Len returns the number of attributes in the table.
+	Len() int
+}
+
+// ToMap returns a new attribute map from the attributes in t.
+func ToMap(t AttrTable) map[string]Attr {
+	m := map[string]Attr{}
+
+	t.Each(func(a Attr) bool {
+		m[a.Key] = a
+		return true
+	})
+
+	return m
+}

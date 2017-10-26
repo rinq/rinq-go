@@ -5,6 +5,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq/internal/namespaces"
 )
 
@@ -45,11 +46,8 @@ func (r *revision) GetMany(ctx context.Context, ns string, keys ...string) (rinq
 		return nil, err
 	}
 
-	if len(keys) == 0 {
-		return nil, nil
-	}
+	table := attributes.Table{}
 
-	table := rinq.AttrTable{}
 	for _, key := range keys {
 		table[key] = rinq.Attr{Key: key}
 	}
