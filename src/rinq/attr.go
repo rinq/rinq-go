@@ -46,8 +46,8 @@ func (attr Attr) String() string {
 
 // AttrTable is a read-only attribute table.
 //
-// Attribute tables are not safe for current use. It is the application's
-// responsibility to synchronize access to the table.
+// Attribute table implementations are not guaranteed to be safe for concurrent
+// use. It is the application's responsibility to synchronize access to the table.
 type AttrTable interface {
 	// Get returns the attribute with key k.
 	Get(k string) (Attr, bool)
