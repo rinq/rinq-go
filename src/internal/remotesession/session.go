@@ -4,11 +4,11 @@ import (
 	"context"
 	"sync"
 
-	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	revisionpkg "github.com/rinq/rinq-go/src/internal/revision"
 	"github.com/rinq/rinq-go/src/internal/x/syncx"
+	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 type session struct {

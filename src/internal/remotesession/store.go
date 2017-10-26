@@ -5,11 +5,11 @@ import (
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/internal/command"
 	revisionpkg "github.com/rinq/rinq-go/src/internal/revision"
 	"github.com/rinq/rinq-go/src/internal/service"
+	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 // Store is a local cache of remote revisions.

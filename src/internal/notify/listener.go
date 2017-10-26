@@ -1,9 +1,9 @@
 package notify
 
 import (
+	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/internal/service"
 )
 
 // Listener accepts notifications sent by a notifier.

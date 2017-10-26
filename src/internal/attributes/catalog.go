@@ -1,8 +1,8 @@
 package attributes
 
 import (
-	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/internal/x/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq/constraint"
 )
 
 // Catalog is a namespaced collection of attributes.

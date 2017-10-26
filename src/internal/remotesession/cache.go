@@ -1,8 +1,8 @@
 package remotesession
 
 import (
-	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/internal/attributes"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 // attrTableCache is a namespaced local cache of session attributes.

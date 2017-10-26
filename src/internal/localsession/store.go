@@ -3,9 +3,9 @@ package localsession
 import (
 	"sync"
 
+	revisionpkg "github.com/rinq/rinq-go/src/internal/revision"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	revisionpkg "github.com/rinq/rinq-go/src/internal/revision"
 )
 
 // Store is a collection of sessions and their state.

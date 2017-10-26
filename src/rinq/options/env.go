@@ -3,8 +3,8 @@ package options
 import (
 	"os"
 
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/internal/x/env"
+	"github.com/rinq/rinq-go/src/rinq"
 )
 
 // FromEnv returns peer options with values read from environment variables.

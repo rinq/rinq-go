@@ -1,8 +1,8 @@
 package attributes
 
 import (
-	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/internal/x/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 // Diff is an attribute collection representing a change to a set of attributes

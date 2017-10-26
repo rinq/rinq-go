@@ -3,9 +3,9 @@ package command
 import (
 	"context"
 
+	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/internal/service"
 )
 
 // Invoker is a low-level RPC interface, it is used to implement the

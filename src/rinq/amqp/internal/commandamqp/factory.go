@@ -1,11 +1,11 @@
 package commandamqp
 
 import (
-	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
-	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/localsession"
 	"github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/rinq/amqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/options"
 )
 

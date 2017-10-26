@@ -4,9 +4,9 @@ import (
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/internal/opentr"
 )
 
 // response wraps a "parent" response and performs logging and tracing when the

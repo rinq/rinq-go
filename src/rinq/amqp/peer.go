@@ -5,8 +5,6 @@ import (
 	"sync/atomic"
 
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/localsession"
 	"github.com/rinq/rinq-go/src/internal/namespaces"
@@ -14,6 +12,8 @@ import (
 	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/rinq/rinq-go/src/internal/remotesession"
 	"github.com/rinq/rinq-go/src/internal/service"
+	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/streadway/amqp"
 )

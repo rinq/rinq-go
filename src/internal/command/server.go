@@ -1,8 +1,8 @@
 package command
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/internal/service"
+	"github.com/rinq/rinq-go/src/rinq"
 )
 
 // Server processes command requests made by an invoker.

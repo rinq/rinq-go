@@ -1,8 +1,8 @@
 package attributes
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/internal/x/bufferpool"
+	"github.com/rinq/rinq-go/src/rinq"
 )
 
 // Collection is a collection of attributes.

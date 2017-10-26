@@ -4,9 +4,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	. "github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
-	. "github.com/rinq/rinq-go/src/internal/attributes"
 )
 
 var _ = Describe("Catalog", func() {
