@@ -7,14 +7,13 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 )
 
 // State represents a session's revisioned state.
 type State struct {
 	mutex  sync.RWMutex
 	ref    ident.Ref
-	attrs  attrmeta.Table
+	attrs  attributes.Catalog
 	seq    uint32
 	done   chan struct{}
 	logger rinq.Logger
@@ -30,7 +29,7 @@ func (s *State) Ref() ident.Ref {
 }
 
 // NextMessageID generates a unique message ID from the current session-ref.
-func (s *State) NextMessageID() (ident.MessageID, attrmeta.Table) {
+func (s *State) NextMessageID() (ident.MessageID, attributes.Catalog) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -66,7 +65,7 @@ func (s *State) At(rev ident.Revision) (rinq.Revision, error) {
 }
 
 // Attrs returns all attributes at the most recent revision.
-func (s *State) Attrs() (ident.Ref, attrmeta.Table) {
+func (s *State) Attrs() (ident.Ref, attributes.Catalog) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 

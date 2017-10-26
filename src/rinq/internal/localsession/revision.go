@@ -6,14 +6,13 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/internal/attributes"
-	"github.com/rinq/rinq-go/src/rinq/internal/attrmeta"
 	"github.com/rinq/rinq-go/src/rinq/internal/namespaces"
 )
 
 type revision struct {
 	ref    ident.Ref
 	state  *State
-	attrs  attrmeta.Table
+	attrs  attributes.Catalog
 	logger rinq.Logger
 }
 
