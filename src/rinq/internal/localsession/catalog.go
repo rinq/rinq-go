@@ -32,7 +32,7 @@ type Catalog interface {
 	Attrs() (ident.Ref, attrmeta.Table)
 
 	// AttrsIn returns all attributes in the ns namespace at the most recent revision.
-	AttrsIn(ns string) (ident.Ref, attrmeta.Namespace)
+	AttrsIn(ns string) (ident.Ref, attributes.VTable)
 
 	// TryUpdate adds or updates attributes in the ns namespace of the attribute
 	// table and returns the new head revision.
@@ -135,7 +135,7 @@ func (c *catalog) Attrs() (ident.Ref, attrmeta.Table) {
 	return c.ref, c.attrs
 }
 
-func (c *catalog) AttrsIn(ns string) (ident.Ref, attrmeta.Namespace) {
+func (c *catalog) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
@@ -219,7 +219,7 @@ func (c *catalog) TryClear(
 
 	attrs := c.attrs[ns]
 	nextRev := ref.Rev + 1
-	nextAttrs := attrmeta.Namespace{}
+	nextAttrs := attributes.VTable{}
 	diff := attributes.NewDiff(ns, nextRev)
 
 	for _, entry := range attrs {
