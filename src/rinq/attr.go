@@ -1,5 +1,7 @@
 package rinq
 
+import "github.com/rinq/rinq-go/src/rinq/internal/x/bufferpool"
+
 // Attr is a sesssion attribute.
 //
 // Sessions contain a versioned key/value store. See the Session interface for
@@ -32,22 +34,30 @@ func Freeze(key, value string) Attr {
 }
 
 func (attr Attr) String() string {
-	sep := "="
-	if attr.IsFrozen {
-		if attr.Value == "" {
-			return "!" + attr.Key
-		}
+	buf := bufferpool.Get()
+	defer bufferpool.Put(buf)
 
-		sep = "@"
+	if attr.Value == "" {
+		if attr.IsFrozen {
+			buf.WriteString("!")
+		} else {
+			buf.WriteString("-")
+		}
+		buf.WriteString(attr.Key)
+	} else {
+		buf.WriteString(attr.Key)
+		if attr.IsFrozen {
+			buf.WriteString("@")
+		} else {
+			buf.WriteString("=")
+		}
+		buf.WriteString(attr.Value)
 	}
 
-	return attr.Key + sep + attr.Value
+	return buf.String()
 }
 
-// AttrTable is a read-only attribute table.
-//
-// Attribute table implementations are not guaranteed to be safe for concurrent
-// use. It is the application's responsibility to synchronize access to the table.
+// AttrTable is a read-only table of session attributes.
 type AttrTable interface {
 	// Get returns the attribute with key k.
 	Get(k string) (Attr, bool)
@@ -59,6 +69,5 @@ type AttrTable interface {
 	// IsEmpty returns true if there are no attributes in the table.
 	IsEmpty() bool
 
-	// Len returns the number of attributes in the table.
-	Len() int
+	String() string
 }

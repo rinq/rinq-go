@@ -18,6 +18,11 @@ var _ = Describe("Attr", func() {
 			Expect(attr.String()).To(Equal("foo@bar"))
 		})
 
+		It("uses 'minus' syntax for empty attributes", func() {
+			attr := rinq.Attr{Key: "foo", Value: ""}
+			Expect(attr.String()).To(Equal("-foo"))
+		})
+
 		It("uses 'bang' syntax for empty frozen attributes", func() {
 			attr := rinq.Attr{Key: "foo", Value: "", IsFrozen: true}
 			Expect(attr.String()).To(Equal("!foo"))
