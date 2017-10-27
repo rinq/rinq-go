@@ -116,11 +116,12 @@ var _ = Describe("peer (functional)", func() {
 			Expect(p.Value()).To(BeEquivalentTo(nonce))
 		})
 
-		It("returns an error if the namespace is invalid", func() {
+		It("panics if the namespace is invalid", func() {
 			subject := functest.SharedPeer()
 
-			err := subject.Listen("_invalid", functest.AlwaysPanic())
-			Expect(err).Should(HaveOccurred())
+			Expect(func() {
+				subject.Listen("_invalid", functest.AlwaysPanic())
+			}).Should(Panic())
 		})
 
 		It("returns an error if the peer is stopped", func() {
@@ -159,11 +160,12 @@ var _ = Describe("peer (functional)", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
-		It("returns an error if the namespace is invalid", func() {
+		It("panics if the namespace is invalid", func() {
 			subject := functest.SharedPeer()
 
-			err := subject.Unlisten("_invalid")
-			Expect(err).Should(HaveOccurred())
+			Expect(func() {
+				subject.Unlisten("_invalid")
+			}).Should(Panic())
 		})
 
 		It("returns an error if the peer is stopped", func() {

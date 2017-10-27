@@ -25,9 +25,7 @@ func (r *revision) Refresh(ctx context.Context) (rinq.Revision, error) {
 }
 
 func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
-	if err := namespaces.Validate(ns); err != nil {
-		return rinq.Attr{}, err
-	}
+	namespaces.MustValidate(ns)
 
 	if r.ref.Rev == 0 {
 		return rinq.Attr{Key: key}, nil
@@ -50,9 +48,7 @@ func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
 }
 
 func (r *revision) GetMany(ctx context.Context, ns string, keys ...string) (rinq.AttrTable, error) {
-	if err := namespaces.Validate(ns); err != nil {
-		return nil, err
-	}
+	namespaces.MustValidate(ns)
 
 	attrs := r.attrs[ns]
 	table := attributes.Table{}
@@ -75,9 +71,7 @@ func (r *revision) GetMany(ctx context.Context, ns string, keys ...string) (rinq
 }
 
 func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (rinq.Revision, error) {
-	if err := namespaces.Validate(ns); err != nil {
-		return nil, err
-	}
+	namespaces.MustValidate(ns)
 
 	if len(attrs) == 0 {
 		return r, nil
@@ -94,9 +88,7 @@ func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (r
 }
 
 func (r *revision) Clear(ctx context.Context, ns string) (rinq.Revision, error) {
-	if err := namespaces.Validate(ns); err != nil {
-		return nil, err
-	}
+	namespaces.MustValidate(ns)
 
 	rev, diff, err := r.state.TryClear(r.ref, ns)
 	if err != nil {

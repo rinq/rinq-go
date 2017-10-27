@@ -2,7 +2,6 @@ package localsession
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -82,9 +81,7 @@ func (s *session) CurrentRevision() (rinq.Revision, error) {
 }
 
 func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (*rinq.Payload, error) {
-	if err := namespaces.Validate(ns); err != nil {
-		return nil, err
-	}
+	namespaces.MustValidate(ns)
 
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -119,14 +116,12 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 }
 
 func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Payload) (ident.MessageID, error) {
-	var msgID ident.MessageID
-
-	if err := namespaces.Validate(ns); err != nil {
-		return msgID, err
-	}
+	namespaces.MustValidate(ns)
 
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
+
+	var msgID ident.MessageID
 
 	select {
 	case <-s.done:
@@ -197,9 +192,7 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 }
 
 func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) error {
-	if err := namespaces.Validate(ns); err != nil {
-		return err
-	}
+	namespaces.MustValidate(ns)
 
 	select {
 	case <-s.done:
@@ -237,12 +230,10 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 }
 
 func (s *session) Notify(ctx context.Context, ns, t string, target ident.SessionID, p *rinq.Payload) error {
-	if err := target.Validate(); err != nil || target.Seq == 0 {
-		return fmt.Errorf("session ID %s is invalid", target)
-	}
-
-	if err := namespaces.Validate(ns); err != nil {
-		return err
+	namespaces.MustValidate(ns)
+	ident.MustValidate(target)
+	if target.Seq == 0 {
+		panic("can not send notifications to the zero-session")
 	}
 
 	select {
@@ -282,9 +273,7 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 }
 
 func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.Constraint, p *rinq.Payload) error {
-	if err := namespaces.Validate(ns); err != nil {
-		return err
-	}
+	namespaces.MustValidate(ns)
 
 	select {
 	case <-s.done:
@@ -323,9 +312,7 @@ func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 }
 
 func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
-	if err := namespaces.Validate(ns); err != nil {
-		return err
-	}
+	namespaces.MustValidate(ns)
 
 	if handler == nil {
 		panic("handler must not be nil")
@@ -384,9 +371,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 }
 
 func (s *session) Unlisten(ns string) error {
-	if err := namespaces.Validate(ns); err != nil {
-		return err
-	}
+	namespaces.MustValidate(ns)
 
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()

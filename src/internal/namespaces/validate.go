@@ -26,6 +26,13 @@ func Validate(ns string) error {
 	return nil
 }
 
+// MustValidate panics if ns is invalid.
+func MustValidate(ns string) {
+	if err := Validate(ns); err != nil {
+		panic(err)
+	}
+}
+
 var pattern *regexp.Regexp
 
 func init() {
