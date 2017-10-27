@@ -102,13 +102,11 @@ func (p *peer) Session() rinq.Session {
 	return sess
 }
 
-func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
-	if err := namespaces.Validate(namespace); err != nil {
-		return err
-	}
+func (p *peer) Listen(ns string, handler rinq.CommandHandler) error {
+	namespaces.MustValidate(ns)
 
 	added, err := p.server.Listen(
-		namespace,
+		ns,
 		func(
 			ctx context.Context,
 			req rinq.Request,
@@ -140,21 +138,19 @@ func (p *peer) Listen(namespace string, handler rinq.CommandHandler) error {
 	)
 
 	if added {
-		logStartedListening(p.logger, p.id, namespace)
+		logStartedListening(p.logger, p.id, ns)
 	}
 
 	return err
 }
 
-func (p *peer) Unlisten(namespace string) error {
-	if err := namespaces.Validate(namespace); err != nil {
-		return err
-	}
+func (p *peer) Unlisten(ns string) error {
+	namespaces.MustValidate(ns)
 
-	removed, err := p.server.Unlisten(namespace)
+	removed, err := p.server.Unlisten(ns)
 
 	if removed {
-		logStoppedListening(p.logger, p.id, namespace)
+		logStoppedListening(p.logger, p.id, ns)
 	}
 
 	return err
