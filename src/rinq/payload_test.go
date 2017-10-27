@@ -156,10 +156,6 @@ var _ = Describe("Payload", func() {
 	})
 })
 
-type x interface {
-	Func()
-}
-
 var _ = Describe("NewPayload", func() {
 	DescribeTable(
 		"returns nil when the value is nil",
@@ -171,7 +167,7 @@ var _ = Describe("NewPayload", func() {
 		},
 		Entry("nil", nil),
 		Entry("nil pointer", (*int)(nil)),
-		Entry("nil interface", (x)(nil)),
+		Entry("nil interface", (interface{})(nil)),
 	)
 
 	DescribeTable(

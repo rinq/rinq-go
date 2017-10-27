@@ -1,8 +1,20 @@
 # Changelog
 
+## 0.6.0 (2017-10-27)
+
+- **[BC]** Rename the `amqp` package to `rinqamqp`
+- **[BC]** Removed `rinq.ValidateNamespace()`
+- **[BC]** Panic, rather than return an error, when a "programmer error" is made, such as using an invalid namespace
+- **[BC]** Change `rinq.AttrTable` from a map to an interface
+- **[BC]** Expand notification constraints to a fully-fledged expression system
+- **[NEW]** Add `Revision.Clear()` which sets all attributes in a single namespace to the empty string
+- **[NEW]** Add message IDs to `rinq.Request` and `rinq.Notification`
+- **[NEW]** Add `trace.WithRoot()` which adds a custom trace ID to a context only if there is no existing trace ID
+- **[NEW]** Add `ident.MustValidate()`
+- **[FIX]** Payload now enocdes `nil` maps and slices as empty objects and arrays, respectively, instead of `null`
+
 ## 0.5.0 (2017-10-02)
 
-- **[BC]** Expand notification constraints to a fully-fledged expression system
 - **[BC]** Remove `Config` in favour of "functional options" in the `options` package
 - **[BC]** Session attributes are now namespaced
 - **[NEW]** Add support for [OpenTracing](https://opentracing.io) via new `options.Tracer()` option
