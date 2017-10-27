@@ -2,7 +2,6 @@ package localsession
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -232,9 +231,9 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 
 func (s *session) Notify(ctx context.Context, ns, t string, target ident.SessionID, p *rinq.Payload) error {
 	namespaces.MustValidate(ns)
-
-	if err := target.Validate(); err != nil || target.Seq == 0 {
-		panic(fmt.Errorf("session ID %s is invalid", target))
+	ident.MustValidate(target)
+	if target.Seq == 0 {
+		panic("can not send notifications to the zero-session")
 	}
 
 	select {
