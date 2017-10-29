@@ -3,8 +3,8 @@ package options
 import (
 	"os"
 
+	"github.com/rinq/rinq-go/src/internal/x/env"
 	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/internal/envutil"
 )
 
 // FromEnv returns peer options with values read from environment variables.
@@ -20,14 +20,14 @@ import (
 func FromEnv() ([]Option, error) {
 	var o []Option
 
-	t, ok, err := envutil.Duration("RINQ_DEFAULT_TIMEOUT")
+	t, ok, err := env.Duration("RINQ_DEFAULT_TIMEOUT")
 	if err != nil {
 		return nil, err
 	} else if ok {
 		o = append(o, DefaultTimeout(t))
 	}
 
-	debug, ok, err := envutil.Bool("RINQ_LOG_DEBUG")
+	debug, ok, err := env.Bool("RINQ_LOG_DEBUG")
 	if err != nil {
 		return nil, err
 	} else if ok {
@@ -35,21 +35,21 @@ func FromEnv() ([]Option, error) {
 		o = append(o, Logger(l))
 	}
 
-	n, ok, err := envutil.UInt("RINQ_COMMAND_WORKERS")
+	n, ok, err := env.UInt("RINQ_COMMAND_WORKERS")
 	if err != nil {
 		return nil, err
 	} else if ok {
 		o = append(o, CommandWorkers(n))
 	}
 
-	n, ok, err = envutil.UInt("RINQ_SESSION_WORKERS")
+	n, ok, err = env.UInt("RINQ_SESSION_WORKERS")
 	if err != nil {
 		return nil, err
 	} else if ok {
 		o = append(o, SessionWorkers(n))
 	}
 
-	t, ok, err = envutil.Duration("RINQ_PRUNE_INTERVAL")
+	t, ok, err = env.Duration("RINQ_PRUNE_INTERVAL")
 	if err != nil {
 		return nil, err
 	} else if ok {

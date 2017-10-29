@@ -7,12 +7,12 @@ import (
 	"fmt"
 
 	. "github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/amqp"
+	"github.com/rinq/rinq-go/src/rinqamqp"
 )
 
 // This example illustrates how to establish a new session.
 func ExamplePeer_session() {
-	peer, err := amqp.DialEnv()
+	peer, err := rinqamqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
@@ -27,7 +27,7 @@ func ExamplePeer_session() {
 
 // This example illustrates how to listen for incoming command requests.
 func ExamplePeer_listen() {
-	peer, err := amqp.DialEnv()
+	peer, err := rinqamqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}

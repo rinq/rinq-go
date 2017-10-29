@@ -3,54 +3,69 @@ package constraint
 import (
 	"errors"
 
-	"github.com/rinq/rinq-go/src/rinq/internal/nsutil"
+	"github.com/rinq/rinq-go/src/internal/namespaces"
 )
 
 type validator struct{}
 
-func (v *validator) None() {
+func (v *validator) None(...interface{}) (interface{}, error) {
+	return nil, nil
 }
 
-func (v *validator) Within(ns string, cons []Constraint) {
-	if err := nsutil.Validate(ns); err != nil {
-		panic(errors.New("WITHIN constraint has invalid namespace: " + err.Error()))
+func (v *validator) Within(ns string, cons []Constraint, _ ...interface{}) (interface{}, error) {
+	if err := namespaces.Validate(ns); err != nil {
+		return nil, errors.New("WITHIN constraint has invalid namespace: " + err.Error())
 	}
 
 	if len(cons) == 0 {
-		panic(errors.New("WITHIN constraint has no terms"))
+		return nil, errors.New("WITHIN constraint has no terms")
 	}
 
 	for _, con := range cons {
-		con.Accept(v)
+		if _, err := con.Accept(v); err != nil {
+			return nil, err
+		}
 	}
+
+	return nil, nil
 }
 
-func (v *validator) Equal(string, string) {
+func (v *validator) Equal(string, string, ...interface{}) (interface{}, error) {
+	return nil, nil
 }
 
-func (v *validator) NotEqual(string, string) {
+func (v *validator) NotEqual(string, string, ...interface{}) (interface{}, error) {
+	return nil, nil
 }
 
-func (v *validator) Not(con Constraint) {
-	con.Accept(v)
+func (v *validator) Not(con Constraint, _ ...interface{}) (interface{}, error) {
+	return con.Accept(v)
 }
 
-func (v *validator) And(cons []Constraint) {
+func (v *validator) And(cons []Constraint, _ ...interface{}) (interface{}, error) {
 	if len(cons) == 0 {
-		panic(errors.New("AND constraint has no terms"))
+		return nil, errors.New("AND constraint has no terms")
 	}
 
 	for _, con := range cons {
-		con.Accept(v)
+		if _, err := con.Accept(v); err != nil {
+			return nil, err
+		}
 	}
+
+	return nil, nil
 }
 
-func (v *validator) Or(cons []Constraint) {
+func (v *validator) Or(cons []Constraint, _ ...interface{}) (interface{}, error) {
 	if len(cons) == 0 {
-		panic(errors.New("OR constraint has no terms"))
+		return nil, errors.New("OR constraint has no terms")
 	}
 
 	for _, con := range cons {
-		con.Accept(v)
+		if _, err := con.Accept(v); err != nil {
+			return nil, err
+		}
 	}
+
+	return nil, nil
 }

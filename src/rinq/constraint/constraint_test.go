@@ -12,6 +12,7 @@ var _ = Describe("Constraint", func() {
 		It("returns nil when the constraint is valid", func() {
 			con := constraint.Within(
 				"ns",
+				constraint.None,
 				constraint.Not(
 					constraint.And(
 						constraint.Equal("a", "1"),
@@ -42,6 +43,20 @@ var _ = Describe("Constraint", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
+		It("returns an error if a WITHIN constraint contains an invalid term", func() {
+			con := constraint.Within("ns", constraint.And())
+			err := con.Validate()
+
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("returns an error if a NOT constraint has an invalid term", func() {
+			con := constraint.Not(constraint.And())
+			err := con.Validate()
+
+			Expect(err).To(HaveOccurred())
+		})
+
 		It("returns an error if an AND constraint has no terms", func() {
 			con := constraint.And()
 			err := con.Validate()
@@ -49,8 +64,22 @@ var _ = Describe("Constraint", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
+		It("returns an error if an AND constraint has an invalid term", func() {
+			con := constraint.And(constraint.And())
+			err := con.Validate()
+
+			Expect(err).To(HaveOccurred())
+		})
+
 		It("returns an error if an OR constraint has no terms", func() {
 			con := constraint.Or()
+			err := con.Validate()
+
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("returns an error if an OR constraint has an invalid term", func() {
+			con := constraint.Or(constraint.And())
 			err := con.Validate()
 
 			Expect(err).To(HaveOccurred())

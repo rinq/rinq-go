@@ -7,13 +7,13 @@ import (
 	"fmt"
 
 	. "github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/amqp"
+	"github.com/rinq/rinq-go/src/rinqamqp"
 )
 
 // This example illustrates how to respond to a command request with an
 // application-defined failure.
 func ExampleResponse_fail() {
-	peer, err := amqp.DialEnv()
+	peer, err := rinqamqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}

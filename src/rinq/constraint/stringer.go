@@ -3,7 +3,7 @@ package constraint
 import (
 	"bytes"
 
-	"github.com/rinq/rinq-go/src/rinq/internal/strutil"
+	"github.com/rinq/rinq-go/src/internal/x/repr"
 )
 
 type stringer struct {
@@ -11,65 +11,79 @@ type stringer struct {
 	hasBraces []bool
 }
 
-func (s *stringer) None() {
+func (s *stringer) None(...interface{}) (interface{}, error) {
 	s.open()
 	s.buf.WriteString("*")
 	s.close()
+
+	return nil, nil
 }
 
-func (s *stringer) Within(ns string, cons []Constraint) {
+func (s *stringer) Within(ns string, cons []Constraint, _ ...interface{}) (interface{}, error) {
 	s.buf.WriteString(ns)
 	s.buf.WriteString("::")
 	s.join(", ", cons)
+
+	return nil, nil
 }
 
-func (s *stringer) Equal(k, v string) {
+func (s *stringer) Equal(k, v string, _ ...interface{}) (interface{}, error) {
 	s.open()
 
 	if v == "" {
 		s.buf.WriteRune('!')
-		s.buf.WriteString(strutil.Escape(k))
+		s.buf.WriteString(repr.Escape(k))
 	} else {
-		s.buf.WriteString(strutil.Escape(k))
+		s.buf.WriteString(repr.Escape(k))
 		s.buf.WriteRune('=')
-		s.buf.WriteString(strutil.Escape(v))
+		s.buf.WriteString(repr.Escape(v))
 	}
 
 	s.close()
+
+	return nil, nil
 }
 
-func (s *stringer) NotEqual(k, v string) {
+func (s *stringer) NotEqual(k, v string, _ ...interface{}) (interface{}, error) {
 	s.open()
 
 	if v == "" {
-		s.buf.WriteString(strutil.Escape(k))
+		s.buf.WriteString(repr.Escape(k))
 	} else {
-		s.buf.WriteString(strutil.Escape(k))
+		s.buf.WriteString(repr.Escape(k))
 		s.buf.WriteString("!=")
-		s.buf.WriteString(strutil.Escape(v))
+		s.buf.WriteString(repr.Escape(v))
 	}
 
 	s.close()
+
+	return nil, nil
 }
 
-func (s *stringer) Not(con Constraint) {
+func (s *stringer) Not(con Constraint, _ ...interface{}) (interface{}, error) {
 	s.open()
 	s.buf.WriteString("! ")
-	con.Accept(s)
+	_, _ = con.Accept(s)
 	s.close()
+
+	return nil, nil
 }
 
-func (s *stringer) And(cons []Constraint) {
+func (s *stringer) And(cons []Constraint, _ ...interface{}) (interface{}, error) {
 	s.join(", ", cons)
+
+	return nil, nil
 }
 
-func (s *stringer) Or(cons []Constraint) {
+func (s *stringer) Or(cons []Constraint, _ ...interface{}) (interface{}, error) {
 	s.join("|", cons)
+
+	return nil, nil
 }
 
 func (s *stringer) join(sep string, cons []Constraint) {
 	if len(cons) == 1 {
-		cons[0].Accept(s)
+		_, _ = cons[0].Accept(s)
 		return
 	}
 
@@ -80,7 +94,7 @@ func (s *stringer) join(sep string, cons []Constraint) {
 		if i != 0 {
 			s.buf.WriteString(sep)
 		}
-		con.Accept(s)
+		_, _ = con.Accept(s)
 	}
 
 	s.pop()

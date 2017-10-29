@@ -8,14 +8,14 @@ import (
 	"sync/atomic"
 
 	. "github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/amqp"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinqamqp"
 )
 
 // This example shows how to make an asynchronous command call.
 func ExampleSession_callAsync() {
-	peer, err := amqp.DialEnv()
+	peer, err := rinqamqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
@@ -69,7 +69,7 @@ func ExampleSession_callAsync() {
 
 // This example shows how to send a notification from one session to another.
 func ExampleSession_notify() {
-	peer, err := amqp.DialEnv()
+	peer, err := rinqamqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}
@@ -119,7 +119,7 @@ func ExampleSession_notify() {
 // This example shows how to send a notification from one session to several
 // sessions that contain specific attribute values.
 func ExampleSession_notifyMany() {
-	peer, err := amqp.DialEnv()
+	peer, err := rinqamqp.DialEnv()
 	if err != nil {
 		panic(err)
 	}

@@ -3,6 +3,8 @@ package rinq
 import (
 	"context"
 	"fmt"
+
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 // CommandHandler is a callback-function invoked when a command request is
@@ -25,6 +27,9 @@ type CommandHandler func(
 
 // Request holds information about an incoming command request.
 type Request struct {
+	// ID uniquely identifies the command request.
+	ID ident.MessageID
+
 	// Source is the revision of the session that sent the request, at the time
 	// it was sent (which is not necessarily the latest).
 	Source Revision

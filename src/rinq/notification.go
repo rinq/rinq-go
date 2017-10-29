@@ -4,10 +4,14 @@ import (
 	"context"
 
 	"github.com/rinq/rinq-go/src/rinq/constraint"
+	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 // Notification holds information about an inter-session notification.
 type Notification struct {
+	// ID uniquely identifies the notification.
+	ID ident.MessageID
+
 	// Source refers to the session that sent the notification.
 	Source Revision
 
