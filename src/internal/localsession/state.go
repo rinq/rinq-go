@@ -11,12 +11,12 @@ import (
 
 // State represents a session's revisioned state.
 type State struct {
-	mutex  sync.RWMutex
-	ref    ident.Ref
-	attrs  attributes.Catalog
-	seq    uint32
-	done   chan struct{}
-	logger rinq.Logger
+	mutex     sync.RWMutex
+	ref       ident.Ref
+	attrs     attributes.Catalog
+	seq       uint32
+	destroyed chan struct{}
+	logger    rinq.Logger
 }
 
 // Ref returns the most recent session-ref.
@@ -94,7 +94,7 @@ func (s *State) TryUpdate(
 	defer s.mutex.Unlock()
 
 	select {
-	case <-s.done:
+	case <-s.destroyed:
 		return nil, nil, rinq.NotFoundError{ID: s.ref.ID}
 	default:
 	}
@@ -156,7 +156,7 @@ func (s *State) TryClear(
 	defer s.mutex.Unlock()
 
 	select {
-	case <-s.done:
+	case <-s.destroyed:
 		return nil, nil, rinq.NotFoundError{ID: s.ref.ID}
 	default:
 	}
@@ -212,28 +212,30 @@ func (s *State) TryDestroy(ref ident.Ref) error {
 	}
 
 	select {
-	case <-s.done:
+	case <-s.destroyed:
 	default:
-		close(s.done)
+		close(s.destroyed)
 	}
 
 	return nil
 }
 
-// Close forcefully destroys the session, preventing further updates.
-// It is not an error to close an already-destroyed session.
-func (s *State) Close() {
+// ForceDestroy forcefully destroys the session, preventing further updates.
+// It is not an error to destroy an already-destroyed session.
+func (s *State) ForceDestroy() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	select {
-	case <-s.done:
+	case <-s.destroyed:
+		return false
 	default:
-		close(s.done)
+		close(s.destroyed)
+		return true
 	}
 }
 
-// Done returns a channel that is closed when the session is destroyed.
-func (s *State) Done() <-chan struct{} {
-	return s.done
+// Destroyed returns a channel that is closed when the session is destroyed.
+func (s *State) Destroyed() <-chan struct{} {
+	return s.destroyed
 }

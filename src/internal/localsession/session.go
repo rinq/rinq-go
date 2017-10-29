@@ -45,9 +45,9 @@ func NewSession(
 	sess := &session{
 		id: id,
 		state: State{
-			ref:    id.At(0),
-			done:   make(chan struct{}),
-			logger: logger,
+			ref:       id.At(0),
+			destroyed: make(chan struct{}),
+			logger:    logger,
 		},
 		invoker:  invoker,
 		notifier: notifier,
@@ -60,8 +60,8 @@ func NewSession(
 	logCreated(logger, sess.state.Ref())
 
 	go func() {
-		<-sess.state.Done()
-		sess.destroy()
+		<-sess.state.Destroyed()
+		sess.tearDown()
 	}()
 
 	return sess, &sess.state
@@ -398,24 +398,21 @@ func (s *session) Unlisten(ns string) error {
 }
 
 func (s *session) Destroy() {
-	if s.destroy() {
+	if s.state.ForceDestroy() {
 		logSessionDestroy(s.logger, &s.state, "")
 	}
 }
 
-func (s *session) destroy() bool {
+func (s *session) tearDown() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	select {
 	case <-s.done:
-		return false
 	default:
 		close(s.done)
-		s.state.Close()
 		s.invoker.SetAsyncHandler(s.id, nil)
 		_ = s.listener.UnlistenAll(s.id)
-		return true
 	}
 }
 
