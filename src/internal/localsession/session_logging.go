@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
@@ -11,11 +12,11 @@ import (
 
 func logCreated(
 	logger rinq.Logger,
-	ref ident.Ref,
+	id ident.SessionID,
 ) {
 	logger.Log(
 		"%s session created",
-		ref.ShortString(),
+		id.At(0).ShortString(),
 	)
 }
 
@@ -147,11 +148,10 @@ func logAsyncResponse(
 
 func logSessionDestroy(
 	logger rinq.Logger,
-	state *state,
+	ref ident.Ref,
+	attrs attributes.Catalog,
 	traceID string,
 ) {
-	ref, attrs := state.Attrs()
-
 	if traceID == "" {
 		logger.Log(
 			"%s session destroyed %s",

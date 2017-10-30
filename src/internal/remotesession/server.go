@@ -239,13 +239,16 @@ func (s *server) destroy(
 
 	ref := sessID.At(args.Rev)
 
-	if err := sess.TryDestroy(ref); err != nil {
+	first, err := sess.TryDestroy(ref)
+	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	logRemoteDestroy(ctx, s.logger, sess, req.ID.Ref.ID.Peer)
+	if first {
+		logRemoteDestroy(ctx, s.logger, sess, req.ID.Ref.ID.Peer)
+	}
 
 	res.Close()
 

@@ -2,6 +2,7 @@ package localsession
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/rinq/rinq-go/src/internal/namespaces"
 	"github.com/rinq/rinq-go/src/internal/notify"
 	"github.com/rinq/rinq-go/src/internal/opentr"
+	"github.com/rinq/rinq-go/src/internal/revisions"
+	"github.com/rinq/rinq-go/src/internal/x/syncx"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -51,23 +54,25 @@ type Session interface {
 	//
 	// The operation fails if ref is not the current session-ref. It is not an
 	// error to destroy an already-destroyed session.
-	TryDestroy(ref ident.Ref) error
+	//
+	// first is true if this call caused the session to be destroyed.
+	TryDestroy(ref ident.Ref) (first bool, err error)
 }
 
 type session struct {
-	id       ident.SessionID
-	state    state
 	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
 	logger   rinq.Logger
 	tracer   opentracing.Tracer
-	done     chan struct{}
 
-	// mutex guards Call(), Listen(), Unlisten() and Close() so that Close()
-	// waits for pending calls to complete or timeout, and to ensure that it's
-	// call to listener.Unlisten() is not "undone" by the user.
-	mutex sync.RWMutex
+	mutex       sync.RWMutex
+	ref         ident.Ref
+	msgSeq      uint32
+	isDestroyed bool
+	attrs       attributes.Catalog
+	calls       sync.WaitGroup
+	done        chan struct{}
 }
 
 // NewSession returns a new local session.
@@ -79,52 +84,57 @@ func NewSession(
 	logger rinq.Logger,
 	tracer opentracing.Tracer,
 ) Session {
-	sess := &session{
-		id: id,
-		state: state{
-			ref:       id.At(0),
-			destroyed: make(chan struct{}),
-			logger:    logger,
-		},
+	logCreated(logger, id)
+
+	return &session{
 		invoker:  invoker,
 		notifier: notifier,
+		listener: listener,
 		logger:   logger,
 		tracer:   tracer,
-		listener: listener,
-		done:     make(chan struct{}),
+
+		ref:  id.At(0),
+		done: make(chan struct{}),
 	}
-
-	logCreated(logger, sess.state.Ref())
-
-	go func() {
-		<-sess.state.Destroyed()
-		sess.tearDown()
-	}()
-
-	return sess
 }
 
 func (s *session) ID() ident.SessionID {
-	return s.id
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	return s.ref.ID
 }
 
 func (s *session) CurrentRevision() rinq.Revision {
-	return s.state.Head()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	if s.isDestroyed {
+		return revisions.Closed(s.ref.ID)
+	}
+
+	return &revision{s, s.ref, s.attrs, s.logger}
 }
 
 func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (*rinq.Payload, error) {
 	namespaces.MustValidate(ns)
 
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	unlock := syncx.Lock(&s.mutex)
+	defer unlock()
 
-	select {
-	case <-s.done:
-		return nil, rinq.NotFoundError{ID: s.id}
-	default:
+	if s.isDestroyed {
+		return nil, rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID, attrs := s.state.NextMessageID()
+	msgID := s.nextMessageID()
+	attrs := s.attrs // capture for logging/tracing while mutex is locked
+
+	s.calls.Add(1)
+	defer s.calls.Done()
+
+	// do not hold the lock for the duration of the call, as this would prevent
+	// the handler of the call querying or modifying this session.
+	unlock()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
@@ -150,24 +160,20 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Payload) (ident.MessageID, error) {
 	namespaces.MustValidate(ns)
 
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	var msgID ident.MessageID
-
-	select {
-	case <-s.done:
-		return msgID, rinq.NotFoundError{ID: s.id}
-	default:
+	if s.isDestroyed {
+		return ident.MessageID{}, rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID, attrs := s.state.NextMessageID()
+	msgID := s.nextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
-	opentr.LogInvokerCallAsync(span, attrs, out)
+	opentr.LogInvokerCallAsync(span, s.attrs, out)
 
 	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
 
@@ -185,17 +191,18 @@ func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 // h is invoked for each command response received to a command request made
 // with CallAsync().
 func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
+	// it is important that this lock is acquired for the duration of the call
+	// to s.invoker.SetAsyncHandler(), to ensure that it is serialized with
+	// the similar call in s.destroy() which sets the handler to nil.
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
 	s.invoker.SetAsyncHandler(
-		s.id,
+		s.ref.ID,
 		func(
 			ctx context.Context,
 			sess rinq.Session,
@@ -226,19 +233,20 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) error {
 	namespaces.MustValidate(ns)
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID, attrs := s.state.NextMessageID()
+	msgID := s.nextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
-	opentr.LogInvokerCallAsync(span, attrs, p)
+	opentr.LogInvokerCallAsync(span, s.attrs, p)
 
 	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
 
@@ -268,19 +276,20 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 		panic("can not send notifications to the zero-session")
 	}
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID, attrs := s.state.NextMessageID()
+	msgID := s.nextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	opentr.SetupNotification(span, msgID, ns, t)
-	opentr.LogNotifierUnicast(span, attrs, target, p)
+	opentr.LogNotifierUnicast(span, s.attrs, target, p)
 
 	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, t, p)
 
@@ -307,19 +316,20 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.Constraint, p *rinq.Payload) error {
 	namespaces.MustValidate(ns)
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID, attrs := s.state.NextMessageID()
+	msgID := s.nextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	opentr.SetupNotification(span, msgID, ns, t)
-	opentr.LogNotifierMulticast(span, attrs, con, p)
+	opentr.LogNotifierMulticast(span, s.attrs, con, p)
 
 	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, t, p)
 
@@ -343,31 +353,33 @@ func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 	return err
 }
 
-func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
+func (s *session) Listen(ns string, h rinq.NotificationHandler) error {
 	namespaces.MustValidate(ns)
-
-	if handler == nil {
+	if h == nil {
 		panic("handler must not be nil")
 	}
 
+	// it is important that this lock is acquired for the duration of the call
+	// to s.listener.Listen(), to ensure that it is serialized with the call
+	// to s.listener.UnlistenAll() in s.destroy().
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
 	changed, err := s.listener.Listen(
-		s.id,
+		s.ref.ID,
 		ns,
 		func(
 			ctx context.Context,
 			target rinq.Session,
 			n rinq.Notification,
 		) {
-			ref := s.state.Ref()
+			s.mutex.RLock()
+			ref := s.ref
+			s.mutex.RUnlock()
 
 			span := opentracing.SpanFromContext(ctx)
 			opentr.SetupNotification(span, n.ID, n.Namespace, n.Type)
@@ -384,7 +396,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 				trace.Get(ctx),
 			)
 
-			handler(ctx, target, n)
+			h(ctx, target, n)
 		},
 	)
 
@@ -393,7 +405,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 	} else if changed && s.logger.IsDebug() {
 		s.logger.Log(
 			"%s started listening for notifications in '%s' namespace",
-			s.state.Ref().ShortString(),
+			s.ref.ShortString(),
 			ns,
 		)
 	}
@@ -407,20 +419,18 @@ func (s *session) Unlisten(ns string) error {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	changed, err := s.listener.Unlisten(s.id, ns)
+	changed, err := s.listener.Unlisten(s.ref.ID, ns)
 
 	if err != nil {
 		return err
 	} else if changed && s.logger.IsDebug() {
 		s.logger.Log(
 			"%s stopped listening for notifications in '%s' namespace",
-			s.state.Ref().ShortString(),
+			s.ref.ShortString(),
 			ns,
 		)
 	}
@@ -428,49 +438,194 @@ func (s *session) Unlisten(ns string) error {
 	return nil
 }
 
-func (s *session) Destroy() {
-	if s.state.ForceDestroy() {
-		logSessionDestroy(s.logger, &s.state, "")
+// TODO: remove if this is only used in localsession.Store, use Attrs() instead
+// then manually construct a revision
+func (s *session) At(rev ident.Revision) (rinq.Revision, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	if s.ref.Rev < rev {
+		return nil, errors.New("revision is from the future")
 	}
+
+	return &revision{
+		s,
+		s.ref,
+		s.attrs,
+		s.logger,
+	}, nil
 }
 
-func (s *session) tearDown() {
+// TODO: change to return ident.Revision, or remove completely?
+func (s *session) Attrs() (ident.Ref, attributes.Catalog) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	return s.ref, s.attrs
+}
+
+// TODO: change to return ident.Revision, or remove completely?
+func (s *session) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	return s.ref, s.attrs[ns]
+}
+
+// TODO: change ref to rev?
+func (s *session) TryUpdate(
+	ref ident.Ref,
+	ns string,
+	attrs attributes.List,
+) (rinq.Revision, *attributes.Diff, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	select {
-	case <-s.done:
-	default:
-		close(s.done)
-		s.invoker.SetAsyncHandler(s.id, nil)
-		_ = s.listener.UnlistenAll(s.id)
+	if s.isDestroyed {
+		return nil, nil, rinq.NotFoundError{ID: s.ref.ID}
 	}
+
+	if ref != s.ref {
+		return nil, nil, rinq.StaleUpdateError{Ref: ref}
+	}
+
+	nextRev := s.ref.Rev + 1
+	nextAttrs := s.attrs[ns].Clone()
+	diff := attributes.NewDiff(ns, nextRev)
+
+	for _, attr := range attrs {
+		entry, exists := nextAttrs[attr.Key]
+
+		if attr.Value == entry.Value && attr.IsFrozen == entry.IsFrozen {
+			continue
+		}
+
+		if entry.IsFrozen {
+			return nil, nil, rinq.FrozenAttributesError{Ref: ref}
+		}
+
+		entry.Attr = attr
+		entry.UpdatedAt = nextRev
+		if !exists {
+			entry.CreatedAt = nextRev
+		}
+
+		nextAttrs[attr.Key] = entry
+		diff.Append(entry)
+	}
+
+	s.ref.Rev = nextRev
+	s.msgSeq = 0
+
+	if !diff.IsEmpty() {
+		s.attrs = s.attrs.WithNamespace(ns, nextAttrs)
+	}
+
+	return &revision{
+		s,
+		s.ref,
+		s.attrs,
+		s.logger,
+	}, diff, nil
+}
+
+// TODO: change ref to rev?
+func (s *session) TryClear(
+	ref ident.Ref,
+	ns string,
+) (rinq.Revision, *attributes.Diff, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.isDestroyed {
+		return nil, nil, rinq.NotFoundError{ID: s.ref.ID}
+	}
+
+	if ref != s.ref {
+		return nil, nil, rinq.StaleUpdateError{Ref: ref}
+	}
+
+	attrs := s.attrs[ns]
+	nextRev := s.ref.Rev + 1
+	nextAttrs := attributes.VTable{}
+	diff := attributes.NewDiff(ns, nextRev)
+
+	for _, entry := range attrs {
+		if entry.Value != "" {
+			if entry.IsFrozen {
+				return nil, nil, rinq.FrozenAttributesError{Ref: ref}
+			}
+
+			entry.Value = ""
+			entry.UpdatedAt = nextRev
+			diff.Append(entry)
+		}
+
+		nextAttrs[entry.Key] = entry
+	}
+
+	s.ref.Rev = nextRev
+	s.msgSeq = 0
+
+	if !diff.IsEmpty() {
+		s.attrs = s.attrs.WithNamespace(ns, nextAttrs)
+	}
+
+	return &revision{
+		s,
+		s.ref,
+		s.attrs,
+		s.logger,
+	}, diff, nil
+}
+
+// TODO: change ref to rev?
+func (s *session) TryDestroy(ref ident.Ref) (bool, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if ref != s.ref {
+		return false, rinq.StaleUpdateError{Ref: ref}
+	}
+
+	if s.isDestroyed {
+		return false, nil
+	}
+
+	s.destroy()
+
+	return true, nil
+}
+
+func (s *session) Destroy() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if !s.isDestroyed {
+		s.destroy()
+		logSessionDestroy(s.logger, s.ref, s.attrs, "")
+	}
+}
+
+func (s *session) destroy() {
+	s.isDestroyed = true
+
+	s.invoker.SetAsyncHandler(s.ref.ID, nil)
+	_ = s.listener.UnlistenAll(s.ref.ID)
+
+	go func() {
+		s.calls.Wait()
+		close(s.done)
+	}()
 }
 
 func (s *session) Done() <-chan struct{} {
 	return s.done
 }
 
-func (s *session) At(rev ident.Revision) (rinq.Revision, error) {
-	return s.state.At(rev)
-}
-
-func (s *session) Attrs() (ident.Ref, attributes.Catalog) {
-	return s.state.Attrs()
-}
-
-func (s *session) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
-	return s.state.AttrsIn(ns)
-}
-
-func (s *session) TryUpdate(ref ident.Ref, ns string, attrs attributes.List) (rinq.Revision, *attributes.Diff, error) {
-	return s.state.TryUpdate(ref, ns, attrs)
-}
-
-func (s *session) TryClear(ref ident.Ref, ns string) (rinq.Revision, *attributes.Diff, error) {
-	return s.state.TryClear(ref, ns)
-}
-
-func (s *session) TryDestroy(ref ident.Ref) error {
-	return s.state.TryDestroy(ref)
+// nextMessageID returns a new unique message ID generated from the current
+// session-ref, and the attributes as they existed at that ref.
+func (s *session) nextMessageID() ident.MessageID {
+	s.msgSeq++
+	return s.ref.Message(s.msgSeq)
 }

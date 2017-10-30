@@ -101,7 +101,7 @@ type Session interface {
 	// with CallAsync().
 	//
 	// If IsNotFound(err) returns true, the session has been destroyed and the
-	// command request can not be sent.
+	// handler can not be set.
 	SetAsyncHandler(h AsyncHandler) error
 
 	// Execute sends a command request to the next available peer listening to
