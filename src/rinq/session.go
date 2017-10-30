@@ -154,11 +154,14 @@ type Session interface {
 	// returned immediately.
 	Unlisten(ns string) error
 
-	// Destroy terminates the session after any pending Session.Call()
-	// operations complete.
+	// Destroy terminates the session.
+	//
+	// Destroy does NOT block until the session is destroyed, use the
+	// Session.Done() channel to wait for the session to be destroyed.
 	Destroy()
 
-	// Done returns a channel that is closed when the session is destroyed.
+	// Done returns a channel that is closed when the session is destroyed and
+	// any pending Session.Call() operations have completed.
 	//
 	// The session may be destroyed directly with Destroy(), or via a Revision
 	// that refers to this session, either locally or remotely.
