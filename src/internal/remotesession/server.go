@@ -132,7 +132,7 @@ func (s *server) update(
 		return
 	}
 
-	_, diff, err := sess.TryUpdate(sessID.At(args.Rev), args.Namespace, args.Attrs)
+	_, diff, err := sess.TryUpdate(args.Rev, args.Namespace, args.Attrs)
 	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
@@ -189,7 +189,7 @@ func (s *server) clear(
 		return
 	}
 
-	_, diff, err := sess.TryClear(sessID.At(args.Rev), args.Namespace)
+	_, diff, err := sess.TryClear(args.Rev, args.Namespace)
 	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
@@ -237,9 +237,7 @@ func (s *server) destroy(
 		return
 	}
 
-	ref := sessID.At(args.Rev)
-
-	first, err := sess.TryDestroy(ref)
+	first, err := sess.TryDestroy(args.Rev)
 	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)

@@ -78,7 +78,7 @@ func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (r
 		return r, nil
 	}
 
-	rev, diff, err := r.session.TryUpdate(r.ref, ns, attrs)
+	rev, diff, err := r.session.TryUpdate(r.ref.Rev, ns, attrs)
 	if err != nil {
 		return r, err
 	}
@@ -91,7 +91,7 @@ func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (r
 func (r *revision) Clear(ctx context.Context, ns string) (rinq.Revision, error) {
 	namespaces.MustValidate(ns)
 
-	rev, diff, err := r.session.TryClear(r.ref, ns)
+	rev, diff, err := r.session.TryClear(r.ref.Rev, ns)
 	if err != nil {
 		return r, err
 	}
@@ -102,7 +102,7 @@ func (r *revision) Clear(ctx context.Context, ns string) (rinq.Revision, error) 
 }
 
 func (r *revision) Destroy(ctx context.Context) error {
-	first, err := r.session.TryDestroy(r.ref)
+	first, err := r.session.TryDestroy(r.ref.Rev)
 	if err != nil {
 		return err
 	}

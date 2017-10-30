@@ -41,14 +41,14 @@ type Session interface {
 	//
 	// The operation fails if ref is not the current session-ref, attrs includes
 	// changes to frozen attributes, or the session has been destroyed.
-	TryUpdate(ref ident.Ref, ns string, attrs attributes.List) (rinq.Revision, *attributes.Diff, error)
+	TryUpdate(rev ident.Revision, ns string, attrs attributes.List) (rinq.Revision, *attributes.Diff, error)
 
 	// TryClear updates all attributes in the ns namespace of the attribute
 	// table to the empty string and returns the new head revision.
 	//
 	// The operation fails if ref is not the current session-ref, there are any
 	// frozen attributes, or the session has been destroyed.
-	TryClear(ref ident.Ref, ns string) (rinq.Revision, *attributes.Diff, error)
+	TryClear(rev ident.Revision, ns string) (rinq.Revision, *attributes.Diff, error)
 
 	// TryDestroy destroys the session, preventing further updates.
 	//
@@ -56,7 +56,7 @@ type Session interface {
 	// error to destroy an already-destroyed session.
 	//
 	// first is true if this call caused the session to be destroyed.
-	TryDestroy(ref ident.Ref) (first bool, err error)
+	TryDestroy(rev ident.Revision) (first bool, err error)
 }
 
 type session struct {
@@ -438,8 +438,6 @@ func (s *session) Unlisten(ns string) error {
 	return nil
 }
 
-// TODO: remove if this is only used in localsession.Store, use Attrs() instead
-// then manually construct a revision
 func (s *session) At(rev ident.Revision) (rinq.Revision, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -472,12 +470,7 @@ func (s *session) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
 	return s.ref, s.attrs[ns]
 }
 
-// TODO: change ref to rev?
-func (s *session) TryUpdate(
-	ref ident.Ref,
-	ns string,
-	attrs attributes.List,
-) (rinq.Revision, *attributes.Diff, error) {
+func (s *session) TryUpdate(rev ident.Revision, ns string, attrs attributes.List) (rinq.Revision, *attributes.Diff, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -485,11 +478,11 @@ func (s *session) TryUpdate(
 		return nil, nil, rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	if ref != s.ref {
-		return nil, nil, rinq.StaleUpdateError{Ref: ref}
+	if rev != s.ref.Rev {
+		return nil, nil, rinq.StaleUpdateError{Ref: s.ref.ID.At(rev)}
 	}
 
-	nextRev := s.ref.Rev + 1
+	nextRev := rev + 1
 	nextAttrs := s.attrs[ns].Clone()
 	diff := attributes.NewDiff(ns, nextRev)
 
@@ -501,7 +494,7 @@ func (s *session) TryUpdate(
 		}
 
 		if entry.IsFrozen {
-			return nil, nil, rinq.FrozenAttributesError{Ref: ref}
+			return nil, nil, rinq.FrozenAttributesError{Ref: s.ref.ID.At(rev)}
 		}
 
 		entry.Attr = attr
@@ -529,11 +522,7 @@ func (s *session) TryUpdate(
 	}, diff, nil
 }
 
-// TODO: change ref to rev?
-func (s *session) TryClear(
-	ref ident.Ref,
-	ns string,
-) (rinq.Revision, *attributes.Diff, error) {
+func (s *session) TryClear(rev ident.Revision, ns string) (rinq.Revision, *attributes.Diff, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -541,19 +530,19 @@ func (s *session) TryClear(
 		return nil, nil, rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	if ref != s.ref {
-		return nil, nil, rinq.StaleUpdateError{Ref: ref}
+	if rev != s.ref.Rev {
+		return nil, nil, rinq.StaleUpdateError{Ref: s.ref.ID.At(rev)}
 	}
 
 	attrs := s.attrs[ns]
-	nextRev := s.ref.Rev + 1
+	nextRev := rev + 1
 	nextAttrs := attributes.VTable{}
 	diff := attributes.NewDiff(ns, nextRev)
 
 	for _, entry := range attrs {
 		if entry.Value != "" {
 			if entry.IsFrozen {
-				return nil, nil, rinq.FrozenAttributesError{Ref: ref}
+				return nil, nil, rinq.FrozenAttributesError{Ref: s.ref.ID.At(rev)}
 			}
 
 			entry.Value = ""
@@ -579,13 +568,12 @@ func (s *session) TryClear(
 	}, diff, nil
 }
 
-// TODO: change ref to rev?
-func (s *session) TryDestroy(ref ident.Ref) (bool, error) {
+func (s *session) TryDestroy(rev ident.Revision) (bool, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if ref != s.ref {
-		return false, rinq.StaleUpdateError{Ref: ref}
+	if rev != s.ref.Rev {
+		return false, rinq.StaleUpdateError{Ref: s.ref.ID.At(rev)}
 	}
 
 	if s.isDestroyed {
