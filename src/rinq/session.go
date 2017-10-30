@@ -40,8 +40,8 @@ type Session interface {
 
 	// CurrentRevision returns the current revision of this session.
 	//
-	// If the session has been destroyed, any operation on the revision will
-	// return a NotFoundError.
+	// If the session has been destroyed, any operation on the returned revision
+	// will return a NotFoundError.
 	CurrentRevision() Revision
 
 	// Call sends a command request to the next available peer listening to the
