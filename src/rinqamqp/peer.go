@@ -212,7 +212,7 @@ func (p *peer) finalize(err error) error {
 	p.remoteStore.Stop()
 	p.listener.Stop()
 
-	p.localStore.Each(func(sess localsession.Session) {
+	p.localStore.Each(func(sess *localsession.Session) {
 		sess.Destroy()
 		<-sess.Done()
 	})

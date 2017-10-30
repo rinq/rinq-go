@@ -421,7 +421,7 @@ func (l *listener) findMulticastTargets(
 	}
 
 	l.sessions.Each(
-		func(session localsession.Session) {
+		func(session *localsession.Session) {
 			_, attrs := session.Attrs()
 			if attrs.MatchConstraint(n.Namespace, n.Constraint) {
 				sessions = append(sessions, session)

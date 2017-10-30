@@ -12,18 +12,18 @@ import (
 // of revisions.Store.
 type Store struct {
 	mutex    sync.RWMutex
-	sessions map[ident.SessionID]Session
+	sessions map[ident.SessionID]*Session
 }
 
 // NewStore returns a new session store.
 func NewStore() *Store {
 	return &Store{
-		sessions: map[ident.SessionID]Session{},
+		sessions: map[ident.SessionID]*Session{},
 	}
 }
 
 // Add adds a session to the store.
-func (s *Store) Add(sess Session) {
+func (s *Store) Add(sess *Session) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -39,7 +39,7 @@ func (s *Store) Remove(id ident.SessionID) {
 }
 
 // Get fetches a session from the store by its ID.
-func (s *Store) Get(id ident.SessionID) (sess Session, ok bool) {
+func (s *Store) Get(id ident.SessionID) (sess *Session, ok bool) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -48,7 +48,7 @@ func (s *Store) Get(id ident.SessionID) (sess Session, ok bool) {
 }
 
 // Each calls fn(sess) for each session in the store.
-func (s *Store) Each(fn func(Session)) {
+func (s *Store) Each(fn func(*Session)) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 

@@ -21,45 +21,9 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
-// Session is an extension of the rinq.Session interface that includes
-// operations used by Rinq internals.
-type Session interface {
-	rinq.Session
-
-	// At returns a revision representing the state at a specific revision
-	// number. The revision can not be newer than the current session-ref.
-	At(rev ident.Revision) (rinq.Revision, error)
-
-	// Attrs returns all attributes at the most recent revision.
-	Attrs() (ident.Ref, attributes.Catalog)
-
-	// AttrsIn returns all attributes in the ns namespace at the most recent revision.
-	AttrsIn(ns string) (ident.Ref, attributes.VTable)
-
-	// TryUpdate adds or updates attributes in the ns namespace of the attribute
-	// table and returns the new head revision.
-	//
-	// The operation fails if ref is not the current session-ref, attrs includes
-	// changes to frozen attributes, or the session has been destroyed.
-	TryUpdate(rev ident.Revision, ns string, attrs attributes.List) (rinq.Revision, *attributes.Diff, error)
-
-	// TryClear updates all attributes in the ns namespace of the attribute
-	// table to the empty string and returns the new head revision.
-	//
-	// The operation fails if ref is not the current session-ref, there are any
-	// frozen attributes, or the session has been destroyed.
-	TryClear(rev ident.Revision, ns string) (rinq.Revision, *attributes.Diff, error)
-
-	// TryDestroy destroys the session, preventing further updates.
-	//
-	// The operation fails if ref is not the current session-ref. It is not an
-	// error to destroy an already-destroyed session.
-	//
-	// first is true if this call caused the session to be destroyed.
-	TryDestroy(rev ident.Revision) (first bool, err error)
-}
-
-type session struct {
+// Session is the implementation rinq.Session, it provides several additional
+// method used by the Rinq internals to manipulate the session state.
+type Session struct {
 	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
@@ -83,10 +47,10 @@ func NewSession(
 	listener notify.Listener,
 	logger rinq.Logger,
 	tracer opentracing.Tracer,
-) Session {
+) *Session {
 	logCreated(logger, id)
 
-	return &session{
+	return &Session{
 		invoker:  invoker,
 		notifier: notifier,
 		listener: listener,
@@ -98,14 +62,16 @@ func NewSession(
 	}
 }
 
-func (s *session) ID() ident.SessionID {
+// ID implements rinq.Session.ID()
+func (s *Session) ID() ident.SessionID {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
 	return s.ref.ID
 }
 
-func (s *session) CurrentRevision() rinq.Revision {
+// CurrentRevision implements rinq.Session.CurrentRevision()
+func (s *Session) CurrentRevision() rinq.Revision {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -116,7 +82,8 @@ func (s *session) CurrentRevision() rinq.Revision {
 	return &revision{s, s.ref, s.attrs, s.logger}
 }
 
-func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (*rinq.Payload, error) {
+// Call implements rinq.Session.Call()
+func (s *Session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (*rinq.Payload, error) {
 	namespaces.MustValidate(ns)
 
 	unlock := syncx.Lock(&s.mutex)
@@ -157,7 +124,8 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 	return in, err
 }
 
-func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Payload) (ident.MessageID, error) {
+// CallAsync implements rinq.Session.CallAsync()
+func (s *Session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Payload) (ident.MessageID, error) {
 	namespaces.MustValidate(ns)
 
 	s.mutex.Lock()
@@ -186,11 +154,8 @@ func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 	return msgID, err
 }
 
-// SetAsyncHandler sets the asynchronous call handler.
-//
-// h is invoked for each command response received to a command request made
-// with CallAsync().
-func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
+// SetAsyncHandler implements rinq.Session.SetAsyncHandler()
+func (s *Session) SetAsyncHandler(h rinq.AsyncHandler) error {
 	// it is important that this lock is acquired for the duration of the call
 	// to s.invoker.SetAsyncHandler(), to ensure that it is serialized with
 	// the similar call in s.destroy() which sets the handler to nil.
@@ -230,7 +195,8 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 	return nil
 }
 
-func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) error {
+// Execute implements rinq.Session.Execute()
+func (s *Session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) error {
 	namespaces.MustValidate(ns)
 
 	s.mutex.Lock()
@@ -269,7 +235,8 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 	return err
 }
 
-func (s *session) Notify(ctx context.Context, ns, t string, target ident.SessionID, p *rinq.Payload) error {
+// Notify implements rinq.Session.Notify()
+func (s *Session) Notify(ctx context.Context, ns, t string, target ident.SessionID, p *rinq.Payload) error {
 	namespaces.MustValidate(ns)
 	ident.MustValidate(target)
 	if target.Seq == 0 {
@@ -313,7 +280,8 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 	return err
 }
 
-func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.Constraint, p *rinq.Payload) error {
+// NotifyMany implements rinq.Session.NotifyMany()
+func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.Constraint, p *rinq.Payload) error {
 	namespaces.MustValidate(ns)
 
 	s.mutex.Lock()
@@ -353,7 +321,8 @@ func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 	return err
 }
 
-func (s *session) Listen(ns string, h rinq.NotificationHandler) error {
+// Listen implements rinq.Session.Listen()
+func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 	namespaces.MustValidate(ns)
 	if h == nil {
 		panic("handler must not be nil")
@@ -413,7 +382,8 @@ func (s *session) Listen(ns string, h rinq.NotificationHandler) error {
 	return nil
 }
 
-func (s *session) Unlisten(ns string) error {
+// Unlisten implements rinq.Session.Unlisten()
+func (s *Session) Unlisten(ns string) error {
 	namespaces.MustValidate(ns)
 
 	s.mutex.RLock()
@@ -438,7 +408,25 @@ func (s *session) Unlisten(ns string) error {
 	return nil
 }
 
-func (s *session) At(rev ident.Revision) (rinq.Revision, error) {
+// Destroy implements rinq.Session.Destroy()
+func (s *Session) Destroy() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if !s.isDestroyed {
+		s.destroy()
+		logSessionDestroy(s.logger, s.ref, s.attrs, "")
+	}
+}
+
+// Done implements rinq.Session.Done()
+func (s *Session) Done() <-chan struct{} {
+	return s.done
+}
+
+// At returns a revision representing the state at a specific revision
+// number. The revision can not be newer than the current session-ref.
+func (s *Session) At(rev ident.Revision) (rinq.Revision, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -454,21 +442,28 @@ func (s *session) At(rev ident.Revision) (rinq.Revision, error) {
 	}, nil
 }
 
-func (s *session) Attrs() (ident.Ref, attributes.Catalog) {
+// Attrs returns all attributes at the most recent revision.
+func (s *Session) Attrs() (ident.Ref, attributes.Catalog) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
 	return s.ref, s.attrs
 }
 
-func (s *session) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
+// AttrsIn returns all attributes in the ns namespace at the most recent revision.
+func (s *Session) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
 	return s.ref, s.attrs[ns]
 }
 
-func (s *session) TryUpdate(rev ident.Revision, ns string, attrs attributes.List) (rinq.Revision, *attributes.Diff, error) {
+// TryUpdate adds or updates attributes in the ns namespace of the attribute
+// table and returns the new head revision.
+//
+// The operation fails if ref is not the current session-ref, attrs includes
+// changes to frozen attributes, or the session has been destroyed.
+func (s *Session) TryUpdate(rev ident.Revision, ns string, attrs attributes.List) (rinq.Revision, *attributes.Diff, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -520,7 +515,12 @@ func (s *session) TryUpdate(rev ident.Revision, ns string, attrs attributes.List
 	}, diff, nil
 }
 
-func (s *session) TryClear(rev ident.Revision, ns string) (rinq.Revision, *attributes.Diff, error) {
+// TryClear updates all attributes in the ns namespace of the attribute
+// table to the empty string and returns the new head revision.
+//
+// The operation fails if ref is not the current session-ref, there are any
+// frozen attributes, or the session has been destroyed.
+func (s *Session) TryClear(rev ident.Revision, ns string) (rinq.Revision, *attributes.Diff, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -566,7 +566,13 @@ func (s *session) TryClear(rev ident.Revision, ns string) (rinq.Revision, *attri
 	}, diff, nil
 }
 
-func (s *session) TryDestroy(rev ident.Revision) (bool, error) {
+// TryDestroy destroys the session, preventing further updates.
+//
+// The operation fails if ref is not the current session-ref. It is not an
+// error to destroy an already-destroyed session.
+//
+// first is true if this call caused the session to be destroyed.
+func (s *Session) TryDestroy(rev ident.Revision) (bool, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -583,35 +589,24 @@ func (s *session) TryDestroy(rev ident.Revision) (bool, error) {
 	return true, nil
 }
 
-func (s *session) Destroy() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	if !s.isDestroyed {
-		s.destroy()
-		logSessionDestroy(s.logger, s.ref, s.attrs, "")
-	}
-}
-
-func (s *session) destroy() {
+// destroy marks the session as destroyed removes any callbacks registered with
+// the command and notification subsystems.
+func (s *Session) destroy() {
 	s.isDestroyed = true
 
 	s.invoker.SetAsyncHandler(s.ref.ID, nil)
 	_ = s.listener.UnlistenAll(s.ref.ID)
 
 	go func() {
+		// close the done channel only after all pending calls have finished
 		s.calls.Wait()
 		close(s.done)
 	}()
 }
 
-func (s *session) Done() <-chan struct{} {
-	return s.done
-}
-
 // nextMessageID returns a new unique message ID generated from the current
 // session-ref, and the attributes as they existed at that ref.
-func (s *session) nextMessageID() ident.MessageID {
+func (s *Session) nextMessageID() ident.MessageID {
 	s.msgSeq++
 	return s.ref.Message(s.msgSeq)
 }

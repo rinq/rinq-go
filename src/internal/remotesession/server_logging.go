@@ -45,7 +45,7 @@ func logRemoteClear(
 func logRemoteDestroy(
 	ctx context.Context,
 	logger rinq.Logger,
-	sess localsession.Session,
+	sess *localsession.Session,
 	peerID ident.PeerID,
 ) {
 	ref, attrs := sess.Attrs()
