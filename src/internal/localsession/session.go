@@ -7,6 +7,7 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/namespaces"
 	"github.com/rinq/rinq-go/src/internal/notify"
@@ -17,9 +18,52 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
+// Session is an extension of the rinq.Session interface that includes
+// operations used by Rinq internals.
+type Session interface {
+	rinq.Session
+
+	// Head returns the most recent revision, even if the session has been
+	// destroyed. It is conceptually equivalent to s.At(s.Ref().Rev).
+	//
+	// TODO: can we either adopt this behaviour for Session.CurrentRevision(),
+	// or update all callers to use CurrentRevision() as is.
+	CurrentRevisionUnsafe() rinq.Revision
+
+	// At returns a revision representing the state at a specific revision
+	// number. The revision can not be newer than the current session-ref.
+	At(rev ident.Revision) (rinq.Revision, error)
+
+	// Attrs returns all attributes at the most recent revision.
+	Attrs() (ident.Ref, attributes.Catalog)
+
+	// AttrsIn returns all attributes in the ns namespace at the most recent revision.
+	AttrsIn(ns string) (ident.Ref, attributes.VTable)
+
+	// TryUpdate adds or updates attributes in the ns namespace of the attribute
+	// table and returns the new head revision.
+	//
+	// The operation fails if ref is not the current session-ref, attrs includes
+	// changes to frozen attributes, or the session has been destroyed.
+	TryUpdate(ref ident.Ref, ns string, attrs attributes.List) (rinq.Revision, *attributes.Diff, error)
+
+	// TryClear updates all attributes in the ns namespace of the attribute
+	// table to the empty string and returns the new head revision.
+	//
+	// The operation fails if ref is not the current session-ref, there are any
+	// frozen attributes, or the session has been destroyed.
+	TryClear(ref ident.Ref, ns string) (rinq.Revision, *attributes.Diff, error)
+
+	// TryDestroy destroys the session, preventing further updates.
+	//
+	// The operation fails if ref is not the current session-ref. It is not an
+	// error to destroy an already-destroyed session.
+	TryDestroy(ref ident.Ref) error
+}
+
 type session struct {
 	id       ident.SessionID
-	state    State
+	state    state
 	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
@@ -41,10 +85,10 @@ func NewSession(
 	listener notify.Listener,
 	logger rinq.Logger,
 	tracer opentracing.Tracer,
-) (rinq.Session, *State) {
+) Session {
 	sess := &session{
 		id: id,
-		state: State{
+		state: state{
 			ref:       id.At(0),
 			destroyed: make(chan struct{}),
 			logger:    logger,
@@ -64,7 +108,7 @@ func NewSession(
 		sess.tearDown()
 	}()
 
-	return sess, &sess.state
+	return sess
 }
 
 func (s *session) ID() ident.SessionID {
@@ -418,4 +462,32 @@ func (s *session) tearDown() {
 
 func (s *session) Done() <-chan struct{} {
 	return s.done
+}
+
+func (s *session) CurrentRevisionUnsafe() rinq.Revision {
+	return s.state.Head()
+}
+
+func (s *session) At(rev ident.Revision) (rinq.Revision, error) {
+	return s.state.At(rev)
+}
+
+func (s *session) Attrs() (ident.Ref, attributes.Catalog) {
+	return s.state.Attrs()
+}
+
+func (s *session) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
+	return s.state.AttrsIn(ns)
+}
+
+func (s *session) TryUpdate(ref ident.Ref, ns string, attrs attributes.List) (rinq.Revision, *attributes.Diff, error) {
+	return s.state.TryUpdate(ref, ns, attrs)
+}
+
+func (s *session) TryClear(ref ident.Ref, ns string) (rinq.Revision, *attributes.Diff, error) {
+	return s.state.TryClear(ref, ns)
+}
+
+func (s *session) TryDestroy(ref ident.Ref) error {
+	return s.state.TryDestroy(ref)
 }

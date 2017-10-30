@@ -12,34 +12,29 @@ import (
 type Store interface {
 	revisionpkg.Store
 
-	Add(rinq.Session, *State)
+	Add(Session)
 	Remove(ident.SessionID)
-	Get(ident.SessionID) (rinq.Session, *State, bool)
-	Each(fn func(rinq.Session, *State))
+	Get(ident.SessionID) (Session, bool)
+	Each(fn func(Session))
 }
 
 type store struct {
 	mutex   sync.RWMutex
-	entries map[ident.SessionID]storeEntry
+	entries map[ident.SessionID]Session
 }
 
 // NewStore returns a new session store.
 func NewStore() Store {
 	return &store{
-		entries: map[ident.SessionID]storeEntry{},
+		entries: map[ident.SessionID]Session{},
 	}
 }
 
-type storeEntry struct {
-	Session rinq.Session
-	State   *State
-}
-
-func (s *store) Add(sess rinq.Session, state *State) {
+func (s *store) Add(sess Session) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.entries[sess.ID()] = storeEntry{sess, state}
+	s.entries[sess.ID()] = sess
 }
 
 func (s *store) Remove(id ident.SessionID) {
@@ -49,27 +44,29 @@ func (s *store) Remove(id ident.SessionID) {
 	delete(s.entries, id)
 }
 
-func (s *store) Get(id ident.SessionID) (rinq.Session, *State, bool) {
+func (s *store) Get(id ident.SessionID) (Session, bool) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	e, ok := s.entries[id]
-	return e.Session, e.State, ok
+	sess, ok := s.entries[id]
+	return sess, ok
 }
 
-func (s *store) Each(fn func(rinq.Session, *State)) {
+func (s *store) Each(fn func(Session)) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	for _, e := range s.entries {
-		fn(e.Session, e.State)
+	for _, sess := range s.entries {
+		fn(sess)
 	}
 }
 
 func (s *store) GetRevision(ref ident.Ref) (rinq.Revision, error) {
-	_, state, ok := s.Get(ref.ID)
-	if ok {
-		return state.At(ref.Rev)
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	if sess, ok := s.entries[ref.ID]; ok {
+		return sess.At(ref.Rev)
 	}
 
 	return revisionpkg.Closed(ref), nil

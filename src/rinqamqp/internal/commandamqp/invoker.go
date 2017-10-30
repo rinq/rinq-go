@@ -491,7 +491,7 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 		return false
 	}
 
-	sess, _, ok := i.sessions.Get(msgID.Ref.ID)
+	sess, ok := i.sessions.Get(msgID.Ref.ID)
 	if !ok {
 		return false
 	} else if err != nil {

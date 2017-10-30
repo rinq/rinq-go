@@ -84,7 +84,7 @@ func (p *peer) Session() rinq.Session {
 		atomic.AddUint32(&p.seq, 1),
 	)
 
-	sess, state := localsession.NewSession(
+	sess := localsession.NewSession(
 		id,
 		p.invoker,
 		p.notifier,
@@ -93,7 +93,7 @@ func (p *peer) Session() rinq.Session {
 		p.tracer,
 	)
 
-	p.localStore.Add(sess, state)
+	p.localStore.Add(sess)
 	go func() {
 		<-sess.Done()
 		p.localStore.Remove(sess.ID())
@@ -212,7 +212,7 @@ func (p *peer) finalize(err error) error {
 	p.remoteStore.Stop()
 	p.listener.Stop()
 
-	p.localStore.Each(func(sess rinq.Session, _ *localsession.State) {
+	p.localStore.Each(func(sess localsession.Session) {
 		sess.Destroy()
 		<-sess.Done()
 	})

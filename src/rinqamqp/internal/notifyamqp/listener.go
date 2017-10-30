@@ -399,7 +399,7 @@ func (l *listener) findUnicastTarget(
 		return nil, err
 	}
 
-	if sess, _, ok := l.sessions.Get(sessID); ok {
+	if sess, ok := l.sessions.Get(sessID); ok {
 		return []rinq.Session{sess}, nil
 	}
 
@@ -421,8 +421,8 @@ func (l *listener) findMulticastTargets(
 	}
 
 	l.sessions.Each(
-		func(session rinq.Session, state *localsession.State) {
-			_, attrs := state.Attrs()
+		func(session localsession.Session) {
+			_, attrs := session.Attrs()
 			if attrs.MatchConstraint(n.Namespace, n.Constraint) {
 				sessions = append(sessions, session)
 			}

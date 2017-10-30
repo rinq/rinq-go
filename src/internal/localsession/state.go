@@ -9,8 +9,8 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
-// State represents a session's revisioned state.
-type State struct {
+// state represents a session's revisioned state.
+type state struct {
 	mutex     sync.RWMutex
 	ref       ident.Ref
 	attrs     attributes.Catalog
@@ -21,7 +21,7 @@ type State struct {
 
 // Ref returns the most recent session-ref.
 // The ref's revision increments each time a call to TryUpdate() succeeds.
-func (s *State) Ref() ident.Ref {
+func (s *state) Ref() ident.Ref {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -29,7 +29,7 @@ func (s *State) Ref() ident.Ref {
 }
 
 // NextMessageID generates a unique message ID from the current session-ref.
-func (s *State) NextMessageID() (ident.MessageID, attributes.Catalog) {
+func (s *state) NextMessageID() (ident.MessageID, attributes.Catalog) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -39,7 +39,7 @@ func (s *State) NextMessageID() (ident.MessageID, attributes.Catalog) {
 
 // Head returns the most recent revision.
 // It is conceptually equivalent to s.At(s.Ref().Rev).
-func (s *State) Head() rinq.Revision {
+func (s *state) Head() rinq.Revision {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -48,7 +48,7 @@ func (s *State) Head() rinq.Revision {
 
 // At returns a revision representing the state at a specific revision
 // number. The revision can not be newer than the current session-ref.
-func (s *State) At(rev ident.Revision) (rinq.Revision, error) {
+func (s *state) At(rev ident.Revision) (rinq.Revision, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -65,7 +65,7 @@ func (s *State) At(rev ident.Revision) (rinq.Revision, error) {
 }
 
 // Attrs returns all attributes at the most recent revision.
-func (s *State) Attrs() (ident.Ref, attributes.Catalog) {
+func (s *state) Attrs() (ident.Ref, attributes.Catalog) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -73,7 +73,7 @@ func (s *State) Attrs() (ident.Ref, attributes.Catalog) {
 }
 
 // AttrsIn returns all attributes in the ns namespace at the most recent revision.
-func (s *State) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
+func (s *state) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -85,7 +85,7 @@ func (s *State) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
 //
 // The operation fails if ref is not the current session-ref, attrs includes
 // changes to frozen attributes, or the session has been destroyed.
-func (s *State) TryUpdate(
+func (s *state) TryUpdate(
 	ref ident.Ref,
 	ns string,
 	attrs attributes.List,
@@ -148,7 +148,7 @@ func (s *State) TryUpdate(
 //
 // The operation fails if ref is not the current session-ref, there are any
 // frozen attributes, or the session has been destroyed.
-func (s *State) TryClear(
+func (s *state) TryClear(
 	ref ident.Ref,
 	ns string,
 ) (rinq.Revision, *attributes.Diff, error) {
@@ -203,7 +203,7 @@ func (s *State) TryClear(
 //
 // The operation fails if ref is not the current session-ref. It is not an
 // error to destroy an already-destroyed session.
-func (s *State) TryDestroy(ref ident.Ref) error {
+func (s *state) TryDestroy(ref ident.Ref) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -222,7 +222,7 @@ func (s *State) TryDestroy(ref ident.Ref) error {
 
 // ForceDestroy forcefully destroys the session, preventing further updates.
 // It is not an error to destroy an already-destroyed session.
-func (s *State) ForceDestroy() bool {
+func (s *state) ForceDestroy() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -236,6 +236,6 @@ func (s *State) ForceDestroy() bool {
 }
 
 // Destroyed returns a channel that is closed when the session is destroyed.
-func (s *State) Destroyed() <-chan struct{} {
+func (s *state) Destroyed() <-chan struct{} {
 	return s.destroyed
 }

@@ -147,7 +147,7 @@ func logAsyncResponse(
 
 func logSessionDestroy(
 	logger rinq.Logger,
-	state *State,
+	state *state,
 	traceID string,
 ) {
 	ref, attrs := state.Attrs()

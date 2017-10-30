@@ -11,7 +11,7 @@ import (
 
 type revision struct {
 	ref    ident.Ref
-	state  *State
+	state  *state
 	attrs  attributes.Catalog
 	logger rinq.Logger
 }
