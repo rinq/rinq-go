@@ -26,7 +26,7 @@ type Session interface {
 	// Head returns the most recent revision, even if the session has been
 	// destroyed. It is conceptually equivalent to s.At(s.Ref().Rev).
 	//
-	// TODO: can we either adopt this behaviour for Session.CurrentRevision(),
+	// TODO: can we either adopt this behavior for Session.CurrentRevision(),
 	// or update all callers to use CurrentRevision() as is.
 	CurrentRevisionUnsafe() rinq.Revision
 
