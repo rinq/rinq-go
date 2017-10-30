@@ -14,7 +14,7 @@ import (
 // to. See Peer.Listen() to start listening.
 //
 // The handler MUST close the response by calling res.Done(), res.Error() or
-// res.Destroy(); otherwise the request may be redelivered, possibly to a
+// res.Close(); otherwise the request may be redelivered, possibly to a
 // different peer.
 //
 // The handler is responsible for closing req.Payload, however there is no
