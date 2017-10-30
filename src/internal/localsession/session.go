@@ -454,7 +454,6 @@ func (s *session) At(rev ident.Revision) (rinq.Revision, error) {
 	}, nil
 }
 
-// TODO: change to return ident.Revision, or remove completely?
 func (s *session) Attrs() (ident.Ref, attributes.Catalog) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -462,7 +461,6 @@ func (s *session) Attrs() (ident.Ref, attributes.Catalog) {
 	return s.ref, s.attrs
 }
 
-// TODO: change to return ident.Revision, or remove completely?
 func (s *session) AttrsIn(ns string) (ident.Ref, attributes.VTable) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
