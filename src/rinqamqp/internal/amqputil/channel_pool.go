@@ -231,6 +231,7 @@ func (p *channelPool) run() (service.State, error) {
 
 		case <-p.sm.Graceful:
 			logChannelPoolGraceful(p.logger, len(p.channels))
+			return nil, nil
 
 		case <-p.sm.Forceful:
 			return nil, nil
