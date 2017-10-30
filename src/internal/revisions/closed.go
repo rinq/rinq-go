@@ -1,4 +1,4 @@
-package revision
+package revisions
 
 import (
 	"context"

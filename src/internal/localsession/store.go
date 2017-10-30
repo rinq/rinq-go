@@ -3,14 +3,14 @@ package localsession
 import (
 	"sync"
 
-	revisionpkg "github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 // Store is a collection of sessions and their state.
 type Store interface {
-	revisionpkg.Store
+	revisions.Store
 
 	Add(Session)
 	Remove(ident.SessionID)
@@ -69,5 +69,5 @@ func (s *store) GetRevision(ref ident.Ref) (rinq.Revision, error) {
 		return sess.At(ref.Rev)
 	}
 
-	return revisionpkg.Closed(ref.ID), nil
+	return revisions.Closed(ref.ID), nil
 }

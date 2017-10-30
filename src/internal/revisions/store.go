@@ -1,4 +1,4 @@
-package revision
+package revisions
 
 import (
 	"github.com/rinq/rinq-go/src/rinq"

@@ -8,7 +8,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/internal/localsession"
 	"github.com/rinq/rinq-go/src/internal/notify"
-	"github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -23,7 +23,7 @@ type listener struct {
 	peerID    ident.PeerID
 	preFetch  uint
 	sessions  localsession.Store
-	revisions revision.Store
+	revisions revisions.Store
 	logger    rinq.Logger
 	tracer    opentracing.Tracer
 
@@ -46,7 +46,7 @@ func newListener(
 	peerID ident.PeerID,
 	preFetch uint,
 	sessions localsession.Store,
-	revisions revision.Store,
+	revs revisions.Store,
 	channel *amqp.Channel,
 	logger rinq.Logger,
 	tracer opentracing.Tracer,
@@ -55,7 +55,7 @@ func newListener(
 		peerID:    peerID,
 		preFetch:  preFetch,
 		sessions:  sessions,
-		revisions: revisions,
+		revisions: revs,
 		logger:    logger,
 		tracer:    tracer,
 
