@@ -379,8 +379,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 			target rinq.Session,
 			n rinq.Notification,
 		) {
-			rev := s.state.Head()
-			ref := rev.Ref()
+			ref := s.state.Ref()
 
 			span := opentracing.SpanFromContext(ctx)
 			opentr.SetupNotification(span, n.ID, n.Namespace, n.Type)
@@ -392,7 +391,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 				ref.ShortString(),
 				n.Namespace,
 				n.Type,
-				n.Source.Ref().ShortString(),
+				n.ID.Ref.ShortString(),
 				n.Payload.Len(),
 				trace.Get(ctx),
 			)

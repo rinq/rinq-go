@@ -14,8 +14,8 @@ type revision struct {
 	session *session
 }
 
-func (r *revision) Ref() ident.Ref {
-	return r.ref
+func (r *revision) SessionID() ident.SessionID {
+	return r.ref.ID
 }
 
 func (r *revision) Refresh(ctx context.Context) (rinq.Revision, error) {

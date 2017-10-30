@@ -43,5 +43,5 @@ func (s *AggregateStore) GetRevision(ref ident.Ref) (rinq.Revision, error) {
 		return s.Remote.GetRevision(ref)
 	}
 
-	return Closed(ref), nil
+	return Closed(ref.ID), nil
 }

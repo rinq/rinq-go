@@ -47,23 +47,7 @@ var _ = Describe("revision (functional)", func() {
 		<-server.Done()
 	})
 
-	Describe("Ref", func() {
-		It("returns the same ref as the local revision", func() {
-			Expect(remote.Ref()).To(Equal(local.Ref()))
-		})
-	})
-
 	Describe("Refresh", func() {
-		It("returns a revision with the same ref as the lastest local revision", func() {
-			var err error
-			local, err = local.Update(ctx, ns, rinq.Set("a", "1"))
-			Expect(err).NotTo(HaveOccurred())
-
-			remote, err = remote.Refresh(ctx)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(remote.Ref()).To(Equal(local.Ref()))
-		})
-
 		It("returns a not found error if the session has been destroyed", func() {
 			session.Destroy()
 			<-session.Done()
@@ -351,7 +335,7 @@ var _ = Describe("revision (functional)", func() {
 
 			_, err = remote.Clear(ctx, ns)
 			Expect(err).To(HaveOccurred())
-			Expect(err).To(Equal(rinq.FrozenAttributesError{Ref: remote.Ref()}))
+			Expect(err).To(BeAssignableToTypeOf(rinq.FrozenAttributesError{}))
 		})
 
 		It("returns a stale update error if session is at a later revision", func() {

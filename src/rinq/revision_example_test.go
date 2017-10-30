@@ -89,9 +89,9 @@ func ExampleRevision_update() {
 			panic(err)
 		}
 
-		fmt.Printf("updated to revision #%d\n", rev.Ref().Rev)
+		fmt.Println("updated to new revision")
 		break
 	}
 
-	// Output: updated to revision #1
+	// Output: updated to new revision
 }

@@ -132,17 +132,17 @@ func (s *server) update(
 		return
 	}
 
-	rev, diff, err := sess.TryUpdate(sessID.At(args.Rev), args.Namespace, args.Attrs)
+	_, diff, err := sess.TryUpdate(sessID.At(args.Rev), args.Namespace, args.Attrs)
 	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	logRemoteUpdate(ctx, s.logger, rev.Ref(), req.Source.Ref().ID.Peer, diff)
+	logRemoteUpdate(ctx, s.logger, sessID.At(diff.Revision), req.ID.Ref.ID.Peer, diff)
 
 	rsp := updateResponse{
-		Rev:         rev.Ref().Rev,
+		Rev:         diff.Revision,
 		CreatedRevs: make([]ident.Revision, 0, len(args.Attrs)),
 	}
 	_, attrs := sess.AttrsIn(args.Namespace)
@@ -189,17 +189,17 @@ func (s *server) clear(
 		return
 	}
 
-	rev, diff, err := sess.TryClear(sessID.At(args.Rev), args.Namespace)
+	_, diff, err := sess.TryClear(sessID.At(args.Rev), args.Namespace)
 	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	logRemoteClear(ctx, s.logger, rev.Ref(), req.Source.Ref().ID.Peer, diff)
+	logRemoteClear(ctx, s.logger, sessID.At(diff.Revision), req.ID.Ref.ID.Peer, diff)
 
 	rsp := updateResponse{
-		Rev: rev.Ref().Rev,
+		Rev: diff.Revision,
 	}
 
 	payload := rinq.NewPayload(rsp)
@@ -245,7 +245,7 @@ func (s *server) destroy(
 		return
 	}
 
-	logRemoteDestroy(ctx, s.logger, sess, req.Source.Ref().ID.Peer)
+	logRemoteDestroy(ctx, s.logger, sess, req.ID.Ref.ID.Peer)
 
 	res.Close()
 
