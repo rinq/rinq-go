@@ -13,7 +13,7 @@ import (
 func New(
 	peerID ident.PeerID,
 	opts options.Options,
-	sessions localsession.Store,
+	sessions *localsession.Store,
 	revs revisions.Store,
 	channels amqputil.ChannelPool,
 ) (notify.Notifier, notify.Listener, error) {

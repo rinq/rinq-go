@@ -25,7 +25,7 @@ type peer struct {
 
 	id          ident.PeerID
 	broker      *amqp.Connection
-	localStore  localsession.Store
+	localStore  *localsession.Store
 	remoteStore remotesession.Store
 	invoker     command.Invoker
 	server      command.Server
@@ -41,7 +41,7 @@ type peer struct {
 func newPeer(
 	id ident.PeerID,
 	broker *amqp.Connection,
-	localStore localsession.Store,
+	localStore *localsession.Store,
 	remoteStore remotesession.Store,
 	invoker command.Invoker,
 	server command.Server,

@@ -8,64 +8,61 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
-// Store is a collection of sessions and their state.
-type Store interface {
-	revisions.Store
-
-	Add(Session)
-	Remove(ident.SessionID)
-	Get(ident.SessionID) (Session, bool)
-	Each(fn func(Session))
-}
-
-type store struct {
-	mutex   sync.RWMutex
-	entries map[ident.SessionID]Session
+// Store is a collection of local sessions which provides an implementation
+// of revisions.Store.
+type Store struct {
+	mutex    sync.RWMutex
+	sessions map[ident.SessionID]Session
 }
 
 // NewStore returns a new session store.
-func NewStore() Store {
-	return &store{
-		entries: map[ident.SessionID]Session{},
+func NewStore() *Store {
+	return &Store{
+		sessions: map[ident.SessionID]Session{},
 	}
 }
 
-func (s *store) Add(sess Session) {
+// Add adds a session to the store.
+func (s *Store) Add(sess Session) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.entries[sess.ID()] = sess
+	s.sessions[sess.ID()] = sess
 }
 
-func (s *store) Remove(id ident.SessionID) {
+// Remove removes a session to from the store.
+func (s *Store) Remove(id ident.SessionID) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	delete(s.entries, id)
+	delete(s.sessions, id)
 }
 
-func (s *store) Get(id ident.SessionID) (Session, bool) {
+// Get fetches a session from the store by its ID.
+func (s *Store) Get(id ident.SessionID) (sess Session, ok bool) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	sess, ok := s.entries[id]
-	return sess, ok
+	sess, ok = s.sessions[id]
+	return
 }
 
-func (s *store) Each(fn func(Session)) {
+// Each calls fn(sess) for each session in the store.
+func (s *Store) Each(fn func(Session)) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	for _, sess := range s.entries {
+	for _, sess := range s.sessions {
 		fn(sess)
 	}
 }
 
-func (s *store) GetRevision(ref ident.Ref) (rinq.Revision, error) {
+// GetRevision returns the session revision for the given ref.
+func (s *Store) GetRevision(ref ident.Ref) (rinq.Revision, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	if sess, ok := s.entries[ref.ID]; ok {
+	if sess, ok := s.sessions[ref.ID]; ok {
 		return sess.At(ref.Rev)
 	}
 

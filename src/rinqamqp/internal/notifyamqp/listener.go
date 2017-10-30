@@ -22,7 +22,7 @@ type listener struct {
 
 	peerID    ident.PeerID
 	preFetch  uint
-	sessions  localsession.Store
+	sessions  *localsession.Store
 	revisions revisions.Store
 	logger    rinq.Logger
 	tracer    opentracing.Tracer
@@ -45,7 +45,7 @@ type listener struct {
 func newListener(
 	peerID ident.PeerID,
 	preFetch uint,
-	sessions localsession.Store,
+	sessions *localsession.Store,
 	revs revisions.Store,
 	channel *amqp.Channel,
 	logger rinq.Logger,

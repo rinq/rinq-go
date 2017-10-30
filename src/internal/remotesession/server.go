@@ -15,7 +15,7 @@ import (
 
 type server struct {
 	peerID   ident.PeerID
-	sessions localsession.Store
+	sessions *localsession.Store
 	logger   rinq.Logger
 }
 
@@ -23,7 +23,7 @@ type server struct {
 func Listen(
 	svr command.Server,
 	peerID ident.PeerID,
-	sessions localsession.Store,
+	sessions *localsession.Store,
 	logger rinq.Logger,
 ) error {
 	s := &server{
