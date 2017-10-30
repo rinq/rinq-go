@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/rinq/rinq-go/src/internal/attributes"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
@@ -43,7 +44,12 @@ func (s *state) Head() rinq.Revision {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	return &revision{s.ref, s, s.attrs, s.logger}
+	select {
+	case <-s.destroyed:
+		return revisions.Closed(s.ref.ID)
+	default:
+		return &revision{s.ref, s, s.attrs, s.logger}
+	}
 }
 
 // At returns a revision representing the state at a specific revision

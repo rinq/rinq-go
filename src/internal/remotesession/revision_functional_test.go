@@ -33,7 +33,7 @@ var _ = Describe("revision (functional)", func() {
 			res.Close()
 		}))
 
-		local, _ = session.CurrentRevision()
+		local = session.CurrentRevision()
 		functest.Must(session.Call(ctx, ns, "", nil))
 	})
 
@@ -113,8 +113,7 @@ var _ = Describe("revision (functional)", func() {
 			_, err := session.Call(ctx, ns, "", nil)
 			Expect(err).NotTo(HaveOccurred())
 
-			local, err = session.CurrentRevision()
-			Expect(err).NotTo(HaveOccurred())
+			local = session.CurrentRevision()
 
 			// update the attribute locally such that the server does not know
 			// about the change

@@ -155,10 +155,7 @@ func ExampleSession_notifyMany() {
 
 	// update the first TWO sessions with a "foo" attribute
 	for _, s := range []Session{recv1, recv2} {
-		rev, err := s.CurrentRevision()
-		if err != nil {
-			panic(err)
-		}
+		rev := s.CurrentRevision()
 
 		if _, err := rev.Update(
 			context.Background(),

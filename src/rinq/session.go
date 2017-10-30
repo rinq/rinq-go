@@ -40,9 +40,9 @@ type Session interface {
 
 	// CurrentRevision returns the current revision of this session.
 	//
-	// If IsNotFound(err) returns true, the session has been destroyed,
-	// and rev is invalid.
-	CurrentRevision() (rev Revision, err error)
+	// If the session has been destroyed, any operation on the revision will
+	// return a NotFoundError.
+	CurrentRevision() Revision
 
 	// Call sends a command request to the next available peer listening to the
 	// ns namespace and waits for a response.

@@ -23,13 +23,6 @@ import (
 type Session interface {
 	rinq.Session
 
-	// Head returns the most recent revision, even if the session has been
-	// destroyed. It is conceptually equivalent to s.At(s.Ref().Rev).
-	//
-	// TODO: can we either adopt this behavior for Session.CurrentRevision(),
-	// or update all callers to use CurrentRevision() as is.
-	CurrentRevisionUnsafe() rinq.Revision
-
 	// At returns a revision representing the state at a specific revision
 	// number. The revision can not be newer than the current session-ref.
 	At(rev ident.Revision) (rinq.Revision, error)
@@ -115,13 +108,8 @@ func (s *session) ID() ident.SessionID {
 	return s.id
 }
 
-func (s *session) CurrentRevision() (rinq.Revision, error) {
-	select {
-	case <-s.done:
-		return nil, rinq.NotFoundError{ID: s.id}
-	default:
-		return s.state.Head(), nil
-	}
+func (s *session) CurrentRevision() rinq.Revision {
+	return s.state.Head()
 }
 
 func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (*rinq.Payload, error) {
@@ -461,10 +449,6 @@ func (s *session) tearDown() {
 
 func (s *session) Done() <-chan struct{} {
 	return s.done
-}
-
-func (s *session) CurrentRevisionUnsafe() rinq.Revision {
-	return s.state.Head()
 }
 
 func (s *session) At(rev ident.Revision) (rinq.Revision, error) {

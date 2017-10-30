@@ -24,10 +24,7 @@ func ExampleRevision_get() {
 	sess := peer.Session()
 	defer sess.Destroy()
 
-	rev, err := sess.CurrentRevision()
-	if err != nil {
-		panic(err)
-	}
+	rev := sess.CurrentRevision()
 
 	ctx := context.Background()
 	var attr Attr
@@ -69,10 +66,7 @@ func ExampleRevision_update() {
 	sess := peer.Session()
 	defer sess.Destroy()
 
-	rev, err := sess.CurrentRevision()
-	if err != nil {
-		panic(err)
-	}
+	rev := sess.CurrentRevision()
 
 	ctx := context.Background()
 
