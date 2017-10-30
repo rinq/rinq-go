@@ -69,5 +69,5 @@ func (s *store) GetRevision(ref ident.Ref) (rinq.Revision, error) {
 		return sess.At(ref.Rev)
 	}
 
-	return revisionpkg.Closed(ref), nil
+	return revisionpkg.Closed(ref.ID), nil
 }

@@ -64,7 +64,7 @@ func (s *session) At(rev ident.Revision) rinq.Revision {
 	ref := s.id.At(rev)
 
 	if s.isClosed {
-		return revisionpkg.Closed(ref)
+		return revisionpkg.Closed(ref.ID)
 	}
 
 	s.updateState(rev, nil)

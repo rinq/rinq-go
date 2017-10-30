@@ -16,8 +16,8 @@ type revision struct {
 	logger rinq.Logger
 }
 
-func (r *revision) Ref() ident.Ref {
-	return r.ref
+func (r *revision) SessionID() ident.SessionID {
+	return r.ref.ID
 }
 
 func (r *revision) Refresh(ctx context.Context) (rinq.Revision, error) {
@@ -82,7 +82,7 @@ func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (r
 		return r, err
 	}
 
-	logUpdate(ctx, r.logger, rev.Ref(), diff)
+	logUpdate(ctx, r.logger, r.ref.ID.At(diff.Revision), diff)
 
 	return rev, nil
 }
@@ -95,7 +95,7 @@ func (r *revision) Clear(ctx context.Context, ns string) (rinq.Revision, error) 
 		return r, err
 	}
 
-	logClear(ctx, r.logger, rev.Ref(), diff)
+	logClear(ctx, r.logger, r.ref.ID.At(diff.Revision), diff)
 
 	return rev, nil
 }

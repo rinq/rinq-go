@@ -26,7 +26,7 @@ type Session interface {
 	// Head returns the most recent revision, even if the session has been
 	// destroyed. It is conceptually equivalent to s.At(s.Ref().Rev).
 	//
-	// TODO: can we either adopt this behaviour for Session.CurrentRevision(),
+	// TODO: can we either adopt this behavior for Session.CurrentRevision(),
 	// or update all callers to use CurrentRevision() as is.
 	CurrentRevisionUnsafe() rinq.Revision
 
@@ -379,8 +379,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 			target rinq.Session,
 			n rinq.Notification,
 		) {
-			rev := s.state.Head()
-			ref := rev.Ref()
+			ref := s.state.Ref()
 
 			span := opentracing.SpanFromContext(ctx)
 			opentr.SetupNotification(span, n.ID, n.Namespace, n.Type)
@@ -392,7 +391,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 				ref.ShortString(),
 				n.Namespace,
 				n.Type,
-				n.Source.Ref().ShortString(),
+				n.ID.Ref.ShortString(),
 				n.Payload.Len(),
 				trace.Get(ctx),
 			)
