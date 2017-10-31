@@ -20,12 +20,12 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
-// Session is the implementation rinq.Session.
+// Session is the implementation of rinq.Session.
 //
 // The implementation is split into two files. This file contains methods that
 // are declared in rinq.Session, whereas the session_state.go file contains a
 // lower-level API for manipulating the session state which is used throughout
-// the Rinq internals (see session_state.go).
+// the Rinq internals.
 type Session struct {
 	invoker  command.Invoker
 	notifier notify.Notifier
