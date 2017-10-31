@@ -224,6 +224,7 @@ func (p *peer) finalize(err error) error {
 
 	p.localStore.Each(func(sess rinq.Session, _ *localsession.State) {
 		sess.Destroy()
+		<-sess.Done()
 	})
 
 	<-service.WaitAll(

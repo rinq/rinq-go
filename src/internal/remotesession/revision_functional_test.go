@@ -66,6 +66,7 @@ var _ = Describe("revision (functional)", func() {
 
 		It("returns a not found error if the session has been destroyed", func() {
 			session.Destroy()
+			<-session.Done()
 
 			_, err := remote.Refresh(ctx)
 			Expect(err).To(HaveOccurred())
@@ -82,6 +83,7 @@ var _ = Describe("revision (functional)", func() {
 
 		It("returns an empty attribute at revision zero after the session is destroyed", func() {
 			session.Destroy()
+			<-session.Done()
 
 			attr, err := remote.Get(ctx, ns, "a")
 			Expect(err).NotTo(HaveOccurred())
@@ -169,6 +171,7 @@ var _ = Describe("revision (functional)", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			session.Destroy()
+			<-session.Done()
 
 			_, err = remote.Get(ctx, ns, "a")
 			Expect(err).To(HaveOccurred())
@@ -190,6 +193,7 @@ var _ = Describe("revision (functional)", func() {
 
 		It("returns empty attributes at revision zero after the session is destroyed", func() {
 			session.Destroy()
+			<-session.Done()
 
 			attrs, err := remote.GetMany(ctx, ns, "a", "b")
 			Expect(err).NotTo(HaveOccurred())
@@ -221,6 +225,7 @@ var _ = Describe("revision (functional)", func() {
 
 		It("returns an empty attribute table when called without keys", func() {
 			session.Destroy() // even if the session has been destroyed
+			<-session.Done()
 
 			attrs, err := remote.GetMany(ctx, ns)
 			Expect(err).NotTo(HaveOccurred())
@@ -277,6 +282,7 @@ var _ = Describe("revision (functional)", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			session.Destroy()
+			<-session.Done()
 
 			_, err = remote.GetMany(ctx, ns, "a")
 			Expect(err).To(HaveOccurred())
@@ -297,6 +303,7 @@ var _ = Describe("revision (functional)", func() {
 
 		It("returns a not found error if the session has been destroyed", func() {
 			session.Destroy()
+			<-session.Done()
 
 			var err error
 			remote, err = remote.Update(ctx, ns, rinq.Set("a", "1"))
@@ -359,6 +366,7 @@ var _ = Describe("revision (functional)", func() {
 
 		It("returns a not found error if the session has been destroyed", func() {
 			session.Destroy()
+			<-session.Done()
 
 			var err error
 			remote, err = remote.Clear(ctx, ns)
@@ -380,6 +388,7 @@ var _ = Describe("revision (functional)", func() {
 
 		It("returns a not found error if the session has been destroyed", func() {
 			session.Destroy()
+			<-session.Done()
 
 			err := remote.Destroy(ctx)
 			Expect(err).To(HaveOccurred())

@@ -1,5 +1,9 @@
 # Changelog
 
+## Next Release
+
+- **[BC]** `Session.Destroy()` no longer waits for pending calls, use `Session.Done()` to wait
+
 ## 0.6.0 (2017-10-27)
 
 - **[BC]** Rename the `amqp` package to `rinqamqp`
