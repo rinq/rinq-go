@@ -25,7 +25,7 @@ type invoker struct {
 	peerID         ident.PeerID
 	preFetch       uint
 	defaultTimeout time.Duration
-	sessions       localsession.Store
+	sessions       *localsession.Store
 	queues         *queueSet
 	channels       amqputil.ChannelPool
 	channel        *amqp.Channel // channel used for consuming
@@ -56,7 +56,7 @@ func newInvoker(
 	peerID ident.PeerID,
 	preFetch uint,
 	defaultTimeout time.Duration,
-	sessions localsession.Store,
+	sessions *localsession.Store,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
 	logger rinq.Logger,
@@ -491,7 +491,7 @@ func (i *invoker) replyAsync(msg *amqp.Delivery) bool {
 		return false
 	}
 
-	sess, _, ok := i.sessions.Get(msgID.Ref.ID)
+	sess, ok := i.sessions.Get(msgID.Ref.ID)
 	if !ok {
 		return false
 	} else if err != nil {

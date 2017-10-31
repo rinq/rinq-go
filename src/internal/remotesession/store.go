@@ -6,7 +6,7 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/internal/command"
-	revisionpkg "github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -14,7 +14,7 @@ import (
 
 // Store is a local cache of remote revisions.
 type Store interface {
-	revisionpkg.Store
+	revisions.Store
 	service.Service
 }
 

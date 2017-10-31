@@ -7,7 +7,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/internal/command"
-	"github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -21,7 +21,7 @@ type server struct {
 
 	peerID    ident.PeerID
 	preFetch  uint
-	revisions revision.Store
+	revisions revisions.Store
 	queues    *queueSet
 	channels  amqputil.ChannelPool
 	logger    rinq.Logger
@@ -44,7 +44,7 @@ type server struct {
 func newServer(
 	peerID ident.PeerID,
 	preFetch uint,
-	revisions revision.Store,
+	revs revisions.Store,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
 	logger rinq.Logger,
@@ -53,7 +53,7 @@ func newServer(
 	s := &server{
 		peerID:    peerID,
 		preFetch:  preFetch,
-		revisions: revisions,
+		revisions: revs,
 		queues:    queues,
 		channels:  channels,
 		logger:    logger,

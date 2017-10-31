@@ -24,10 +24,7 @@ func ExampleRevision_get() {
 	sess := peer.Session()
 	defer sess.Destroy()
 
-	rev, err := sess.CurrentRevision()
-	if err != nil {
-		panic(err)
-	}
+	rev := sess.CurrentRevision()
 
 	ctx := context.Background()
 	var attr Attr
@@ -69,10 +66,7 @@ func ExampleRevision_update() {
 	sess := peer.Session()
 	defer sess.Destroy()
 
-	rev, err := sess.CurrentRevision()
-	if err != nil {
-		panic(err)
-	}
+	rev := sess.CurrentRevision()
 
 	ctx := context.Background()
 
@@ -89,9 +83,9 @@ func ExampleRevision_update() {
 			panic(err)
 		}
 
-		fmt.Printf("updated to revision #%d\n", rev.Ref().Rev)
+		fmt.Println("updated to new revision")
 		break
 	}
 
-	// Output: updated to revision #1
+	// Output: updated to new revision
 }

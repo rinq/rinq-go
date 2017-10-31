@@ -8,7 +8,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/internal/localsession"
 	"github.com/rinq/rinq-go/src/internal/notify"
-	"github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -22,8 +22,8 @@ type listener struct {
 
 	peerID    ident.PeerID
 	preFetch  uint
-	sessions  localsession.Store
-	revisions revision.Store
+	sessions  *localsession.Store
+	revisions revisions.Store
 	logger    rinq.Logger
 	tracer    opentracing.Tracer
 
@@ -45,8 +45,8 @@ type listener struct {
 func newListener(
 	peerID ident.PeerID,
 	preFetch uint,
-	sessions localsession.Store,
-	revisions revision.Store,
+	sessions *localsession.Store,
+	revs revisions.Store,
 	channel *amqp.Channel,
 	logger rinq.Logger,
 	tracer opentracing.Tracer,
@@ -55,7 +55,7 @@ func newListener(
 		peerID:    peerID,
 		preFetch:  preFetch,
 		sessions:  sessions,
-		revisions: revisions,
+		revisions: revs,
 		logger:    logger,
 		tracer:    tracer,
 
@@ -399,7 +399,7 @@ func (l *listener) findUnicastTarget(
 		return nil, err
 	}
 
-	if sess, _, ok := l.sessions.Get(sessID); ok {
+	if sess, ok := l.sessions.Get(sessID); ok {
 		return []rinq.Session{sess}, nil
 	}
 
@@ -421,8 +421,8 @@ func (l *listener) findMulticastTargets(
 	}
 
 	l.sessions.Each(
-		func(session rinq.Session, state *localsession.State) {
-			_, attrs := state.Attrs()
+		func(session *localsession.Session) {
+			_, attrs := session.Attrs()
 			if attrs.MatchConstraint(n.Namespace, n.Constraint) {
 				sessions = append(sessions, session)
 			}
