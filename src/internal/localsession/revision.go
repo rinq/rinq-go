@@ -11,8 +11,8 @@ import (
 )
 
 type revision struct {
-	session *Session
 	ref     ident.Ref
+	session *Session
 	attrs   attributes.Catalog
 	logger  rinq.Logger
 }

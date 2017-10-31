@@ -82,7 +82,7 @@ func (s *Session) CurrentRevision() rinq.Revision {
 		return revisions.Closed(s.ref.ID)
 	}
 
-	return &revision{s, s.ref, s.attrs, s.logger}
+	return &revision{s.ref, s, s.attrs, s.logger}
 }
 
 // Call implements rinq.Session.Call()

@@ -22,8 +22,8 @@ func (s *Session) At(rev ident.Revision) (rinq.Revision, error) {
 	}
 
 	return &revision{
-		s,
 		s.ref.ID.At(rev),
+		s,
 		s.attrs,
 		s.logger,
 	}, nil
@@ -95,8 +95,8 @@ func (s *Session) TryUpdate(rev ident.Revision, ns string, attrs attributes.List
 	}
 
 	return &revision{
-		s,
 		s.ref,
+		s,
 		s.attrs,
 		s.logger,
 	}, diff, nil
@@ -146,8 +146,8 @@ func (s *Session) TryClear(rev ident.Revision, ns string) (rinq.Revision, *attri
 	}
 
 	return &revision{
-		s,
 		s.ref,
+		s,
 		s.attrs,
 		s.logger,
 	}, diff, nil
