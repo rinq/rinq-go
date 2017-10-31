@@ -2,7 +2,10 @@
 
 ## Next Release
 
+- **[BC]** `Session.CurrentRevision()` no longer returns an error
 - **[BC]** `Session.Destroy()` no longer waits for pending calls, use `Session.Done()` to wait
+- **[BC]** Remove `Revision.Ref()` method
+- **[NEW]** Add `Revision.SessionID()` method
 
 ## 0.6.0 (2017-10-27)
 

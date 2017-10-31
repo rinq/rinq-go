@@ -15,7 +15,7 @@ import (
 
 type server struct {
 	peerID   ident.PeerID
-	sessions localsession.Store
+	sessions *localsession.Store
 	logger   rinq.Logger
 }
 
@@ -23,7 +23,7 @@ type server struct {
 func Listen(
 	svr command.Server,
 	peerID ident.PeerID,
-	sessions localsession.Store,
+	sessions *localsession.Store,
 	logger rinq.Logger,
 ) error {
 	s := &server{
@@ -77,14 +77,14 @@ func (s *server) fetch(
 	opentr.SetupSessionFetch(span, args.Namespace, sessID)
 	opentr.LogSessionFetchRequest(span, args.Keys)
 
-	_, state, ok := s.sessions.Get(sessID)
+	sess, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	ref, attrs := state.AttrsIn(args.Namespace)
+	ref, attrs := sess.AttrsIn(args.Namespace)
 	rsp := fetchResponse{Rev: ref.Rev}
 	count := len(args.Keys)
 
@@ -125,27 +125,27 @@ func (s *server) update(
 	opentr.SetupSessionUpdate(span, args.Namespace, sessID)
 	opentr.LogSessionUpdateRequest(span, args.Rev, args.Attrs)
 
-	_, state, ok := s.sessions.Get(sessID)
+	sess, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	rev, diff, err := state.TryUpdate(sessID.At(args.Rev), args.Namespace, args.Attrs)
+	_, diff, err := sess.TryUpdate(args.Rev, args.Namespace, args.Attrs)
 	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	logRemoteUpdate(ctx, s.logger, rev.Ref(), req.Source.Ref().ID.Peer, diff)
+	logRemoteUpdate(ctx, s.logger, sessID.At(diff.Revision), req.ID.Ref.ID.Peer, diff)
 
 	rsp := updateResponse{
-		Rev:         rev.Ref().Rev,
+		Rev:         diff.Revision,
 		CreatedRevs: make([]ident.Revision, 0, len(args.Attrs)),
 	}
-	_, attrs := state.AttrsIn(args.Namespace)
+	_, attrs := sess.AttrsIn(args.Namespace)
 
 	for _, attr := range args.Attrs {
 		rsp.CreatedRevs = append(
@@ -182,24 +182,24 @@ func (s *server) clear(
 	opentr.SetupSessionClear(span, args.Namespace, sessID)
 	opentr.LogSessionClearRequest(span, args.Rev)
 
-	_, state, ok := s.sessions.Get(sessID)
+	sess, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	rev, diff, err := state.TryClear(sessID.At(args.Rev), args.Namespace)
+	_, diff, err := sess.TryClear(args.Rev, args.Namespace)
 	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	logRemoteClear(ctx, s.logger, rev.Ref(), req.Source.Ref().ID.Peer, diff)
+	logRemoteClear(ctx, s.logger, sessID.At(diff.Revision), req.ID.Ref.ID.Peer, diff)
 
 	rsp := updateResponse{
-		Rev: rev.Ref().Rev,
+		Rev: diff.Revision,
 	}
 
 	payload := rinq.NewPayload(rsp)
@@ -230,22 +230,23 @@ func (s *server) destroy(
 	opentr.SetupSessionDestroy(span, sessID)
 	opentr.LogSessionDestroyRequest(span, args.Rev)
 
-	_, state, ok := s.sessions.Get(sessID)
+	sess, ok := s.sessions.Get(sessID)
 	if !ok {
 		err := res.Fail(notFoundFailure, "")
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	ref := sessID.At(args.Rev)
-
-	if err := state.TryDestroy(ref); err != nil {
+	first, err := sess.TryDestroy(args.Rev)
+	if err != nil {
 		res.Error(errorToFailure(err))
 		opentr.LogSessionError(span, err)
 		return
 	}
 
-	logRemoteDestroy(ctx, s.logger, state, req.Source.Ref().ID.Peer)
+	if first {
+		logRemoteDestroy(ctx, s.logger, sess, req.ID.Ref.ID.Peer)
+	}
 
 	res.Close()
 

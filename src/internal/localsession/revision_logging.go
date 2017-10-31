@@ -52,11 +52,3 @@ func logClear(
 		)
 	}
 }
-
-func logDestroy(
-	ctx context.Context,
-	logger rinq.Logger,
-	state *State,
-) {
-	logSessionDestroy(logger, state, trace.Get(ctx))
-}

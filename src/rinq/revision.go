@@ -17,9 +17,8 @@ import (
 // For remote sessions, operations may require network IO. Deadlines are
 // honored for all methods that accept a context.
 type Revision interface {
-	// Ref returns the session reference, which uniquely identifies the session
-	// ID and the revision number represented by this instance.
-	Ref() ident.Ref
+	// SessionID returns the ID of the underlying session.
+	SessionID() ident.SessionID
 
 	// Refresh returns the latest revision of the session.
 	//

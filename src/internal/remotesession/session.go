@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/rinq/rinq-go/src/internal/attributes"
-	revisionpkg "github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/internal/x/syncx"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -64,7 +64,7 @@ func (s *session) At(rev ident.Revision) rinq.Revision {
 	ref := s.id.At(rev)
 
 	if s.isClosed {
-		return revisionpkg.Closed(ref)
+		return revisions.Closed(ref.ID)
 	}
 
 	s.updateState(rev, nil)

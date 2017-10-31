@@ -7,30 +7,39 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/namespaces"
 	"github.com/rinq/rinq-go/src/internal/notify"
 	"github.com/rinq/rinq-go/src/internal/opentr"
+	"github.com/rinq/rinq-go/src/internal/revisions"
+	"github.com/rinq/rinq-go/src/internal/x/syncx"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
-type session struct {
-	id       ident.SessionID
-	state    State
+// Session is the implementation of rinq.Session.
+//
+// The implementation is split into two files. This file contains methods that
+// are declared in rinq.Session, whereas the session_state.go file contains a
+// lower-level API for manipulating the session state which is used throughout
+// the Rinq internals.
+type Session struct {
 	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
 	logger   rinq.Logger
 	tracer   opentracing.Tracer
-	done     chan struct{}
 
-	// mutex guards Call(), Listen(), Unlisten() and Close() so that Close()
-	// waits for pending calls to complete or timeout, and to ensure that it's
-	// call to listener.Unlisten() is not "undone" by the user.
-	mutex sync.RWMutex
+	mutex       sync.RWMutex
+	ref         ident.Ref
+	msgSeq      uint32
+	isDestroyed bool
+	attrs       attributes.Catalog
+	calls       sync.WaitGroup
+	done        chan struct{}
 }
 
 // NewSession returns a new local session.
@@ -41,58 +50,61 @@ func NewSession(
 	listener notify.Listener,
 	logger rinq.Logger,
 	tracer opentracing.Tracer,
-) (rinq.Session, *State) {
-	sess := &session{
-		id: id,
-		state: State{
-			ref:       id.At(0),
-			destroyed: make(chan struct{}),
-			logger:    logger,
-		},
+) *Session {
+	logCreated(logger, id)
+
+	return &Session{
 		invoker:  invoker,
 		notifier: notifier,
+		listener: listener,
 		logger:   logger,
 		tracer:   tracer,
-		listener: listener,
-		done:     make(chan struct{}),
-	}
 
-	logCreated(logger, sess.state.Ref())
-
-	go func() {
-		<-sess.state.Destroyed()
-		sess.tearDown()
-	}()
-
-	return sess, &sess.state
-}
-
-func (s *session) ID() ident.SessionID {
-	return s.id
-}
-
-func (s *session) CurrentRevision() (rinq.Revision, error) {
-	select {
-	case <-s.done:
-		return nil, rinq.NotFoundError{ID: s.id}
-	default:
-		return s.state.Head(), nil
+		ref:  id.At(0),
+		done: make(chan struct{}),
 	}
 }
 
-func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (*rinq.Payload, error) {
-	namespaces.MustValidate(ns)
-
+// ID implements rinq.Session.ID()
+func (s *Session) ID() ident.SessionID {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	select {
-	case <-s.done:
-		return nil, rinq.NotFoundError{ID: s.id}
-	default:
+	return s.ref.ID
+}
+
+// CurrentRevision implements rinq.Session.CurrentRevision()
+func (s *Session) CurrentRevision() rinq.Revision {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	if s.isDestroyed {
+		return revisions.Closed(s.ref.ID)
 	}
 
-	msgID, attrs := s.state.NextMessageID()
+	return &revision{s.ref, s, s.attrs, s.logger}
+}
+
+// Call implements rinq.Session.Call()
+func (s *Session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (*rinq.Payload, error) {
+	namespaces.MustValidate(ns)
+
+	unlock := syncx.Lock(&s.mutex)
+	defer unlock()
+
+	if s.isDestroyed {
+		return nil, rinq.NotFoundError{ID: s.ref.ID}
+	}
+
+	msgID := s.nextMessageID()
+	attrs := s.attrs // capture for logging/tracing while mutex is locked
+
+	s.calls.Add(1)
+	defer s.calls.Done()
+
+	// do not hold the lock for the duration of the call, as this would prevent
+	// the handler of the call querying or modifying this session.
+	unlock()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
@@ -115,27 +127,24 @@ func (s *session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 	return in, err
 }
 
-func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Payload) (ident.MessageID, error) {
+// CallAsync implements rinq.Session.CallAsync()
+func (s *Session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Payload) (ident.MessageID, error) {
 	namespaces.MustValidate(ns)
 
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	var msgID ident.MessageID
-
-	select {
-	case <-s.done:
-		return msgID, rinq.NotFoundError{ID: s.id}
-	default:
+	if s.isDestroyed {
+		return ident.MessageID{}, rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID, attrs := s.state.NextMessageID()
+	msgID := s.nextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
-	opentr.LogInvokerCallAsync(span, attrs, out)
+	opentr.LogInvokerCallAsync(span, s.attrs, out)
 
 	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
 
@@ -148,22 +157,20 @@ func (s *session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 	return msgID, err
 }
 
-// SetAsyncHandler sets the asynchronous call handler.
-//
-// h is invoked for each command response received to a command request made
-// with CallAsync().
-func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
+// SetAsyncHandler implements rinq.Session.SetAsyncHandler()
+func (s *Session) SetAsyncHandler(h rinq.AsyncHandler) error {
+	// it is important that this lock is acquired for the duration of the call
+	// to s.invoker.SetAsyncHandler(), to ensure that it is serialized with
+	// the similar call in s.destroy() which sets the handler to nil.
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
 	s.invoker.SetAsyncHandler(
-		s.id,
+		s.ref.ID,
 		func(
 			ctx context.Context,
 			sess rinq.Session,
@@ -191,22 +198,24 @@ func (s *session) SetAsyncHandler(h rinq.AsyncHandler) error {
 	return nil
 }
 
-func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) error {
+// Execute implements rinq.Session.Execute()
+func (s *Session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) error {
 	namespaces.MustValidate(ns)
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID, attrs := s.state.NextMessageID()
+	msgID := s.nextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
-	opentr.LogInvokerCallAsync(span, attrs, p)
+	opentr.LogInvokerCallAsync(span, s.attrs, p)
 
 	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
 
@@ -229,26 +238,28 @@ func (s *session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 	return err
 }
 
-func (s *session) Notify(ctx context.Context, ns, t string, target ident.SessionID, p *rinq.Payload) error {
+// Notify implements rinq.Session.Notify()
+func (s *Session) Notify(ctx context.Context, ns, t string, target ident.SessionID, p *rinq.Payload) error {
 	namespaces.MustValidate(ns)
 	ident.MustValidate(target)
 	if target.Seq == 0 {
 		panic("can not send notifications to the zero-session")
 	}
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID, attrs := s.state.NextMessageID()
+	msgID := s.nextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	opentr.SetupNotification(span, msgID, ns, t)
-	opentr.LogNotifierUnicast(span, attrs, target, p)
+	opentr.LogNotifierUnicast(span, s.attrs, target, p)
 
 	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, t, p)
 
@@ -272,22 +283,24 @@ func (s *session) Notify(ctx context.Context, ns, t string, target ident.Session
 	return err
 }
 
-func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.Constraint, p *rinq.Payload) error {
+// NotifyMany implements rinq.Session.NotifyMany()
+func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.Constraint, p *rinq.Payload) error {
 	namespaces.MustValidate(ns)
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID, attrs := s.state.NextMessageID()
+	msgID := s.nextMessageID()
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	opentr.SetupNotification(span, msgID, ns, t)
-	opentr.LogNotifierMulticast(span, attrs, con, p)
+	opentr.LogNotifierMulticast(span, s.attrs, con, p)
 
 	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, t, p)
 
@@ -311,32 +324,34 @@ func (s *session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 	return err
 }
 
-func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
+// Listen implements rinq.Session.Listen()
+func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 	namespaces.MustValidate(ns)
-
-	if handler == nil {
+	if h == nil {
 		panic("handler must not be nil")
 	}
 
+	// it is important that this lock is acquired for the duration of the call
+	// to s.listener.Listen(), to ensure that it is serialized with the call
+	// to s.listener.UnlistenAll() in s.destroy().
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
 	changed, err := s.listener.Listen(
-		s.id,
+		s.ref.ID,
 		ns,
 		func(
 			ctx context.Context,
 			target rinq.Session,
 			n rinq.Notification,
 		) {
-			rev := s.state.Head()
-			ref := rev.Ref()
+			s.mutex.RLock()
+			ref := s.ref
+			s.mutex.RUnlock()
 
 			span := opentracing.SpanFromContext(ctx)
 			opentr.SetupNotification(span, n.ID, n.Namespace, n.Type)
@@ -348,12 +363,12 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 				ref.ShortString(),
 				n.Namespace,
 				n.Type,
-				n.Source.Ref().ShortString(),
+				n.ID.Ref.ShortString(),
 				n.Payload.Len(),
 				trace.Get(ctx),
 			)
 
-			handler(ctx, target, n)
+			h(ctx, target, n)
 		},
 	)
 
@@ -362,7 +377,7 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 	} else if changed && s.logger.IsDebug() {
 		s.logger.Log(
 			"%s started listening for notifications in '%s' namespace",
-			s.state.Ref().ShortString(),
+			s.ref.ShortString(),
 			ns,
 		)
 	}
@@ -370,26 +385,25 @@ func (s *session) Listen(ns string, handler rinq.NotificationHandler) error {
 	return nil
 }
 
-func (s *session) Unlisten(ns string) error {
+// Unlisten implements rinq.Session.Unlisten()
+func (s *Session) Unlisten(ns string) error {
 	namespaces.MustValidate(ns)
 
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	select {
-	case <-s.done:
-		return rinq.NotFoundError{ID: s.id}
-	default:
+	if s.isDestroyed {
+		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	changed, err := s.listener.Unlisten(s.id, ns)
+	changed, err := s.listener.Unlisten(s.ref.ID, ns)
 
 	if err != nil {
 		return err
 	} else if changed && s.logger.IsDebug() {
 		s.logger.Log(
 			"%s stopped listening for notifications in '%s' namespace",
-			s.state.Ref().ShortString(),
+			s.ref.ShortString(),
 			ns,
 		)
 	}
@@ -397,25 +411,18 @@ func (s *session) Unlisten(ns string) error {
 	return nil
 }
 
-func (s *session) Destroy() {
-	if s.state.ForceDestroy() {
-		logSessionDestroy(s.logger, &s.state, "")
-	}
-}
-
-func (s *session) tearDown() {
+// Destroy implements rinq.Session.Destroy()
+func (s *Session) Destroy() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	select {
-	case <-s.done:
-	default:
-		close(s.done)
-		s.invoker.SetAsyncHandler(s.id, nil)
-		_ = s.listener.UnlistenAll(s.id)
+	if !s.isDestroyed {
+		s.destroy()
+		logSessionDestroy(s.logger, s.ref, s.attrs, "")
 	}
 }
 
-func (s *session) Done() <-chan struct{} {
+// Done implements rinq.Session.Done()
+func (s *Session) Done() <-chan struct{} {
 	return s.done
 }

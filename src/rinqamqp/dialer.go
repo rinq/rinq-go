@@ -11,7 +11,7 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/rinq/rinq-go/src/internal/localsession"
 	"github.com/rinq/rinq-go/src/internal/remotesession"
-	"github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/internal/x/env"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -179,7 +179,7 @@ func (d *Dialer) Dial(
 	)
 
 	localStore := localsession.NewStore()
-	revStore := revision.NewAggregateStore(
+	revStore := revisions.NewAggregateStore(
 		peerID,
 		localStore,
 		nil, // Remote revision store depends on invoker, created below

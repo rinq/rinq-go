@@ -3,7 +3,7 @@ package commandamqp
 import (
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/localsession"
-	"github.com/rinq/rinq-go/src/internal/revision"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/options"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
@@ -13,8 +13,8 @@ import (
 func New(
 	peerID ident.PeerID,
 	opts options.Options,
-	sessions localsession.Store,
-	revisions revision.Store,
+	sessions *localsession.Store,
+	revs revisions.Store,
 	channels amqputil.ChannelPool,
 ) (command.Invoker, command.Server, error) {
 	channel, err := channels.Get()
@@ -46,7 +46,7 @@ func New(
 	server, err := newServer(
 		peerID,
 		opts.CommandWorkers,
-		revisions,
+		revs,
 		queues,
 		channels,
 		opts.Logger,

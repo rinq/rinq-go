@@ -7,21 +7,22 @@ import (
 	"github.com/rinq/rinq-go/src/internal/namespaces"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
 type revision struct {
-	ref    ident.Ref
-	state  *State
-	attrs  attributes.Catalog
-	logger rinq.Logger
+	ref     ident.Ref
+	session *Session
+	attrs   attributes.Catalog
+	logger  rinq.Logger
 }
 
-func (r *revision) Ref() ident.Ref {
-	return r.ref
+func (r *revision) SessionID() ident.SessionID {
+	return r.ref.ID
 }
 
 func (r *revision) Refresh(ctx context.Context) (rinq.Revision, error) {
-	return r.state.Head(), nil
+	return r.session.CurrentRevision(), nil
 }
 
 func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
@@ -77,12 +78,12 @@ func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (r
 		return r, nil
 	}
 
-	rev, diff, err := r.state.TryUpdate(r.ref, ns, attrs)
+	rev, diff, err := r.session.TryUpdate(r.ref.Rev, ns, attrs)
 	if err != nil {
 		return r, err
 	}
 
-	logUpdate(ctx, r.logger, rev.Ref(), diff)
+	logUpdate(ctx, r.logger, r.ref.ID.At(diff.Revision), diff)
 
 	return rev, nil
 }
@@ -90,23 +91,25 @@ func (r *revision) Update(ctx context.Context, ns string, attrs ...rinq.Attr) (r
 func (r *revision) Clear(ctx context.Context, ns string) (rinq.Revision, error) {
 	namespaces.MustValidate(ns)
 
-	rev, diff, err := r.state.TryClear(r.ref, ns)
+	rev, diff, err := r.session.TryClear(r.ref.Rev, ns)
 	if err != nil {
 		return r, err
 	}
 
-	logClear(ctx, r.logger, rev.Ref(), diff)
+	logClear(ctx, r.logger, r.ref.ID.At(diff.Revision), diff)
 
 	return rev, nil
 }
 
 func (r *revision) Destroy(ctx context.Context) error {
-	err := r.state.TryDestroy(r.ref)
+	first, err := r.session.TryDestroy(r.ref.Rev)
 	if err != nil {
 		return err
 	}
 
-	logDestroy(ctx, r.logger, r.state)
+	if first {
+		logSessionDestroy(r.logger, r.ref, r.attrs, trace.Get(ctx))
+	}
 
 	return nil
 }
