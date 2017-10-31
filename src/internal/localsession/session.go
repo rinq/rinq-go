@@ -116,6 +116,8 @@ func (s *Session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 	traceID, in, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, out)
 	elapsed := time.Since(start) / time.Millisecond
 
+	opentr.AddTraceID(span, traceID)
+
 	if err == nil {
 		opentr.LogInvokerSuccess(span, in)
 	} else {
@@ -147,6 +149,8 @@ func (s *Session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 	opentr.LogInvokerCallAsync(span, s.attrs, out)
 
 	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
+
+	opentr.AddTraceID(span, traceID)
 
 	if err != nil {
 		opentr.LogInvokerError(span, err)
@@ -219,6 +223,8 @@ func (s *Session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 
 	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
 
+	opentr.AddTraceID(span, traceID)
+
 	if err != nil {
 		opentr.LogInvokerError(span, err)
 	}
@@ -263,6 +269,8 @@ func (s *Session) Notify(ctx context.Context, ns, t string, target ident.Session
 
 	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, t, p)
 
+	opentr.AddTraceID(span, traceID)
+
 	if err != nil {
 		opentr.LogNotifierError(span, err)
 	}
@@ -303,6 +311,8 @@ func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 	opentr.LogNotifierMulticast(span, s.attrs, con, p)
 
 	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, t, p)
+
+	opentr.AddTraceID(span, traceID)
 
 	if err != nil {
 		opentr.LogNotifierError(span, err)
