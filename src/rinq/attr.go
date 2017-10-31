@@ -1,6 +1,9 @@
 package rinq
 
-import "github.com/rinq/rinq-go/src/internal/x/bufferpool"
+import (
+	"github.com/rinq/rinq-go/src/internal/x/bufferpool"
+	"github.com/rinq/rinq-go/src/internal/x/repr"
+)
 
 // Attr is a sesssion attribute.
 //
@@ -43,15 +46,15 @@ func (attr Attr) String() string {
 		} else {
 			buf.WriteString("-")
 		}
-		buf.WriteString(attr.Key)
+		buf.WriteString(repr.Escape(attr.Key))
 	} else {
-		buf.WriteString(attr.Key)
+		buf.WriteString(repr.Escape(attr.Key))
 		if attr.IsFrozen {
 			buf.WriteString("@")
 		} else {
 			buf.WriteString("=")
 		}
-		buf.WriteString(attr.Value)
+		buf.WriteString(repr.Escape(attr.Value))
 	}
 
 	return buf.String()
