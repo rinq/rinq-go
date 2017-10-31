@@ -23,7 +23,7 @@ func (s *Session) At(rev ident.Revision) (rinq.Revision, error) {
 
 	return &revision{
 		s,
-		s.ref,
+		s.ref.ID.At(rev),
 		s.attrs,
 		s.logger,
 	}, nil
