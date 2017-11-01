@@ -187,6 +187,8 @@ func (s *Session) SetAsyncHandler(h rinq.AsyncHandler) error {
 			span := opentracing.SpanFromContext(ctx)
 			opentr.SetupCommand(span, msgID, ns, cmd)
 
+			opentr.AddTraceID(span, trace.Get(ctx))
+
 			if err == nil {
 				opentr.LogInvokerSuccess(span, in)
 			} else {
