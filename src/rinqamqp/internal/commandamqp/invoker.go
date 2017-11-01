@@ -224,16 +224,16 @@ func (i *invoker) initialize() error {
 
 	queue := responseQueue(i.peerID)
 
-	if _, err := i.channel.QueueDeclare(
-		queue,
-		false, // durable
-		false, // autoDelete
-		true,  // exclusive,
-		false, // noWait
-		nil,   // args
-	); err != nil {
-		panic(err)
-	}
+	// if _, err := i.channel.QueueDeclare(
+	// 	queue,
+	// 	false, // durable
+	// 	false, // autoDelete
+	// 	true,  // exclusive,
+	// 	false, // noWait
+	// 	nil,   // args
+	// ); err != nil {
+	// 	panic(err)
+	// }
 
 	if err := i.channel.QueueBind(
 		queue,

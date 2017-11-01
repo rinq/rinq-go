@@ -208,16 +208,16 @@ func (l *listener) initialize() error {
 
 	queue := notifyQueue(l.peerID)
 
-	if _, err := l.channel.QueueDeclare(
-		queue,
-		false, // durable
-		false, // autoDelete
-		true,  // exclusive,
-		false, // noWait
-		nil,   // args
-	); err != nil {
-		panic(err)
-	}
+	// if _, err := l.channel.QueueDeclare(
+	// 	queue,
+	// 	false, // durable
+	// 	false, // autoDelete
+	// 	true,  // exclusive,
+	// 	false, // noWait
+	// 	nil,   // args
+	// ); err != nil {
+	// 	panic(err)
+	// }
 
 	var err error
 	l.deliveries, err = l.channel.Consume(

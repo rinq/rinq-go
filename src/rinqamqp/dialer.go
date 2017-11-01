@@ -224,6 +224,7 @@ func (d *Dialer) establishIdentity(
 ) (id ident.PeerID, err error) {
 	var channel *amqp.Channel
 
+Retry:
 	for {
 		channel, err = channels.Get()
 		if err != nil {
@@ -231,35 +232,55 @@ func (d *Dialer) establishIdentity(
 		}
 
 		id = ident.NewPeerID()
-		_, err = channel.QueueDeclare(
-			id.ShortString(), // this queue is used purely to reserve the peer ID
-			false,            // durable
-			false,            // autoDelete
-			true,             // exclusive,
-			false,            // noWait
-			nil,              // args
-		)
 
-		if amqpErr, ok := err.(*amqp.Error); !ok || amqpErr.Code != amqp.ResourceLocked {
-			if err == nil {
-				channels.Put(channel)
-			}
-
-			return
+		queues := []string{
+			id.ShortString(),
+			id.ShortString() + ".req",
+			id.ShortString() + ".rsp",
+			id.ShortString() + ".ntf",
 		}
 
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-			return
-		default:
-			if logger.IsDebug() {
-				logger.Log(
-					"%s already registered, retrying with a different peer ID",
-					id.ShortString(),
-				)
+		for _, queue := range queues {
+			_, err = channel.QueueDeclare(
+				queue, // this queue is used purely to reserve the peer ID
+				false, // durable
+				false, // autoDelete
+				true,  // exclusive,
+				false, // noWait
+				nil,   // args
+			)
+
+			switch e := err.(type) {
+			case nil:
+				continue // success
+			default:
+				return // some other error
+			case *amqp.Error:
+				if e.Code != amqp.ResourceLocked {
+					return // some unexpected RMQ error
+				}
+
+				// fall through to retry
+			}
+
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+			default:
+				if logger.IsDebug() {
+					logger.Log(
+						"%s already registered, retrying with a different peer ID",
+						id.ShortString(),
+					)
+				}
+
+				continue Retry
 			}
 		}
+
+		channels.Put(channel)
+		return
 	}
 }
 

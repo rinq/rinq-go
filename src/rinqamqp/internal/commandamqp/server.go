@@ -176,16 +176,16 @@ func (s *server) initialize() error {
 
 	queue := requestQueue(s.peerID)
 
-	if _, err := s.channel.QueueDeclare(
-		queue,
-		false, // durable
-		false, // autoDelete
-		true,  // exclusive,
-		false, // noWait
-		amqp.Table{"x-max-priority": priorityCount},
-	); err != nil {
-		panic(err)
-	}
+	// if _, err := s.channel.QueueDeclare(
+	// 	queue,
+	// 	false, // durable
+	// 	false, // autoDelete
+	// 	true,  // exclusive,
+	// 	false, // noWait
+	// 	amqp.Table{"x-max-priority": priorityCount},
+	// ); err != nil {
+	// 	panic(err)
+	// }
 
 	if err := s.channel.QueueBind(
 		queue,
