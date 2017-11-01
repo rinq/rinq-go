@@ -30,7 +30,7 @@ var _ = Describe("Attr", func() {
 
 		It("escapes attributes that contain certain characters", func() {
 			attr := rinq.Attr{Key: "foo key", Value: "bar value"}
-			Expect(attr.String()).To(Equal("\"foo key\"=\"bar value\""))
+			Expect(attr.String()).To(Equal(`"foo key"="bar value"`))
 		})
 	})
 })
