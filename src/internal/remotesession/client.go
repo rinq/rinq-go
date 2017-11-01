@@ -58,7 +58,7 @@ func (c *client) Fetch(
 	})
 	defer out.Close()
 
-	_, in, err := c.invoker.CallUnicast(
+	traceID, in, err := c.invoker.CallUnicast(
 		ctx,
 		c.nextMessageID(),
 		sessID.Peer,
@@ -67,6 +67,8 @@ func (c *client) Fetch(
 		out,
 	)
 	defer in.Close()
+
+	opentr.AddTraceID(span, traceID)
 
 	if err != nil {
 		opentr.LogSessionError(span, err)
@@ -111,7 +113,7 @@ func (c *client) Update(
 	})
 	defer out.Close()
 
-	_, in, err := c.invoker.CallUnicast(
+	traceID, in, err := c.invoker.CallUnicast(
 		ctx,
 		c.nextMessageID(),
 		ref.ID.Peer,
@@ -120,6 +122,8 @@ func (c *client) Update(
 		out,
 	)
 	defer in.Close()
+
+	opentr.AddTraceID(span, traceID)
 
 	if err != nil {
 		opentr.LogSessionError(span, err)
@@ -174,7 +178,7 @@ func (c *client) Clear(
 	})
 	defer out.Close()
 
-	_, in, err := c.invoker.CallUnicast(
+	traceID, in, err := c.invoker.CallUnicast(
 		ctx,
 		c.nextMessageID(),
 		ref.ID.Peer,
@@ -183,6 +187,8 @@ func (c *client) Clear(
 		out,
 	)
 	defer in.Close()
+
+	opentr.AddTraceID(span, traceID)
 
 	if err != nil {
 		opentr.LogSessionError(span, err)
@@ -220,7 +226,7 @@ func (c *client) Destroy(
 	})
 	defer out.Close()
 
-	_, in, err := c.invoker.CallUnicast(
+	traceID, in, err := c.invoker.CallUnicast(
 		ctx,
 		c.nextMessageID(),
 		ref.ID.Peer,
@@ -229,6 +235,8 @@ func (c *client) Destroy(
 		out,
 	)
 	defer in.Close()
+
+	opentr.AddTraceID(span, traceID)
 
 	if err != nil {
 		opentr.LogSessionError(span, err)
