@@ -216,7 +216,7 @@ func (l *listener) initialize() error {
 		false, // noWait
 		nil,   // args
 	); err != nil {
-		return err
+		panic(err)
 	}
 
 	var err error
@@ -229,6 +229,10 @@ func (l *listener) initialize() error {
 		false, // noWait
 		nil,   // args
 	)
+
+	if err != nil {
+		panic(err)
+	}
 
 	return err
 }

@@ -184,7 +184,7 @@ func (s *server) initialize() error {
 		false, // noWait
 		amqp.Table{"x-max-priority": priorityCount},
 	); err != nil {
-		return err
+		panic(err)
 	}
 
 	if err := s.channel.QueueBind(
@@ -207,7 +207,7 @@ func (s *server) initialize() error {
 		nil,   // args
 	)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	go s.pipe(messages)

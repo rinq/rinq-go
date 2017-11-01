@@ -232,7 +232,7 @@ func (i *invoker) initialize() error {
 		false, // noWait
 		nil,   // args
 	); err != nil {
-		return err
+		panic(err)
 	}
 
 	if err := i.channel.QueueBind(
@@ -255,6 +255,10 @@ func (i *invoker) initialize() error {
 		false, // noWait
 		nil,   // args
 	)
+
+	if err != nil {
+		panic(err)
+	}
 
 	return err
 }
