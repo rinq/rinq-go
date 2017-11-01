@@ -20,7 +20,7 @@ var _ = Describe("peer (functional)", func() {
 	})
 
 	AfterEach(func() {
-		functest.TearDownNamespaces()
+		functest.TearDown()
 	})
 
 	Describe("ID", func() {

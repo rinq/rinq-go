@@ -8,21 +8,24 @@ import (
 	"github.com/rinq/rinq-go/src/rinqamqp"
 )
 
-var sharedPeer struct {
-	mutex sync.Mutex
-	peer  rinq.Peer
+var peers struct {
+	mutex  sync.Mutex
+	shared rinq.Peer
+	all    []rinq.Peer
 }
 
 // SharedPeer returns a peer for use in functional tests.
 func SharedPeer() rinq.Peer {
-	sharedPeer.mutex.Lock()
-	defer sharedPeer.mutex.Unlock()
+	peer := NewPeer()
 
-	if sharedPeer.peer == nil {
-		sharedPeer.peer = NewPeer()
+	peers.mutex.Lock()
+	defer peers.mutex.Unlock()
+
+	if peers.shared == nil {
+		peers.shared = peer
 	}
 
-	return sharedPeer.peer
+	return peers.shared
 }
 
 // NewPeer returns a new peer for use in functional tests.
@@ -35,5 +38,32 @@ func NewPeer() rinq.Peer {
 		panic(err)
 	}
 
+	peers.mutex.Lock()
+	defer peers.mutex.Unlock()
+
+	peers.all = append(peers.all, peer)
+
 	return peer
+}
+
+func tearDownPeers() {
+	peers.mutex.Lock()
+	defer peers.mutex.Unlock()
+
+	peers.shared = nil
+
+	var wg sync.WaitGroup
+
+	for _, peer := range peers.all {
+		wg.Add(1)
+
+		go func(p rinq.Peer) {
+			p.Stop()
+			<-p.Done()
+			wg.Done()
+		}(peer)
+	}
+
+	wg.Wait()
+	peers.all = nil
 }

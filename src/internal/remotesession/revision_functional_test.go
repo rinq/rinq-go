@@ -38,13 +38,13 @@ var _ = Describe("revision (functional)", func() {
 	})
 
 	AfterEach(func() {
-		functest.TearDownNamespaces()
-
 		client.Stop()
 		server.Stop()
 
 		<-client.Done()
 		<-server.Done()
+
+		functest.TearDown()
 	})
 
 	Describe("Refresh", func() {

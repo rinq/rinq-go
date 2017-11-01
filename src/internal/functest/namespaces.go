@@ -33,9 +33,9 @@ func NewNamespace() string {
 	return ns
 }
 
-// TearDownNamespaces cleans up any queues created for command namespaces made
+// tearDownNamespaces cleans up any queues created for command namespaces made
 // via NewNamespace()
-func TearDownNamespaces() {
+func tearDownNamespaces() {
 	namespaces.mutex.Lock()
 	defer namespaces.mutex.Unlock()
 
