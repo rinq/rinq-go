@@ -186,7 +186,6 @@ func (s *Session) SetAsyncHandler(h rinq.AsyncHandler) error {
 		) {
 			span := opentracing.SpanFromContext(ctx)
 			opentr.SetupCommand(span, msgID, ns, cmd)
-
 			opentr.AddTraceID(span, trace.Get(ctx))
 
 			if err == nil {
@@ -366,7 +365,11 @@ func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 			s.mutex.RUnlock()
 
 			span := opentracing.SpanFromContext(ctx)
+
+			traceID := trace.Get(ctx)
+
 			opentr.SetupNotification(span, n.ID, n.Namespace, n.Type)
+			opentr.AddTraceID(span, traceID)
 			opentr.LogListenerReceived(span, ref, n)
 
 			// TODO: move to function
@@ -377,7 +380,7 @@ func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 				n.Type,
 				n.ID.Ref.ShortString(),
 				n.Payload.Len(),
-				trace.Get(ctx),
+				traceID,
 			)
 
 			h(ctx, target, n)

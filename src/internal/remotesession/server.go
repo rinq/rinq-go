@@ -11,6 +11,7 @@ import (
 	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
 type server struct {
@@ -75,6 +76,7 @@ func (s *server) fetch(
 	sessID := s.peerID.Session(args.Seq)
 
 	opentr.SetupSessionFetch(span, args.Namespace, sessID)
+	opentr.AddTraceID(span, trace.Get(ctx))
 	opentr.LogSessionFetchRequest(span, args.Keys)
 
 	sess, ok := s.sessions.Get(sessID)
@@ -123,6 +125,7 @@ func (s *server) update(
 	sessID := s.peerID.Session(args.Seq)
 
 	opentr.SetupSessionUpdate(span, args.Namespace, sessID)
+	opentr.AddTraceID(span, trace.Get(ctx))
 	opentr.LogSessionUpdateRequest(span, args.Rev, args.Attrs)
 
 	sess, ok := s.sessions.Get(sessID)
@@ -180,6 +183,7 @@ func (s *server) clear(
 	sessID := s.peerID.Session(args.Seq)
 
 	opentr.SetupSessionClear(span, args.Namespace, sessID)
+	opentr.AddTraceID(span, trace.Get(ctx))
 	opentr.LogSessionClearRequest(span, args.Rev)
 
 	sess, ok := s.sessions.Get(sessID)
@@ -228,6 +232,7 @@ func (s *server) destroy(
 	sessID := s.peerID.Session(args.Seq)
 
 	opentr.SetupSessionDestroy(span, sessID)
+	opentr.AddTraceID(span, trace.Get(ctx))
 	opentr.LogSessionDestroyRequest(span, args.Rev)
 
 	sess, ok := s.sessions.Get(sessID)
