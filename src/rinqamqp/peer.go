@@ -114,12 +114,15 @@ func (p *peer) Listen(ns string, handler rinq.CommandHandler) error {
 		) {
 			span := opentracing.SpanFromContext(ctx)
 
+			traceID := trace.Get(ctx)
+
 			opentr.SetupCommand(
 				span,
 				req.ID,
 				req.Namespace,
 				req.Command,
 			)
+			opentr.AddTraceID(span, traceID)
 			opentr.LogServerRequest(span, p.id, req.Payload)
 
 			handler(
@@ -129,7 +132,7 @@ func (p *peer) Listen(ns string, handler rinq.CommandHandler) error {
 					req,
 					res,
 					p.id,
-					trace.Get(ctx),
+					traceID,
 					p.logger,
 					span,
 				),
