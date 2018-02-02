@@ -75,14 +75,12 @@ func unpackTarget(msg *amqp.Delivery) (id ident.SessionID, err error) {
 }
 
 func packConstraint(msg *amqp.Publishing, con constraint.Constraint) {
-	p := rinq.NewPayload(con)
-	defer p.Close()
-
 	if msg.Headers == nil {
 		msg.Headers = amqp.Table{}
 	}
 
-	msg.Headers[constraintHeader] = p.Bytes()
+	// don't close p, as it's internal buffer is retained inside the msg header
+	msg.Headers[constraintHeader] = rinq.NewPayload(con).Bytes()
 }
 
 func unpackConstraint(msg *amqp.Delivery) (con constraint.Constraint, err error) {
