@@ -2,4 +2,4 @@
 package rinq
 
 // Version is the rinq-go library version.
-const Version = "0.6.0"
+const Version = "0.7.0"

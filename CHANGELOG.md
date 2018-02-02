@@ -1,6 +1,6 @@
 # Changelog
 
-## Next Release
+## 0.7.0 (2018-02-03)
 
 - **[BC]** `Session.CurrentRevision()` no longer returns an error
 - **[BC]** `Session.Destroy()` no longer waits for pending calls, use `Session.Done()` to wait
