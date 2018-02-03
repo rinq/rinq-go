@@ -230,17 +230,7 @@ func (s *Session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 		opentr.LogInvokerError(span, err)
 	}
 
-	// TODO: move to function
-	if err == nil {
-		s.logger.Log(
-			"%s executed '%s::%s' command (%d/o) [%s]",
-			msgID.ShortString(),
-			ns,
-			cmd,
-			p.Len(),
-			traceID,
-		)
-	}
+	logExecute(s.logger, msgID, ns, cmd, p, err, traceID)
 
 	return err
 }
@@ -276,18 +266,7 @@ func (s *Session) Notify(ctx context.Context, ns, t string, target ident.Session
 		opentr.LogNotifierError(span, err)
 	}
 
-	// TODO: move to function
-	if err == nil {
-		s.logger.Log(
-			"%s sent '%s::%s' notification to %s (%d/o) [%s]",
-			msgID.ShortString(),
-			ns,
-			t,
-			target.ShortString(),
-			p.Len(),
-			traceID,
-		)
-	}
+	logNotify(s.logger, msgID, ns, t, target, p, err, traceID)
 
 	return err
 }
@@ -319,18 +298,7 @@ func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 		opentr.LogNotifierError(span, err)
 	}
 
-	// TODO: move to function
-	if err == nil {
-		s.logger.Log(
-			"%s sent '%s::%s' notification to sessions matching %s (%d/o) [%s]",
-			msgID.ShortString(),
-			ns,
-			t,
-			con,
-			p.Len(),
-			traceID,
-		)
-	}
+	logNotifyMany(s.logger, msgID, ns, t, con, p, err, traceID)
 
 	return err
 }
@@ -372,16 +340,7 @@ func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 			opentr.AddTraceID(span, traceID)
 			opentr.LogListenerReceived(span, ref, n)
 
-			// TODO: move to function
-			s.logger.Log(
-				"%s received '%s::%s' notification from %s (%d/i) [%s]",
-				ref.ShortString(),
-				n.Namespace,
-				n.Type,
-				n.ID.Ref.ShortString(),
-				n.Payload.Len(),
-				traceID,
-			)
+			logNotifyRecv(s.logger, ref, n, traceID)
 
 			h(ctx, target, n)
 		},
@@ -390,11 +349,7 @@ func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 	if err != nil {
 		return err
 	} else if changed && s.logger.IsDebug() {
-		s.logger.Log(
-			"%s started listening for notifications in '%s' namespace",
-			s.ref.ShortString(),
-			ns,
-		)
+		logListen(s.logger, s.ref, ns)
 	}
 
 	return nil
@@ -416,11 +371,7 @@ func (s *Session) Unlisten(ns string) error {
 	if err != nil {
 		return err
 	} else if changed && s.logger.IsDebug() {
-		s.logger.Log(
-			"%s stopped listening for notifications in '%s' namespace",
-			s.ref.ShortString(),
-			ns,
-		)
+		logUnlisten(s.logger, s.ref, ns)
 	}
 
 	return nil

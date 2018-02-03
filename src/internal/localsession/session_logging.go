@@ -6,6 +6,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
@@ -144,6 +145,120 @@ func logAsyncResponse(
 			trace.Get(ctx),
 		)
 	}
+}
+
+func logExecute(
+	logger rinq.Logger,
+	msgID ident.MessageID,
+	ns string,
+	cmd string,
+	out *rinq.Payload,
+	err error,
+	traceID string,
+) {
+	if err != nil {
+		return // request never sent
+	}
+
+	logger.Log(
+		"%s executed '%s::%s' command (%d/o) [%s]",
+		msgID.ShortString(),
+		ns,
+		cmd,
+		out.Len(),
+		traceID,
+	)
+}
+
+func logNotify(
+	logger rinq.Logger,
+	msgID ident.MessageID,
+	ns string,
+	t string,
+	target ident.SessionID,
+	out *rinq.Payload,
+	err error,
+	traceID string,
+) {
+	if err != nil {
+		return // request never sent
+	}
+
+	logger.Log(
+		"%s sent '%s::%s' notification to %s (%d/o) [%s]",
+		msgID.ShortString(),
+		ns,
+		t,
+		target.ShortString(),
+		out.Len(),
+		traceID,
+	)
+}
+
+func logNotifyMany(
+	logger rinq.Logger,
+	msgID ident.MessageID,
+	ns string,
+	t string,
+	con constraint.Constraint,
+	out *rinq.Payload,
+	err error,
+	traceID string,
+) {
+	if err != nil {
+		return // request never sent
+	}
+
+	logger.Log(
+		"%s sent '%s::%s' notification to sessions matching %s (%d/o) [%s]",
+		msgID.ShortString(),
+		ns,
+		t,
+		con,
+		out.Len(),
+		traceID,
+	)
+}
+
+func logNotifyRecv(
+	logger rinq.Logger,
+	ref ident.Ref,
+	n rinq.Notification,
+	traceID string,
+) {
+	logger.Log(
+		"%s received '%s::%s' notification from %s (%d/i) [%s]",
+		ref.ShortString(),
+		n.Namespace,
+		n.Type,
+		n.ID.Ref.ShortString(),
+		n.Payload.Len(),
+		traceID,
+	)
+}
+
+func logListen(
+	logger rinq.Logger,
+	ref ident.Ref,
+	ns string,
+) {
+	logger.Log(
+		"%s started listening for notifications in '%s' namespace",
+		ref.ShortString(),
+		ns,
+	)
+}
+
+func logUnlisten(
+	logger rinq.Logger,
+	ref ident.Ref,
+	ns string,
+) {
+	logger.Log(
+		"%s stopped listening for notifications in '%s' namespace",
+		ref.ShortString(),
+		ns,
+	)
 }
 
 func logSessionDestroy(
