@@ -1,5 +1,9 @@
 # Changelog
 
+## Next Release
+
+- **[IMPROVED]** `Revision.Refresh()` always returns a usable revision (outside of a network error)
+
 ## 0.7.0 (2018-02-03)
 
 - **[BC]** `Session.CurrentRevision()` no longer returns an error
