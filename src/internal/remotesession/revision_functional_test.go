@@ -48,12 +48,14 @@ var _ = Describe("revision (functional)", func() {
 	})
 
 	Describe("Refresh", func() {
-		It("returns a not found error if the session has been destroyed", func() {
+		It("returns a closed revision if the session has been destroyed", func() {
 			session.Destroy()
 			<-session.Done()
 
-			_, err := remote.Refresh(ctx)
-			Expect(err).To(HaveOccurred())
+			rev, err := remote.Refresh(ctx)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			_, err = rev.Get(ctx, ns, "a")
 			Expect(rinq.IsNotFound(err)).To(BeTrue())
 		})
 	})

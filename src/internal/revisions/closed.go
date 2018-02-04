@@ -19,7 +19,7 @@ func (r closed) SessionID() ident.SessionID {
 }
 
 func (r closed) Refresh(context.Context) (rinq.Revision, error) {
-	return nil, rinq.NotFoundError{ID: ident.SessionID(r)}
+	return r, nil
 }
 
 func (r closed) Get(context.Context, string, string) (rinq.Attr, error) {
