@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/rinq/rinq-go/src/internal/x/bufferpool"
+	"github.com/rinq/rinq-go/src/internal/x/cbor"
 	"github.com/ugorji/go/codec"
 )
 
@@ -107,12 +108,8 @@ func (p *Payload) Bytes() []byte {
 	p.data.writeMutex.Lock()
 	defer p.data.writeMutex.Unlock()
 
-	encoder := cborEncoders.Get().(*codec.Encoder)
-	defer cborEncoders.Put(encoder)
-
 	buffer := bufferpool.Get()
-	encoder.Reset(buffer)
-	encoder.MustEncode(p.data.value)
+	cbor.MustEncode(buffer, p.data.value)
 	p.data.buffer = buffer
 
 	return buffer.Bytes()
@@ -128,15 +125,10 @@ func (p *Payload) Len() int {
 func (p *Payload) Decode(value interface{}) error {
 	buf := p.Bytes()
 	if buf == nil {
-		buf = cborNil
+		buf = cbor.Nil
 	}
 
-	decoder := cborDecoders.Get().(*codec.Decoder)
-	defer cborDecoders.Put(decoder)
-
-	decoder.ResetBytes(buf)
-
-	return decoder.Decode(value)
+	return cbor.DecodeBytes(buf, value)
 }
 
 // Value returns the payload value.
@@ -155,11 +147,7 @@ func (p *Payload) Value() interface{} {
 	p.data.writeMutex.Lock()
 	defer p.data.writeMutex.Unlock()
 
-	decoder := cborDecoders.Get().(*codec.Decoder)
-	defer cborDecoders.Put(decoder)
-
-	decoder.ResetBytes(p.data.buffer.Bytes())
-	decoder.MustDecode(&p.data.value)
+	cbor.MustDecodeBytes(p.data.buffer.Bytes(), &p.data.value)
 	p.data.hasValue = true
 
 	return p.data.value
@@ -218,33 +206,9 @@ type payloadData struct {
 	refCount uint
 }
 
-var jsonEncoders sync.Pool
-var cborEncoders sync.Pool
-var cborDecoders sync.Pool
-var cborNil []byte
-
-func init() {
-	var jsonHandle codec.JsonHandle
-	var cborHandle codec.CborHandle
-
-	jsonEncoders.New = func() interface{} {
+var jsonHandle codec.JsonHandle
+var jsonEncoders = sync.Pool{
+	New: func() interface{} {
 		return codec.NewEncoder(nil, &jsonHandle)
-	}
-
-	cborEncoders.New = func() interface{} {
-		return codec.NewEncoder(nil, &cborHandle)
-	}
-
-	cborDecoders.New = func() interface{} {
-		return codec.NewDecoder(nil, &cborHandle)
-	}
-
-	encoder := cborEncoders.Get().(*codec.Encoder)
-	defer cborEncoders.Put(encoder)
-
-	var buffer bytes.Buffer
-	encoder.Reset(&buffer)
-	encoder.MustEncode(nil)
-
-	cborNil = buffer.Bytes()
+	},
 }
