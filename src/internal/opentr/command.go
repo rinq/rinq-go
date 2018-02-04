@@ -58,7 +58,7 @@ func LogInvokerCall(
 
 // LogInvokerCallAsync logs information about a "call-sync" style invocation to s.
 func LogInvokerCallAsync(
-	span opentracing.Span,
+	s opentracing.Span,
 	attrs attributes.Catalog,
 	p *rinq.Payload,
 ) {
@@ -71,12 +71,12 @@ func LogInvokerCallAsync(
 		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
-	span.LogFields(fields...)
+	s.LogFields(fields...)
 }
 
 // LogInvokerExecute logs information about an "execute" style invoation to s.
 func LogInvokerExecute(
-	span opentracing.Span,
+	s opentracing.Span,
 	attrs attributes.Catalog,
 	p *rinq.Payload,
 ) {
@@ -89,12 +89,12 @@ func LogInvokerExecute(
 		fields = append(fields, lazyString("attributes", attrs.String))
 	}
 
-	span.LogFields(fields...)
+	s.LogFields(fields...)
 }
 
 // LogInvokerSuccess logs information about a successful command response to s.
-func LogInvokerSuccess(span opentracing.Span, p *rinq.Payload) {
-	span.LogFields(
+func LogInvokerSuccess(s opentracing.Span, p *rinq.Payload) {
+	s.LogFields(
 		successEvent,
 		log.Int("size", p.Len()),
 	)
@@ -140,8 +140,8 @@ func LogServerRequest(s opentracing.Span, peerID ident.PeerID, p *rinq.Payload) 
 }
 
 // LogServerSuccess logs information about a successful command response to s.
-func LogServerSuccess(span opentracing.Span, p *rinq.Payload) {
-	span.LogFields(
+func LogServerSuccess(s opentracing.Span, p *rinq.Payload) {
+	s.LogFields(
 		serverResponseEvent,
 		log.Int("size", p.Len()),
 	)
