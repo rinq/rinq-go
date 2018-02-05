@@ -21,31 +21,34 @@ type Invoker interface {
 	CallUnicast(
 		ctx context.Context,
 		msgID ident.MessageID,
+		traceID string,
 		target ident.PeerID,
 		namespace string,
 		command string,
 		payload *rinq.Payload,
-	) (string, *rinq.Payload, error)
+	) (*rinq.Payload, error)
 
 	// CallBalanced sends a load-balanced command request to the first available
 	// peer and blocks until a response is received or the context deadline is met.
 	CallBalanced(
 		ctx context.Context,
 		msgID ident.MessageID,
+		traceID string,
 		namespace string,
 		command string,
 		payload *rinq.Payload,
-	) (string, *rinq.Payload, error)
+	) (*rinq.Payload, error)
 
 	// CallBalancedAsync sends a load-balanced command request to the first
 	// available peer, instructs it to send a response, but does not block.
 	CallBalancedAsync(
 		ctx context.Context,
 		msgID ident.MessageID,
+		traceID string,
 		namespace string,
 		command string,
 		payload *rinq.Payload,
-	) (string, error)
+	) error
 
 	// SetAsyncHandler sets the asynchronous handler to use for a specific
 	// session.
@@ -56,18 +59,20 @@ type Invoker interface {
 	ExecuteBalanced(
 		ctx context.Context,
 		msgID ident.MessageID,
+		traceID string,
 		namespace string,
 		command string,
 		payload *rinq.Payload,
-	) (string, error)
+	) error
 
 	// ExecuteMulticast sends a multicast command request to the all available
 	// peers and returns immediately.
 	ExecuteMulticast(
 		ctx context.Context,
 		msgID ident.MessageID,
+		traceID string,
 		namespace string,
 		command string,
 		payload *rinq.Payload,
-	) (string, error)
+	) error
 }

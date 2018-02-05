@@ -14,19 +14,21 @@ type Notifier interface {
 	NotifyUnicast(
 		ctx context.Context,
 		msgID ident.MessageID,
+		traceID string,
 		s ident.SessionID,
 		ns string,
 		t string,
 		out *rinq.Payload,
-	) (string, error)
+	) error
 
 	// NotifyMulticast sends a notification to all sessions matching a constraint.
 	NotifyMulticast(
 		ctx context.Context,
 		msgID ident.MessageID,
+		traceID string,
 		con constraint.Constraint,
 		ns string,
 		t string,
 		out *rinq.Payload,
-	) (string, error)
+	) error
 }

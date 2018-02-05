@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
 	"github.com/streadway/amqp"
 )
@@ -148,7 +149,8 @@ func (r *response) respond(msg *amqp.Publishing) {
 	}
 	defer r.channels.Put(channel)
 
-	amqputil.PackTrace(r.context, msg)
+	// TODO: is this necessary for correlated responses?
+	amqputil.PackTrace(msg, trace.Get(r.context))
 
 	if r.replyMode == replyUncorrelated {
 		packNamespaceAndCommand(msg, r.request.Namespace, r.request.Command)

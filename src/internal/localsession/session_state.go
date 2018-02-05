@@ -1,11 +1,13 @@
 package localsession
 
 import (
+	"context"
 	"errors"
 
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
 // This file contains methods of the Session struct that are not defined in
@@ -192,8 +194,18 @@ func (s *Session) destroy() {
 }
 
 // nextMessageID returns a new unique message ID generated from the current
-// session-ref, and the attributes as they existed at that ref.
-func (s *Session) nextMessageID() ident.MessageID {
+// session-ref.
+//
+// If parent does not already have a trace ID, the message ID is used a the
+// trace ID.
+func (s *Session) nextMessageID(ctx context.Context) (msgID ident.MessageID, traceID string) {
 	s.msgSeq++
-	return s.ref.Message(s.msgSeq)
+	msgID = s.ref.Message(s.msgSeq)
+	traceID = trace.Get(ctx)
+
+	if traceID == "" {
+		traceID = msgID.String()
+	}
+
+	return
 }

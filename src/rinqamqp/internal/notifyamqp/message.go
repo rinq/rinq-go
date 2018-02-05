@@ -32,6 +32,7 @@ func unicastRoutingKey(ns string, p ident.PeerID) string {
 
 func packCommonAttributes(
 	msg *amqp.Publishing,
+	traceID string,
 	ns string,
 	t string,
 	p *rinq.Payload,
@@ -44,6 +45,8 @@ func packCommonAttributes(
 	}
 
 	msg.Headers[namespaceHeader] = ns
+
+	amqputil.PackTrace(msg, traceID)
 }
 
 func unpackCommonAttributes(msg *amqp.Delivery) (ns, t string, p *rinq.Payload, err error) {
