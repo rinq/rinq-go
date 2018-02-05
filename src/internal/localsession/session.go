@@ -96,7 +96,7 @@ func (s *Session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 		return nil, rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID := s.nextMessageID()
+	msgID, traceID := s.nextMessageID(ctx)
 	attrs := s.attrs // capture for logging/tracing while mutex is locked
 
 	s.calls.Add(1)
@@ -110,13 +110,12 @@ func (s *Session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 	defer span.Finish()
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogInvokerCall(span, attrs, out)
 
 	start := time.Now()
-	traceID, in, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, out)
+	in, err := s.invoker.CallBalanced(ctx, msgID, traceID, ns, cmd, out)
 	elapsed := time.Since(start) / time.Millisecond
-
-	opentr.AddTraceID(span, traceID)
 
 	if err == nil {
 		opentr.LogInvokerSuccess(span, in)
@@ -140,17 +139,16 @@ func (s *Session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 		return ident.MessageID{}, rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID := s.nextMessageID()
+	msgID, traceID := s.nextMessageID(ctx)
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogInvokerCallAsync(span, s.attrs, out)
 
-	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
-
-	opentr.AddTraceID(span, traceID)
+	err := s.invoker.CallBalancedAsync(ctx, msgID, traceID, ns, cmd, out)
 
 	if err != nil {
 		opentr.LogInvokerError(span, err)
@@ -214,17 +212,16 @@ func (s *Session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID := s.nextMessageID()
+	msgID, traceID := s.nextMessageID(ctx)
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogInvokerCallAsync(span, s.attrs, p)
 
-	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
-
-	opentr.AddTraceID(span, traceID)
+	err := s.invoker.ExecuteBalanced(ctx, msgID, traceID, ns, cmd, p)
 
 	if err != nil {
 		opentr.LogInvokerError(span, err)
@@ -250,17 +247,16 @@ func (s *Session) Notify(ctx context.Context, ns, t string, target ident.Session
 		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID := s.nextMessageID()
+	msgID, traceID := s.nextMessageID(ctx)
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	opentr.SetupNotification(span, msgID, ns, t)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogNotifierUnicast(span, s.attrs, target, p)
 
-	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, t, p)
-
-	opentr.AddTraceID(span, traceID)
+	err := s.notifier.NotifyUnicast(ctx, msgID, traceID, target, ns, t, p)
 
 	if err != nil {
 		opentr.LogNotifierError(span, err)
@@ -282,17 +278,16 @@ func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID := s.nextMessageID()
+	msgID, traceID := s.nextMessageID(ctx)
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	opentr.SetupNotification(span, msgID, ns, t)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogNotifierMulticast(span, s.attrs, con, p)
 
-	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, t, p)
-
-	opentr.AddTraceID(span, traceID)
+	err := s.notifier.NotifyMulticast(ctx, msgID, traceID, con, ns, t, p)
 
 	if err != nil {
 		opentr.LogNotifierError(span, err)

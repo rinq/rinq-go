@@ -11,6 +11,7 @@ import (
 	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
 type client struct {
@@ -45,10 +46,13 @@ func (c *client) Fetch(
 	attributes.VList,
 	error,
 ) {
+	msgID, traceID := c.nextMessageID(ctx)
+
 	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupSessionFetch(span, ns, sessID)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogSessionFetchRequest(span, keys)
 
 	out := rinq.NewPayload(fetchRequest{
@@ -58,17 +62,16 @@ func (c *client) Fetch(
 	})
 	defer out.Close()
 
-	traceID, in, err := c.invoker.CallUnicast(
+	in, err := c.invoker.CallUnicast(
 		ctx,
-		c.nextMessageID(),
+		msgID,
+		traceID,
 		sessID.Peer,
 		sessionNamespace,
 		fetchCommand,
 		out,
 	)
 	defer in.Close()
-
-	opentr.AddTraceID(span, traceID)
 
 	if err != nil {
 		opentr.LogSessionError(span, err)
@@ -99,10 +102,13 @@ func (c *client) Update(
 	attributes.VList,
 	error,
 ) {
+	msgID, traceID := c.nextMessageID(ctx)
+
 	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupSessionUpdate(span, ns, ref.ID)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogSessionUpdateRequest(span, ref.Rev, attrs)
 
 	out := rinq.NewPayload(updateRequest{
@@ -113,17 +119,16 @@ func (c *client) Update(
 	})
 	defer out.Close()
 
-	traceID, in, err := c.invoker.CallUnicast(
+	in, err := c.invoker.CallUnicast(
 		ctx,
-		c.nextMessageID(),
+		msgID,
+		traceID,
 		ref.ID.Peer,
 		sessionNamespace,
 		updateCommand,
 		out,
 	)
 	defer in.Close()
-
-	opentr.AddTraceID(span, traceID)
 
 	if err != nil {
 		opentr.LogSessionError(span, err)
@@ -165,10 +170,13 @@ func (c *client) Clear(
 	ident.Revision,
 	error,
 ) {
+	msgID, traceID := c.nextMessageID(ctx)
+
 	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupSessionClear(span, ns, ref.ID)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogSessionClearRequest(span, ref.Rev)
 
 	out := rinq.NewPayload(updateRequest{
@@ -178,17 +186,16 @@ func (c *client) Clear(
 	})
 	defer out.Close()
 
-	traceID, in, err := c.invoker.CallUnicast(
+	in, err := c.invoker.CallUnicast(
 		ctx,
-		c.nextMessageID(),
+		msgID,
+		traceID,
 		ref.ID.Peer,
 		sessionNamespace,
 		clearCommand,
 		out,
 	)
 	defer in.Close()
-
-	opentr.AddTraceID(span, traceID)
 
 	if err != nil {
 		opentr.LogSessionError(span, err)
@@ -214,10 +221,13 @@ func (c *client) Destroy(
 	ctx context.Context,
 	ref ident.Ref,
 ) error {
+	msgID, traceID := c.nextMessageID(ctx)
+
 	span, ctx := opentr.ChildOf(ctx, c.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupSessionDestroy(span, ref.ID)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogSessionDestroyRequest(span, ref.Rev)
 
 	out := rinq.NewPayload(destroyRequest{
@@ -226,17 +236,16 @@ func (c *client) Destroy(
 	})
 	defer out.Close()
 
-	traceID, in, err := c.invoker.CallUnicast(
+	in, err := c.invoker.CallUnicast(
 		ctx,
-		c.nextMessageID(),
+		msgID,
+		traceID,
 		ref.ID.Peer,
 		sessionNamespace,
 		destroyCommand,
 		out,
 	)
 	defer in.Close()
-
-	opentr.AddTraceID(span, traceID)
 
 	if err != nil {
 		opentr.LogSessionError(span, err)
@@ -249,8 +258,14 @@ func (c *client) Destroy(
 	return nil
 }
 
-func (c *client) nextMessageID() ident.MessageID {
+func (c *client) nextMessageID(ctx context.Context) (msgID ident.MessageID, traceID string) {
 	seq := atomic.AddUint32(&c.seq, 1)
+	msgID = c.peerID.Session(0).At(0).Message(seq)
+	traceID = trace.Get(ctx)
 
-	return c.peerID.Session(0).At(0).Message(seq)
+	if traceID == "" {
+		traceID = msgID.String()
+	}
+
+	return
 }

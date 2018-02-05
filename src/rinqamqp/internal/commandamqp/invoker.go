@@ -96,44 +96,44 @@ func newInvoker(
 func (i *invoker) CallUnicast(
 	ctx context.Context,
 	msgID ident.MessageID,
+	traceID string,
 	target ident.PeerID,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
-) (string, *rinq.Payload, error) {
+) (*rinq.Payload, error) {
 	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  callUnicastPriority,
 	}
-	packRequest(msg, ns, cmd, out, replyCorrelated)
-	traceID := amqputil.PackTrace(ctx, msg)
+	packRequest(msg, traceID, ns, cmd, out, replyCorrelated)
 
 	logUnicastCallBegin(i.logger, i.peerID, msgID, target, ns, cmd, traceID, out)
 	in, err := i.call(ctx, unicastExchange, target.String(), msg)
 	logCallEnd(i.logger, i.peerID, msgID, ns, cmd, traceID, in, err)
 
-	return traceID, in, err
+	return in, err
 }
 
 func (i *invoker) CallBalanced(
 	ctx context.Context,
 	msgID ident.MessageID,
+	traceID string,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
-) (string, *rinq.Payload, error) {
+) (*rinq.Payload, error) {
 	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  callBalancedPriority,
 	}
-	packRequest(msg, ns, cmd, out, replyCorrelated)
-	traceID := amqputil.PackTrace(ctx, msg)
+	packRequest(msg, traceID, ns, cmd, out, replyCorrelated)
 
 	logBalancedCallBegin(i.logger, i.peerID, msgID, ns, cmd, traceID, out)
 	in, err := i.call(ctx, balancedExchange, ns, msg)
 	logCallEnd(i.logger, i.peerID, msgID, ns, cmd, traceID, in, err)
 
-	return traceID, in, err
+	return in, err
 }
 
 // CallBalancedAsync sends a load-balanced command request to the first
@@ -141,21 +141,21 @@ func (i *invoker) CallBalanced(
 func (i *invoker) CallBalancedAsync(
 	ctx context.Context,
 	msgID ident.MessageID,
+	traceID string,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
-) (string, error) {
+) error {
 	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  callBalancedPriority,
 	}
-	packRequest(msg, ns, cmd, out, replyUncorrelated)
-	traceID := amqputil.PackTrace(ctx, msg)
+	packRequest(msg, traceID, ns, cmd, out, replyUncorrelated)
 
 	err := i.send(ctx, balancedExchange, ns, msg)
 	logAsyncRequest(i.logger, i.peerID, msgID, ns, cmd, traceID, out, err)
 
-	return traceID, err
+	return err
 }
 
 // SetAsyncHandler sets the asynchronous handler to use for a specific
@@ -174,42 +174,42 @@ func (i *invoker) SetAsyncHandler(sessID ident.SessionID, h rinq.AsyncHandler) {
 func (i *invoker) ExecuteBalanced(
 	ctx context.Context,
 	msgID ident.MessageID,
+	traceID string,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
-) (string, error) {
+) error {
 	msg := &amqp.Publishing{
 		MessageId:    msgID.String(),
 		Priority:     executePriority,
 		DeliveryMode: amqp.Persistent,
 	}
-	packRequest(msg, ns, cmd, out, replyNone)
-	traceID := amqputil.PackTrace(ctx, msg)
+	packRequest(msg, traceID, ns, cmd, out, replyNone)
 
 	err := i.send(ctx, balancedExchange, ns, msg)
 	logBalancedExecute(i.logger, i.peerID, msgID, ns, cmd, traceID, out, err)
 
-	return traceID, err
+	return err
 }
 
 func (i *invoker) ExecuteMulticast(
 	ctx context.Context,
 	msgID ident.MessageID,
+	traceID string,
 	ns string,
 	cmd string,
 	out *rinq.Payload,
-) (string, error) {
+) error {
 	msg := &amqp.Publishing{
 		MessageId: msgID.String(),
 		Priority:  executePriority,
 	}
-	packRequest(msg, ns, cmd, out, replyNone)
-	traceID := amqputil.PackTrace(ctx, msg)
+	packRequest(msg, traceID, ns, cmd, out, replyNone)
 
 	err := i.send(ctx, multicastExchange, ns, msg)
 	logMulticastExecute(i.logger, i.peerID, msgID, ns, cmd, traceID, out, err)
 
-	return traceID, err
+	return err
 }
 
 // initialize prepares the AMQP channel and starts the state machine

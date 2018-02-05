@@ -25,17 +25,19 @@ var _ = Describe("With", func() {
 
 var _ = Describe("WithRoot", func() {
 	It("adds the trace ID", func() {
-		ctx, added := WithRoot(context.Background(), "<id>")
+		ctx, id, added := WithRoot(context.Background(), "<id>")
 
 		Expect(Get(ctx)).To(Equal("<id>"))
+		Expect(id).To(Equal("<id>"))
 		Expect(added).To(BeTrue())
 	})
 
 	It("returns the parent context unchanged", func() {
 		parent := With(context.Background(), "<id 1>")
-		ctx, added := WithRoot(parent, "<id 2>")
+		ctx, id, added := WithRoot(parent, "<id 2>")
 
 		Expect(ctx).To(BeIdenticalTo(parent))
+		Expect(id).To(Equal("<id 1>"))
 		Expect(added).To(BeFalse())
 	})
 })
