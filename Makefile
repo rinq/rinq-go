@@ -1,5 +1,4 @@
-SHELL := /bin/bash
--include artifacts/make/go.mk
+-include artifacts/make/go/Makefile
 
-artifacts/make/%.mk:
-	bash <(curl -s https://rinq.github.io/make/install) $*
+artifacts/make/%/Makefile:
+	curl -sf https://jmalloc.github.io/makefiles/fetch | bash /dev/stdin $*
