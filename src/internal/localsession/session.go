@@ -219,7 +219,7 @@ func (s *Session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
 	opentr.AddTraceID(span, traceID)
-	opentr.LogInvokerCallAsync(span, s.attrs, p)
+	opentr.LogInvokerExecute(span, s.attrs, p)
 
 	err := s.invoker.ExecuteBalanced(ctx, msgID, traceID, ns, cmd, p)
 
