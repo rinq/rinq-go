@@ -6,8 +6,8 @@ import (
 
 	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/internal/attributes"
+	"github.com/rinq/rinq-go/src/internal/notifications"
 	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
@@ -171,53 +171,27 @@ func logExecute(
 	)
 }
 
-func logNotify(
-	logger twelf.Logger,
-	msgID ident.MessageID,
-	ns string,
-	t string,
-	target ident.SessionID,
-	out *rinq.Payload,
-	err error,
-	traceID string,
-) {
-	if err != nil {
-		return // request never sent
-	}
-
+func logNotify(logger twelf.Logger, n *notifications.Notification) {
 	logger.Log(
 		"%s sent '%s::%s' notification to %s (%d/o) [%s]",
-		msgID.ShortString(),
-		ns,
-		t,
-		target.ShortString(),
-		out.Len(),
-		traceID,
+		n.ID.ShortString(),
+		n.Namespace,
+		n.Type,
+		n.UnicastTarget.ShortString(),
+		n.Payload.Len(),
+		n.TraceID,
 	)
 }
 
-func logNotifyMany(
-	logger twelf.Logger,
-	msgID ident.MessageID,
-	ns string,
-	t string,
-	con constraint.Constraint,
-	out *rinq.Payload,
-	err error,
-	traceID string,
-) {
-	if err != nil {
-		return // request never sent
-	}
-
+func logNotifyMany(logger twelf.Logger, n *notifications.Notification) {
 	logger.Log(
 		"%s sent '%s::%s' notification to sessions matching %s (%d/o) [%s]",
-		msgID.ShortString(),
-		ns,
-		t,
-		con,
-		out.Len(),
-		traceID,
+		n.ID.ShortString(),
+		n.Namespace,
+		n.Type,
+		n.MulticastConstraint,
+		n.Payload.Len(),
+		n.TraceID,
 	)
 }
 

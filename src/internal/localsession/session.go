@@ -11,6 +11,7 @@ import (
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/namespaces"
+	"github.com/rinq/rinq-go/src/internal/notifications"
 	"github.com/rinq/rinq-go/src/internal/notify"
 	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/rinq/rinq-go/src/internal/revisions"
@@ -29,7 +30,7 @@ import (
 // the Rinq internals.
 type Session struct {
 	invoker  command.Invoker
-	notifier notify.Notifier
+	sink     notifications.Sink
 	listener notify.Listener
 	logger   twelf.Logger
 	tracer   opentracing.Tracer
@@ -47,7 +48,7 @@ type Session struct {
 func NewSession(
 	id ident.SessionID,
 	invoker command.Invoker,
-	notifier notify.Notifier,
+	sink notifications.Sink,
 	listener notify.Listener,
 	logger twelf.Logger,
 	tracer opentracing.Tracer,
@@ -56,7 +57,7 @@ func NewSession(
 
 	return &Session{
 		invoker:  invoker,
-		notifier: notifier,
+		sink:     sink,
 		listener: listener,
 		logger:   logger,
 		tracer:   tracer,
@@ -257,13 +258,23 @@ func (s *Session) Notify(ctx context.Context, ns, t string, target ident.Session
 	opentr.AddTraceID(span, traceID)
 	opentr.LogNotifierUnicast(span, s.attrs, target, p)
 
-	err := s.notifier.NotifyUnicast(ctx, msgID, traceID, target, ns, t, p)
-
-	if err != nil {
-		opentr.LogNotifierError(span, err)
+	n := &notifications.Notification{
+		ID:            msgID,
+		TraceID:       traceID,
+		SpanContext:   span.Context(),
+		Namespace:     ns,
+		Type:          t,
+		Payload:       p,
+		UnicastTarget: target,
 	}
 
-	logNotify(s.logger, msgID, ns, t, target, p, err, traceID)
+	err := s.sink.Send(ctx, n)
+
+	if err == nil {
+		logNotify(s.logger, n)
+	} else {
+		opentr.LogNotifierError(span, err)
+	}
 
 	return err
 }
@@ -288,13 +299,24 @@ func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 	opentr.AddTraceID(span, traceID)
 	opentr.LogNotifierMulticast(span, s.attrs, con, p)
 
-	err := s.notifier.NotifyMulticast(ctx, msgID, traceID, con, ns, t, p)
-
-	if err != nil {
-		opentr.LogNotifierError(span, err)
+	n := &notifications.Notification{
+		ID:                  msgID,
+		TraceID:             traceID,
+		SpanContext:         span.Context(),
+		Namespace:           ns,
+		Type:                t,
+		Payload:             p,
+		IsMulticast:         true,
+		MulticastConstraint: con,
 	}
 
-	logNotifyMany(s.logger, msgID, ns, t, con, p, err, traceID)
+	err := s.sink.Send(ctx, n)
+
+	if err == nil {
+		logNotifyMany(s.logger, n)
+	} else {
+		opentr.LogNotifierError(span, err)
+	}
 
 	return err
 }

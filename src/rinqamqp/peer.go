@@ -9,6 +9,7 @@ import (
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/localsession"
 	"github.com/rinq/rinq-go/src/internal/namespaces"
+	"github.com/rinq/rinq-go/src/internal/notifications"
 	"github.com/rinq/rinq-go/src/internal/notify"
 	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/rinq/rinq-go/src/internal/remotesession"
@@ -30,7 +31,7 @@ type peer struct {
 	remoteStore remotesession.Store
 	invoker     command.Invoker
 	server      command.Server
-	notifier    notify.Notifier
+	sink        notifications.Sink
 	listener    notify.Listener
 	logger      twelf.Logger
 	tracer      opentracing.Tracer
@@ -46,7 +47,7 @@ func newPeer(
 	remoteStore remotesession.Store,
 	invoker command.Invoker,
 	server command.Server,
-	notifier notify.Notifier,
+	sink notifications.Sink,
 	listener notify.Listener,
 	logger twelf.Logger,
 	tracer opentracing.Tracer,
@@ -58,7 +59,7 @@ func newPeer(
 		remoteStore: remoteStore,
 		invoker:     invoker,
 		server:      server,
-		notifier:    notifier,
+		sink:        sink,
 		listener:    listener,
 		logger:      logger,
 		tracer:      tracer,
@@ -88,7 +89,7 @@ func (p *peer) Session() rinq.Session {
 	sess := localsession.NewSession(
 		id,
 		p.invoker,
-		p.notifier,
+		p.sink,
 		p.listener,
 		p.logger,
 		p.tracer,

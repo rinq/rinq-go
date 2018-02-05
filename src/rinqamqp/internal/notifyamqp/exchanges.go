@@ -1,7 +1,5 @@
 package notifyamqp
 
-import "github.com/streadway/amqp"
-
 const (
 	// unicastExchange is the exchange used to publish notifications directly to
 	// a specific session.
@@ -11,31 +9,3 @@ const (
 	// sent to multiple sessions based on a rinq.Constraint.
 	multicastExchange = "ntf.mc"
 )
-
-func declareExchanges(channel *amqp.Channel) error {
-	if err := channel.ExchangeDeclare(
-		unicastExchange,
-		"direct",
-		false, // durable
-		false, // autoDelete
-		false, // internal
-		false, // noWait
-		nil,   // args
-	); err != nil {
-		return err
-	}
-
-	if err := channel.ExchangeDeclare(
-		multicastExchange,
-		"direct",
-		false, // durable
-		false, // autoDelete
-		false, // internal
-		false, // noWait
-		nil,   // args
-	); err != nil {
-		return err
-	}
-
-	return nil
-}

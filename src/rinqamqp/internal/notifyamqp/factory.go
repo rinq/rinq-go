@@ -16,14 +16,10 @@ func New(
 	sessions *localsession.Store,
 	revs revisions.Store,
 	channels amqputil.ChannelPool,
-) (notify.Notifier, notify.Listener, error) {
+) (notify.Listener, error) {
 	channel, err := channels.GetQOS(opts.SessionWorkers) // do not return to pool, use for listener
 	if err != nil {
-		return nil, nil, err
-	}
-
-	if err = declareExchanges(channel); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	listener, err := newListener(
@@ -36,8 +32,8 @@ func New(
 		opts.Tracer,
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return newNotifier(peerID, channels, opts.Logger), listener, nil
+	return listener, nil
 }

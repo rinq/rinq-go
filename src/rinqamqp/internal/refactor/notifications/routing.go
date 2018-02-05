@@ -30,9 +30,9 @@ func notifyQueue(p ident.PeerID) string {
 	return p.ShortString() + ".ntf"
 }
 
-// Declare declares all exchanges and queues used by the notification system
-// for the given peer.
-func Declare(c *amqp.Channel, p ident.PeerID) error {
+// DeclareResources declares all exchanges and queues used by the notification
+// system for the given peer.
+func DeclareResources(c *amqp.Channel, p ident.PeerID) error {
 	if err := c.ExchangeDeclare(
 		unicastExchange,
 		"direct",

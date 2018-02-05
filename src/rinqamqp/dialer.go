@@ -20,6 +20,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/commandamqp"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/notifyamqp"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/notifications"
 	"github.com/streadway/amqp"
 )
 
@@ -167,7 +168,7 @@ func (d *Dialer) Dial(
 	}
 
 	channels := amqputil.NewChannelPool(broker, poolSize)
-	peerID, err := d.establishIdentity(ctx, channels, opts.Logger)
+	peerID, err := d.declareResources(ctx, channels, opts.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -191,10 +192,12 @@ func (d *Dialer) Dial(
 		return nil, err
 	}
 
-	notifier, listener, err := notifyamqp.New(peerID, opts, localStore, revStore, channels)
+	listener, err := notifyamqp.New(peerID, opts, localStore, revStore, channels)
 	if err != nil {
 		return nil, err
 	}
+
+	sink := notifications.NewSink(channels, opts.Tracer)
 
 	remoteStore := remotesession.NewStore(peerID, invoker, opts.PruneInterval, opts.Logger, opts.Tracer)
 	revStore.Remote = remoteStore
@@ -210,15 +213,15 @@ func (d *Dialer) Dial(
 		remoteStore,
 		invoker,
 		server,
-		notifier,
+		sink,
 		listener,
 		opts.Logger,
 		opts.Tracer,
 	), nil
 }
 
-// establishIdentity allocates a new peer ID on the broker.
-func (d *Dialer) establishIdentity(
+// declareResources creates all exhanges and queues required by the peer.
+func (d *Dialer) declareResources(
 	ctx context.Context,
 	channels amqputil.ChannelPool,
 	logger twelf.Logger,
@@ -232,20 +235,21 @@ func (d *Dialer) establishIdentity(
 		}
 
 		id = ident.NewPeerID()
-		_, err = channel.QueueDeclare(
-			id.ShortString(), // this queue is used purely to reserve the peer ID
-			false,            // durable
-			false,            // autoDelete
-			true,             // exclusive,
-			false,            // noWait
-			nil,              // args
-		)
 
-		if amqpErr, ok := err.(*amqp.Error); !ok || amqpErr.Code != amqp.ResourceLocked {
-			if err == nil {
-				channels.Put(channel)
+		// Note that we are relying on the fact that the sub-systems declare
+		// exclusive queues based on the peer ID to ensure that the peer ID is
+		// unique.
+		err = notifications.DeclareResources(channel, id)
+		// TODO: declare command related AMQP resources here too
+
+		if err == nil {
+			channels.Put(channel)
+			return
+		} else if amqpErr, ok := err.(*amqp.Error); ok {
+			if amqpErr.Code != amqp.ResourceLocked {
+				return
 			}
-
+		} else {
 			return
 		}
 
