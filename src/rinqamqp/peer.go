@@ -15,6 +15,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
 	"github.com/streadway/amqp"
 )
 
@@ -31,6 +32,7 @@ type peer struct {
 	server      command.Server
 	notifier    notify.Notifier
 	listener    notify.Listener
+	channels    amqputil.ChannelPool
 	logger      rinq.Logger
 	tracer      opentracing.Tracer
 
@@ -47,6 +49,7 @@ func newPeer(
 	server command.Server,
 	notifier notify.Notifier,
 	listener notify.Listener,
+	channels amqputil.ChannelPool,
 	logger rinq.Logger,
 	tracer opentracing.Tracer,
 ) *peer {
@@ -59,6 +62,7 @@ func newPeer(
 		server:      server,
 		notifier:    notifier,
 		listener:    listener,
+		channels:    channels,
 		logger:      logger,
 		tracer:      tracer,
 
@@ -173,6 +177,9 @@ func (p *peer) run() (service.State, error) {
 	case <-p.listener.Done():
 		return nil, p.listener.Err()
 
+	case <-p.channels.Done():
+		return nil, p.channels.Err()
+
 	case <-p.sm.Graceful:
 		return p.graceful, nil
 
@@ -189,12 +196,14 @@ func (p *peer) graceful() (service.State, error) {
 	p.invoker.GracefulStop()
 	p.remoteStore.GracefulStop()
 	p.listener.GracefulStop()
+	p.channels.GracefulStop()
 
 	done := service.WaitAll(
 		p.remoteStore,
 		p.invoker,
 		p.server,
 		p.listener,
+		p.channels,
 	)
 
 	select {
@@ -214,6 +223,7 @@ func (p *peer) finalize(err error) error {
 	p.invoker.Stop()
 	p.remoteStore.Stop()
 	p.listener.Stop()
+	p.channels.Stop()
 
 	p.localStore.Each(func(sess *localsession.Session) {
 		sess.Destroy()
@@ -225,6 +235,7 @@ func (p *peer) finalize(err error) error {
 		p.invoker,
 		p.server,
 		p.listener,
+		p.channels,
 	)
 
 	closeErr := p.broker.Close()
