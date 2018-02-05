@@ -6,7 +6,6 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/internal/opentr"
-	"github.com/rinq/rinq-go/src/internal/x/bufferpool"
 	"github.com/rinq/rinq-go/src/internal/x/cbor"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
@@ -30,25 +29,6 @@ func unicastRoutingKey(ns string, p ident.PeerID) string {
 	return ns + "." + p.String()
 }
 
-func packCommonAttributes(
-	msg *amqp.Publishing,
-	traceID string,
-	ns string,
-	t string,
-	p *rinq.Payload,
-) {
-	msg.Type = t
-	msg.Body = p.Bytes()
-
-	if msg.Headers == nil {
-		msg.Headers = amqp.Table{}
-	}
-
-	msg.Headers[namespaceHeader] = ns
-
-	amqputil.PackTrace(msg, traceID)
-}
-
 func unpackCommonAttributes(msg *amqp.Delivery) (ns, t string, p *rinq.Payload, err error) {
 	t = msg.Type
 	p = rinq.NewPayloadFromBytes(msg.Body)
@@ -61,14 +41,6 @@ func unpackCommonAttributes(msg *amqp.Delivery) (ns, t string, p *rinq.Payload, 
 	return
 }
 
-func packTarget(msg *amqp.Publishing, target ident.SessionID) {
-	if msg.Headers == nil {
-		msg.Headers = amqp.Table{}
-	}
-
-	msg.Headers[targetHeader] = target.String()
-}
-
 func unpackTarget(msg *amqp.Delivery) (id ident.SessionID, err error) {
 	if t, ok := msg.Headers[targetHeader].(string); ok {
 		id, err = ident.ParseSessionID(t)
@@ -77,19 +49,6 @@ func unpackTarget(msg *amqp.Delivery) (id ident.SessionID, err error) {
 	}
 
 	return
-}
-
-func packConstraint(msg *amqp.Publishing, con constraint.Constraint) {
-	if msg.Headers == nil {
-		msg.Headers = amqp.Table{}
-	}
-
-	// don't return buf to the pool as it's internal buffer is retained inside
-	// the msg header.
-	buf := bufferpool.Get()
-	cbor.MustEncode(buf, con)
-
-	msg.Headers[constraintHeader] = buf.Bytes()
 }
 
 func unpackConstraint(msg *amqp.Delivery) (con constraint.Constraint, err error) {
