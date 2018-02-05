@@ -23,7 +23,7 @@ const (
 	constraintHeader = "c"
 )
 
-func packCommon(msg *amqp.Publishing, n *notifications.Common) {
+func packCommon(msg *amqp.Publishing, n *notifications.Notification) {
 	msg.MessageId = n.ID.String()
 	msg.Type = n.Type
 	msg.Body = n.Payload.Bytes()
@@ -34,7 +34,7 @@ func packCommon(msg *amqp.Publishing, n *notifications.Common) {
 	marshaling.PackTrace(msg, n.TraceID)
 }
 
-func unpackCommon(msg *amqp.Delivery, n *notifications.Common) error {
+func unpackCommon(msg *amqp.Delivery, n *notifications.Notification) error {
 	var err error
 	n.ID, err = ident.ParseMessageID(msg.MessageId)
 	if err != nil {
@@ -55,11 +55,11 @@ func unpackCommon(msg *amqp.Delivery, n *notifications.Common) error {
 	return nil
 }
 
-func packUnicastSpecific(msg *amqp.Publishing, n *notifications.Common) {
+func packUnicastSpecific(msg *amqp.Publishing, n *notifications.Notification) {
 	msg.Headers[targetHeader] = n.UnicastTarget.String()
 }
 
-func unpackUnicastSpecific(msg *amqp.Delivery, n *notifications.Common) (err error) {
+func unpackUnicastSpecific(msg *amqp.Delivery, n *notifications.Notification) (err error) {
 	if t, ok := msg.Headers[targetHeader].(string); ok {
 		n.UnicastTarget, err = ident.ParseSessionID(t)
 	} else {
@@ -69,12 +69,12 @@ func unpackUnicastSpecific(msg *amqp.Delivery, n *notifications.Common) (err err
 	return
 }
 
-func packMulticastSpecific(msg *amqp.Publishing, n *notifications.Common, buf *bytes.Buffer) {
+func packMulticastSpecific(msg *amqp.Publishing, n *notifications.Notification, buf *bytes.Buffer) {
 	cbor.MustEncode(buf, n.MulticastConstraint)
 	msg.Headers[constraintHeader] = buf.Bytes()
 }
 
-func unpackMulticastSpecific(msg *amqp.Delivery, n *notifications.Common) (err error) {
+func unpackMulticastSpecific(msg *amqp.Delivery, n *notifications.Notification) (err error) {
 	if buf, ok := msg.Headers[constraintHeader].([]byte); ok {
 		err = cbor.DecodeBytes(buf, &n.MulticastConstraint)
 	} else {

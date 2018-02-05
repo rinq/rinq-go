@@ -13,7 +13,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// Source is an interface that produces notifications.
+// Source is an AMQP-based notification source.
 type Source struct {
 	peerID  ident.PeerID
 	channel *amqp.Channel
@@ -128,20 +128,23 @@ func (s *Source) Run(ctx context.Context) error {
 
 // emit sends a notification to the s.Notifications() channel, based on msg.
 func (s *Source) emit(ctx context.Context, msg *amqp.Delivery) error {
-	n := &notifications.Inbound{
-		Ack: func() {
-			_ = msg.Ack(false) // false = single message
-		},
-	}
+	n := notifications.Notification{}
 
-	if err := s.unpack(msg, n); err != nil {
+	if err := s.unpack(msg, &n); err != nil {
 		logIgnoredMessage(s.logger, s.peerID, msg, err)
 		_ = msg.Reject(false) // false = don't requeue
 		return nil
 	}
 
+	ib := &notifications.Inbound{
+		Notification: &n,
+		Ack: func() {
+			_ = msg.Ack(false) // false = single message
+		},
+	}
+
 	select {
-	case s.notifications <- n:
+	case s.notifications <- ib:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -149,8 +152,8 @@ func (s *Source) emit(ctx context.Context, msg *amqp.Delivery) error {
 }
 
 // unpack unpacks msg into n.
-func (s *Source) unpack(msg *amqp.Delivery, n *notifications.Inbound) error {
-	if err := unpackCommon(msg, &n.Common); err != nil {
+func (s *Source) unpack(msg *amqp.Delivery, n *notifications.Notification) error {
+	if err := unpackCommon(msg, n); err != nil {
 		return err
 	}
 
@@ -162,13 +165,13 @@ func (s *Source) unpack(msg *amqp.Delivery, n *notifications.Inbound) error {
 
 	switch msg.Exchange {
 	case unicastExchange:
-		if err := unpackUnicastSpecific(msg, &n.Common); err != nil {
+		if err := unpackUnicastSpecific(msg, n); err != nil {
 			return err
 		}
 
 	case multicastExchange:
 		n.IsMulticast = true
-		if err := unpackMulticastSpecific(msg, &n.Common); err != nil {
+		if err := unpackMulticastSpecific(msg, n); err != nil {
 			return err
 		}
 

@@ -17,9 +17,14 @@ const (
 // PackSpanContext packs a serialized "span context" into the headers of msg
 // based on the span in ctx, if any. buf is a buffer used for encoding which
 // must be valid until msg is published.
-func PackSpanContext(msg *amqp.Publishing, s opentracing.Span, buf *bytes.Buffer) error {
-	if err := s.Tracer().Inject(
-		s.Context(),
+func PackSpanContext(
+	msg *amqp.Publishing,
+	t opentracing.Tracer,
+	sc opentracing.SpanContext,
+	buf *bytes.Buffer,
+) error {
+	if err := t.Inject(
+		sc,
 		opentracing.Binary,
 		buf,
 	); err != nil {

@@ -9,5 +9,12 @@ type Source interface {
 	Unlisten(ns string)
 
 	// Messages returns a channel on which incoming notifications are delivered.
-	Notifications() <-chan *Inbound
+	Notifications() <-chan Inbound
+}
+
+// Inbound is a notification received from a source.
+// Ack must be called once the notification has been handled.
+type Inbound struct {
+	Notification *Notification
+	Ack          func()
 }
