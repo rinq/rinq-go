@@ -33,11 +33,11 @@ type Source struct {
 func NewSource(
 	peerID ident.PeerID,
 	broker *amqp.Connection,
-	preFetch uint,
+	preFetch int,
 	logger rinq.Logger,
 	tracing opentracing.Tracer,
 ) (*Source, error) {
-	c, err := amqpx.ChannelWithQOS(broker, preFetch)
+	c, err := amqpx.ChannelWithPreFetch(broker, preFetch)
 	if err != nil {
 		return nil, err
 	}
