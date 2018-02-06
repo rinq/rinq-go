@@ -106,12 +106,6 @@ func (s *Source) Run(ctx context.Context) error {
 				err = ctx.Err()
 			}
 		}
-
-		// canceling the context is the standard way to stop the source
-		// and does not indicate an error.
-		if err == context.Canceled {
-			err = nil
-		}
 	}
 
 	if e := s.stopConsumer(); e != nil {
