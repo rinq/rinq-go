@@ -197,7 +197,14 @@ func (d *Dialer) Dial(
 		return nil, err
 	}
 
-	sink := notifications.NewSink(channels, opts.Tracer)
+	publisher := &notifications.Publisher{
+		Channels: channels,
+		Encoder: &notifications.Encoder{
+			PeerID: peerID,
+			Tracer: opts.Tracer,
+			Logger: opts.Logger,
+		},
+	}
 
 	remoteStore := remotesession.NewStore(peerID, invoker, opts.PruneInterval, opts.Logger, opts.Tracer)
 	revStore.Remote = remoteStore
@@ -213,7 +220,7 @@ func (d *Dialer) Dial(
 		remoteStore,
 		invoker,
 		server,
-		sink,
+		publisher,
 		listener,
 		opts.Logger,
 		opts.Tracer,

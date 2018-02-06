@@ -251,7 +251,8 @@ func (s *Session) Notify(ctx context.Context, ns, t string, target ident.Session
 
 	msgID, traceID := s.nextMessageID(ctx)
 
-	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
+	// TODO: don't create unused ctx
+	span, _ := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	opentr.SetupNotification(span, msgID, ns, t)
@@ -268,7 +269,7 @@ func (s *Session) Notify(ctx context.Context, ns, t string, target ident.Session
 		UnicastTarget: target,
 	}
 
-	err := s.sink.Send(ctx, n)
+	err := s.sink.Send(n)
 
 	if err == nil {
 		logNotify(s.logger, n)
@@ -292,7 +293,8 @@ func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 
 	msgID, traceID := s.nextMessageID(ctx)
 
-	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
+	// TODO: don't create unused ctx
+	span, _ := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	opentr.SetupNotification(span, msgID, ns, t)
@@ -310,7 +312,7 @@ func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 		MulticastConstraint: con,
 	}
 
-	err := s.sink.Send(ctx, n)
+	err := s.sink.Send(n)
 
 	if err == nil {
 		logNotifyMany(s.logger, n)
