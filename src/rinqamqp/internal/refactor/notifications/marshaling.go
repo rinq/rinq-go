@@ -2,12 +2,12 @@ package notifications
 
 import (
 	"bytes"
-	"errors"
 
 	"github.com/rinq/rinq-go/src/internal/notifications"
 	"github.com/rinq/rinq-go/src/internal/x/cbor"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/marshaling"
 	"github.com/streadway/amqp"
 )
@@ -27,10 +27,8 @@ func packCommon(msg *amqp.Publishing, n *notifications.Notification) {
 	msg.MessageId = n.ID.String()
 	msg.Type = n.Type
 	msg.Body = n.Payload.Bytes()
-	msg.Headers = amqp.Table{
-		namespaceHeader: n.Namespace,
-	}
 
+	amqpx.SetHeader(msg, namespaceHeader, n.Namespace)
 	marshaling.PackTrace(msg, n.TraceID)
 }
 
@@ -41,14 +39,12 @@ func unpackCommon(msg *amqp.Delivery, n *notifications.Notification) error {
 		return err
 	}
 
-	n.TraceID = marshaling.UnpackTrace(msg)
-
-	var ok bool
-	n.Namespace, ok = msg.Headers[namespaceHeader].(string)
-	if !ok {
-		return errors.New("namespace header is not a string")
+	n.Namespace, err = amqpx.GetHeaderString(msg, namespaceHeader)
+	if err != nil {
+		return err
 	}
 
+	n.TraceID = marshaling.UnpackTrace(msg)
 	n.Type = msg.Type
 	n.Payload = rinq.NewPayloadFromBytes(msg.Body)
 
@@ -56,30 +52,30 @@ func unpackCommon(msg *amqp.Delivery, n *notifications.Notification) error {
 }
 
 func packUnicastSpecific(msg *amqp.Publishing, n *notifications.Notification) {
-	msg.Headers[targetHeader] = n.UnicastTarget.String()
+	amqpx.SetHeader(msg, targetHeader, n.UnicastTarget.String())
 }
 
-func unpackUnicastSpecific(msg *amqp.Delivery, n *notifications.Notification) (err error) {
-	if t, ok := msg.Headers[targetHeader].(string); ok {
-		n.UnicastTarget, err = ident.ParseSessionID(t)
-	} else {
-		err = errors.New("target header is not a string")
+func unpackUnicastSpecific(msg *amqp.Delivery, n *notifications.Notification) error {
+	t, err := amqpx.GetHeaderString(msg, targetHeader)
+	if err != nil {
+		return err
 	}
 
-	return
+	n.UnicastTarget, err = ident.ParseSessionID(t)
+
+	return err
 }
 
 func packMulticastSpecific(msg *amqp.Publishing, n *notifications.Notification, buf *bytes.Buffer) {
 	cbor.MustEncode(buf, n.MulticastConstraint)
-	msg.Headers[constraintHeader] = buf.Bytes()
+	amqpx.SetHeader(msg, constraintHeader, buf.Bytes())
 }
 
-func unpackMulticastSpecific(msg *amqp.Delivery, n *notifications.Notification) (err error) {
-	if buf, ok := msg.Headers[constraintHeader].([]byte); ok {
-		err = cbor.DecodeBytes(buf, &n.MulticastConstraint)
-	} else {
-		err = errors.New("constraint header is not a byte slice")
+func unpackMulticastSpecific(msg *amqp.Delivery, n *notifications.Notification) error {
+	buf, err := amqpx.GetHeaderBytes(msg, constraintHeader)
+	if err != nil {
+		return err
 	}
 
-	return
+	return cbor.DecodeBytes(buf, &n.MulticastConstraint)
 }

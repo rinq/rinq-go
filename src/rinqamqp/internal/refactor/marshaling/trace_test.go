@@ -3,43 +3,29 @@ package marshaling_test
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqptest"
 	. "github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/marshaling"
 	"github.com/streadway/amqp"
 )
 
-var _ = Describe("Trace", func() {
-	Describe("PackTrace", func() {
-		It("sets the correlation ID", func() {
-			pub := amqp.Publishing{MessageId: "<id>"}
-			PackTrace(&pub, "<trace>")
+var _ = Describe("PackTrace and UnpackTrace", func() {
+	It("transmits the trace ID", func() {
+		pub := &amqp.Publishing{MessageId: "<id>"}
+		PackTrace(pub, "<trace>")
 
-			Expect(pub.CorrelationId).To(Equal("<trace>"))
-		})
+		del := amqptest.PublishingToDelivery(pub)
+		trace := UnpackTrace(del)
 
-		It("does not set the correlation ID if the trace ID the same as the message ID", func() {
-			pub := amqp.Publishing{MessageId: "<id>"}
-			PackTrace(&pub, "<id>")
-
-			Expect(pub.CorrelationId).To(Equal(""))
-		})
+		Expect(trace).To(Equal("<trace>"))
 	})
 
-	Describe("UnpackTrace", func() {
-		It("returns a the trace ID based on the message ID", func() {
-			del := amqp.Delivery{MessageId: "<id>"}
-			id := UnpackTrace(&del)
+	It("transmits the trace ID when it's the same as the message ID", func() {
+		pub := &amqp.Publishing{MessageId: "<id>"}
+		PackTrace(pub, "<id>")
 
-			Expect(id).To(Equal("<id>"))
-		})
+		del := amqptest.PublishingToDelivery(pub)
+		trace := UnpackTrace(del)
 
-		It("returns a the trace ID based on the correlation ID", func() {
-			del := amqp.Delivery{
-				MessageId:     "<id>",
-				CorrelationId: "<trace>",
-			}
-			id := UnpackTrace(&del)
-
-			Expect(id).To(Equal("<trace>"))
-		})
+		Expect(trace).To(Equal("<id>"))
 	})
 })

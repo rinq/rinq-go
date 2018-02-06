@@ -2,10 +2,10 @@ package marshaling
 
 import (
 	"bytes"
-	"errors"
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/internal/x/bufferpool"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
 	"github.com/streadway/amqp"
 )
 
@@ -32,7 +32,7 @@ func PackSpanContext(
 	}
 
 	if buf.Len() > 0 {
-		msg.Headers[spanContextHeader] = buf.Bytes()
+		amqpx.SetHeader(msg, spanContextHeader, buf.Bytes())
 	}
 
 	return nil
@@ -41,14 +41,9 @@ func PackSpanContext(
 // UnpackSpanContext extracts a span context from the headers of msg. If no
 // span context is packed in the headers, nil is returned.
 func UnpackSpanContext(msg *amqp.Delivery, t opentracing.Tracer) (opentracing.SpanContext, error) {
-	v, ok := msg.Headers[spanContextHeader]
-	if !ok {
-		return nil, nil
-	}
-
-	b, ok := v.([]byte)
-	if !ok {
-		return nil, errors.New("span context header is not a byte slice")
+	b, err := amqpx.GetHeaderBytes(msg, spanContextHeader)
+	if err != nil {
+		return nil, err
 	}
 
 	buf := bytes.NewBuffer(b)
