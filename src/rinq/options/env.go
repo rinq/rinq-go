@@ -3,8 +3,8 @@ package options
 import (
 	"os"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/internal/x/env"
-	"github.com/rinq/rinq-go/src/rinq"
 )
 
 // FromEnv returns peer options with values read from environment variables.
@@ -31,7 +31,7 @@ func FromEnv() ([]Option, error) {
 	if err != nil {
 		return nil, err
 	} else if ok {
-		l := rinq.NewLogger(debug)
+		l := &twelf.StandardLogger{CaptureDebug: debug}
 		o = append(o, Logger(l))
 	}
 

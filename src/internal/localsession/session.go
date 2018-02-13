@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/internal/attributes"
@@ -30,7 +31,7 @@ type Session struct {
 	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
-	logger   rinq.Logger
+	logger   twelf.Logger
 	tracer   opentracing.Tracer
 
 	mutex       sync.RWMutex
@@ -48,7 +49,7 @@ func NewSession(
 	invoker command.Invoker,
 	notifier notify.Notifier,
 	listener notify.Listener,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) *Session {
 	logCreated(logger, id)
@@ -343,7 +344,7 @@ func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 
 	if err != nil {
 		return err
-	} else if changed && s.logger.IsDebug() {
+	} else if changed {
 		logListen(s.logger, s.ref, ns)
 	}
 
@@ -365,7 +366,7 @@ func (s *Session) Unlisten(ns string) error {
 
 	if err != nil {
 		return err
-	} else if changed && s.logger.IsDebug() {
+	} else if changed {
 		logUnlisten(s.logger, s.ref, ns)
 	}
 

@@ -3,8 +3,8 @@ package options
 import (
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/rinq/rinq-go/src/rinq"
 )
 
 // Option is a function that applies a configuration change.
@@ -20,7 +20,7 @@ func DefaultTimeout(t time.Duration) Option {
 }
 
 // Logger returns an Option that specifies the target for all of the peer's logs.
-func Logger(l rinq.Logger) Option {
+func Logger(l twelf.Logger) Option {
 	return func(v visitor) error {
 		return v.applyLogger(l)
 	}

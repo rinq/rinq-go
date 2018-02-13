@@ -3,6 +3,7 @@ package localsession
 import (
 	"context"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/internal/namespaces"
 	"github.com/rinq/rinq-go/src/rinq"
@@ -14,7 +15,7 @@ type revision struct {
 	ref     ident.Ref
 	session *Session
 	attrs   attributes.Catalog
-	logger  rinq.Logger
+	logger  twelf.Logger
 }
 
 func (r *revision) SessionID() ident.SessionID {

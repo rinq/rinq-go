@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/internal/command"
@@ -29,7 +30,7 @@ type invoker struct {
 	queues         *queueSet
 	channels       amqputil.ChannelPool
 	channel        *amqp.Channel // channel used for consuming
-	logger         rinq.Logger
+	logger         twelf.Logger
 	tracer         opentracing.Tracer
 
 	mutex    sync.RWMutex
@@ -59,7 +60,7 @@ func newInvoker(
 	sessions *localsession.Store,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) (command.Invoker, error) {
 	i := &invoker{

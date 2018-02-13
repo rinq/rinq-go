@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/internal/attributes"
@@ -17,7 +18,7 @@ import (
 type client struct {
 	peerID  ident.PeerID
 	invoker command.Invoker
-	logger  rinq.Logger
+	logger  twelf.Logger
 	tracer  opentracing.Tracer
 	seq     uint32
 }
@@ -25,7 +26,7 @@ type client struct {
 func newClient(
 	peerID ident.PeerID,
 	invoker command.Invoker,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) *client {
 	return &client{

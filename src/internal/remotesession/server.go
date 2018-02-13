@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/internal/command"
@@ -17,7 +18,7 @@ import (
 type server struct {
 	peerID   ident.PeerID
 	sessions *localsession.Store
-	logger   rinq.Logger
+	logger   twelf.Logger
 }
 
 // Listen attaches a new remote session service to the given command server.
@@ -25,7 +26,7 @@ func Listen(
 	svr command.Server,
 	peerID ident.PeerID,
 	sessions *localsession.Store,
-	logger rinq.Logger,
+	logger twelf.Logger,
 ) error {
 	s := &server{
 		peerID:   peerID,

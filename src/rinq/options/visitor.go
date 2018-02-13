@@ -4,14 +4,14 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/rinq/rinq-go/src/rinq"
 )
 
 // visitor handles the application of options.
 type visitor interface {
 	applyDefaultTimeout(time.Duration) error
-	applyLogger(rinq.Logger) error
+	applyLogger(twelf.Logger) error
 	applyCommandWorkers(uint) error
 	applySessionWorkers(uint) error
 	applyPruneInterval(time.Duration) error
@@ -55,12 +55,12 @@ func Apply(v visitor, opts ...Option) error {
 	return nil
 }
 
-var defaultLogger rinq.Logger
+var defaultLogger twelf.Logger
 
 func init() {
 	// Initialize the default logger before any testing framework can redirect
 	// stdout. This lets us use standard "Output:" checks in example tests
 	// without having to match the log output, while still printing the log
 	// output in case of a test failure.
-	defaultLogger = rinq.NewLogger(false)
+	defaultLogger = &twelf.StandardLogger{}
 }

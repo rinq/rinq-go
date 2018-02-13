@@ -4,9 +4,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/options"
 )
 
@@ -58,7 +58,9 @@ var _ = Describe("FromEnv", func() {
 			opts, err := options.NewOptions(o...)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(opts.Logger).To(Equal(rinq.NewLogger(true)))
+			Expect(opts.Logger).To(Equal(
+				&twelf.StandardLogger{CaptureDebug: true},
+			))
 		})
 
 		It("returns a Logger option when set to false", func() {
@@ -70,7 +72,9 @@ var _ = Describe("FromEnv", func() {
 			opts, err := options.NewOptions(o...)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(opts.Logger).To(Equal(rinq.NewLogger(false)))
+			Expect(opts.Logger).To(Equal(
+				&twelf.StandardLogger{CaptureDebug: false},
+			))
 		})
 
 		It("returns an error if the value is not a boolean", func() {

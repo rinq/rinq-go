@@ -3,21 +3,18 @@ package commandamqp
 import (
 	"context"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
 func logServerInvalidMessageID(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID string,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s server ignored AMQP message, '%s' is not a valid message ID",
 		peerID.ShortString(),
 		msgID,
@@ -25,16 +22,12 @@ func logServerInvalidMessageID(
 }
 
 func logIgnoredMessage(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s server ignored AMQP message %s, %s",
 		peerID.ShortString(),
 		msgID.ShortString(),
@@ -44,16 +37,12 @@ func logIgnoredMessage(
 
 func logRequestBegin(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	req rinq.Request,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s server began '%s::%s' command request %s [%s] <<< %s",
 		peerID.ShortString(),
 		req.Namespace,
@@ -66,7 +55,7 @@ func logRequestBegin(
 
 func logRequestEnd(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	req rinq.Request,
@@ -79,7 +68,7 @@ func logRequestEnd(
 
 	switch e := err.(type) {
 	case nil:
-		logger.Log(
+		logger.Debug(
 			"%s server completed '%s::%s' command request %s successfully [%s] >>> %s",
 			peerID.ShortString(),
 			req.Namespace,
@@ -94,7 +83,7 @@ func logRequestEnd(
 			message = ": " + e.Message
 		}
 
-		logger.Log(
+		logger.Debug(
 			"%s server completed '%s::%s' command request %s with '%s' failure%s [%s] <<< %s",
 			peerID.ShortString(),
 			req.Namespace,
@@ -106,7 +95,7 @@ func logRequestEnd(
 			payload,
 		)
 	default:
-		logger.Log(
+		logger.Debug(
 			"%s server completed '%s::%s' command request %s with error [%s] <<< %s",
 			peerID.ShortString(),
 			req.Namespace,
@@ -119,16 +108,12 @@ func logRequestEnd(
 }
 
 func logNoLongerListening(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	ns string,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s is no longer listening to '%s' namespace, request %s has been re-queued",
 		peerID.ShortString(),
 		ns,
@@ -138,16 +123,12 @@ func logNoLongerListening(
 
 func logRequestRequeued(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	req rinq.Request,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s did not write a response for '%s::%s' command request, request %s has been re-queued [%s]",
 		peerID.ShortString(),
 		req.Namespace,
@@ -159,7 +140,7 @@ func logRequestRequeued(
 
 func logRequestRejected(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	req rinq.Request,
@@ -177,15 +158,11 @@ func logRequestRejected(
 }
 
 func logServerStart(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	preFetch uint,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s server started with (pre-fetch: %d)",
 		peerID.ShortString(),
 		preFetch,
@@ -193,15 +170,11 @@ func logServerStart(
 }
 
 func logServerStopping(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	pending uint,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s server is stopping gracefully (pending: %d)",
 		peerID.ShortString(),
 		pending,
@@ -209,21 +182,17 @@ func logServerStopping(
 }
 
 func logServerStop(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
 	if err == nil {
-		logger.Log(
+		logger.Debug(
 			"%s server stopped",
 			peerID.ShortString(),
 		)
 	} else {
-		logger.Log(
+		logger.Debug(
 			"%s server stopped: %s",
 			peerID.ShortString(),
 			err,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/localsession"
@@ -31,7 +32,7 @@ type peer struct {
 	server      command.Server
 	notifier    notify.Notifier
 	listener    notify.Listener
-	logger      rinq.Logger
+	logger      twelf.Logger
 	tracer      opentracing.Tracer
 
 	seq        uint32
@@ -47,7 +48,7 @@ func newPeer(
 	server command.Server,
 	notifier notify.Notifier,
 	listener notify.Listener,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) *peer {
 	p := &peer{
