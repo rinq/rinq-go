@@ -254,12 +254,10 @@ func (d *Dialer) establishIdentity(
 			err = ctx.Err()
 			return
 		default:
-			if logger.IsDebug() {
-				logger.Log(
-					"%s already registered, retrying with a different peer ID",
-					id.ShortString(),
-				)
-			}
+			logger.Debug(
+				"%s already registered, retrying with a different peer ID",
+				id.ShortString(),
+			)
 		}
 	}
 }

@@ -11,11 +11,7 @@ func logInvokerInvalidMessageID(
 	peerID ident.PeerID,
 	msgID string,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s invoker ignored AMQP message, '%s' is not a valid message ID",
 		peerID.ShortString(),
 		msgID,
@@ -28,11 +24,7 @@ func logInvokerIgnoredMessage(
 	msgID ident.MessageID,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s invoker ignored AMQP message %s, %s",
 		peerID.ShortString(),
 		msgID.ShortString(),
@@ -50,11 +42,7 @@ func logUnicastCallBegin(
 	traceID string,
 	payload *rinq.Payload,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s invoker began unicast '%s::%s' call %s to %s [%s] >>> %s",
 		peerID.ShortString(),
 		ns,
@@ -75,11 +63,7 @@ func logBalancedCallBegin(
 	traceID string,
 	payload *rinq.Payload,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s invoker began '%s::%s' call %s [%s] >>> %s",
 		peerID.ShortString(),
 		ns,
@@ -106,7 +90,7 @@ func logCallEnd(
 
 	switch e := err.(type) {
 	case nil:
-		logger.Log(
+		logger.Debug(
 			"%s invoker completed '%s::%s' call %s successfully [%s] <<< %s",
 			peerID.ShortString(),
 			ns,
@@ -121,7 +105,7 @@ func logCallEnd(
 			message = ": " + e.Message
 		}
 
-		logger.Log(
+		logger.Debug(
 			"%s invoker completed '%s::%s' call %s with '%s' failure%s [%s] <<< %s",
 			peerID.ShortString(),
 			ns,
@@ -133,7 +117,7 @@ func logCallEnd(
 			payload,
 		)
 	default:
-		logger.Log(
+		logger.Debug(
 			"%s invoker completed '%s::%s' call %s with error [%s] <<< %s",
 			peerID.ShortString(),
 			ns,
@@ -155,11 +139,7 @@ func logAsyncRequest(
 	payload *rinq.Payload,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s invoker sent asynchronous '%s::%s' call request %s [%s] >>> %s",
 		peerID.ShortString(),
 		ns,
@@ -180,11 +160,7 @@ func logAsyncResponse(
 	payload *rinq.Payload,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s invoker received asynchronous '%s::%s' call response %s [%s] >>> %s",
 		peerID.ShortString(),
 		ns,
@@ -205,11 +181,7 @@ func logBalancedExecute(
 	payload *rinq.Payload,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s invoker sent '%s::%s' execution %s [%s] >>> %s",
 		peerID.ShortString(),
 		ns,
@@ -230,11 +202,7 @@ func logMulticastExecute(
 	payload *rinq.Payload,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s invoker sent multicast '%s::%s' execution %s [%s] >>> %s",
 		peerID.ShortString(),
 		ns,
@@ -250,11 +218,7 @@ func logInvokerStart(
 	peerID ident.PeerID,
 	preFetch uint,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s invoker started (pre-fetch: %d)",
 		peerID.ShortString(),
 		preFetch,
@@ -266,11 +230,7 @@ func logInvokerStopping(
 	peerID ident.PeerID,
 	pending int,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s invoker stopping gracefully (pending: %d)",
 		peerID.ShortString(),
 		pending,
@@ -282,17 +242,13 @@ func logInvokerStop(
 	peerID ident.PeerID,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
 	if err == nil {
-		logger.Log(
+		logger.Debug(
 			"%s invoker stopped",
 			peerID.ShortString(),
 		)
 	} else {
-		logger.Log(
+		logger.Debug(
 			"%s invoker stopped: %s",
 			peerID.ShortString(),
 			err,

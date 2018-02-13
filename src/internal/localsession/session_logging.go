@@ -243,7 +243,7 @@ func logListen(
 	ref ident.Ref,
 	ns string,
 ) {
-	logger.Log(
+	logger.Debug(
 		"%s started listening for notifications in '%s' namespace",
 		ref.ShortString(),
 		ns,
@@ -255,7 +255,7 @@ func logUnlisten(
 	ref ident.Ref,
 	ns string,
 ) {
-	logger.Log(
+	logger.Debug(
 		"%s stopped listening for notifications in '%s' namespace",
 		ref.ShortString(),
 		ns,

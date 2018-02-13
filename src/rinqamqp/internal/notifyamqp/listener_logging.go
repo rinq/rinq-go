@@ -10,11 +10,7 @@ func logInvalidMessageID(
 	peerID ident.PeerID,
 	msgID string,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s listener ignored AMQP message, '%s' is not a valid message ID",
 		peerID.ShortString(),
 		msgID,
@@ -27,11 +23,7 @@ func logIgnoredMessage(
 	msgID ident.MessageID,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s listener ignored AMQP message %s, %s",
 		peerID.ShortString(),
 		msgID.ShortString(),
@@ -44,11 +36,7 @@ func logListenerStart(
 	peerID ident.PeerID,
 	preFetch uint,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s listener started (pre-fetch: %d)",
 		peerID.ShortString(),
 		preFetch,
@@ -60,11 +48,7 @@ func logListenerStopping(
 	peerID ident.PeerID,
 	pending uint,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s listener stopping gracefully (pending: %d)",
 		peerID.ShortString(),
 		pending,
@@ -76,17 +60,13 @@ func logListenerStop(
 	peerID ident.PeerID,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
 	if err == nil {
-		logger.Log(
+		logger.Debug(
 			"%s listener stopped",
 			peerID.ShortString(),
 		)
 	} else {
-		logger.Log(
+		logger.Debug(
 			"%s listener stopped: %s",
 			peerID.ShortString(),
 			err,

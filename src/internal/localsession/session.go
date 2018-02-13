@@ -344,7 +344,7 @@ func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 
 	if err != nil {
 		return err
-	} else if changed && s.logger.IsDebug() {
+	} else if changed {
 		logListen(s.logger, s.ref, ns)
 	}
 
@@ -366,7 +366,7 @@ func (s *Session) Unlisten(ns string) error {
 
 	if err != nil {
 		return err
-	} else if changed && s.logger.IsDebug() {
+	} else if changed {
 		logUnlisten(s.logger, s.ref, ns)
 	}
 

@@ -10,11 +10,7 @@ func logCacheAdd(
 	peerID ident.PeerID,
 	sessID ident.SessionID,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s discovered remote session %s ",
 		peerID.ShortString(),
 		sessID.ShortString(),
@@ -26,11 +22,7 @@ func logCacheMark(
 	peerID ident.PeerID,
 	sessID ident.SessionID,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s marked remote session %s for removal from the store",
 		peerID.ShortString(),
 		sessID.ShortString(),
@@ -42,11 +34,7 @@ func logCacheRemove(
 	peerID ident.PeerID,
 	sessID ident.SessionID,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s removed remote session %s from the store",
 		peerID.ShortString(),
 		sessID.ShortString(),

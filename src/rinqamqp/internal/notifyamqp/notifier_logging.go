@@ -9,11 +9,7 @@ func logNotifierStart(
 	logger twelf.Logger,
 	peerID ident.PeerID,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s notifier started",
 		peerID.ShortString(),
 	)
@@ -24,17 +20,13 @@ func logNotifierStop(
 	peerID ident.PeerID,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
 	if err == nil {
-		logger.Log(
+		logger.Debug(
 			"%s notifier stopped",
 			peerID.ShortString(),
 		)
 	} else {
-		logger.Log(
+		logger.Debug(
 			"%s notifier stopped: %s",
 			peerID.ShortString(),
 			err,
