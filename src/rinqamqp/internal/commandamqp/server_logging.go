@@ -3,13 +3,14 @@ package commandamqp
 import (
 	"context"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
 func logServerInvalidMessageID(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID string,
 ) {
@@ -25,7 +26,7 @@ func logServerInvalidMessageID(
 }
 
 func logIgnoredMessage(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	err error,
@@ -44,7 +45,7 @@ func logIgnoredMessage(
 
 func logRequestBegin(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	req rinq.Request,
@@ -66,7 +67,7 @@ func logRequestBegin(
 
 func logRequestEnd(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	req rinq.Request,
@@ -119,7 +120,7 @@ func logRequestEnd(
 }
 
 func logNoLongerListening(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	ns string,
@@ -138,7 +139,7 @@ func logNoLongerListening(
 
 func logRequestRequeued(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	req rinq.Request,
@@ -159,7 +160,7 @@ func logRequestRequeued(
 
 func logRequestRejected(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	req rinq.Request,
@@ -177,7 +178,7 @@ func logRequestRejected(
 }
 
 func logServerStart(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	preFetch uint,
 ) {
@@ -193,7 +194,7 @@ func logServerStart(
 }
 
 func logServerStopping(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	pending uint,
 ) {
@@ -209,7 +210,7 @@ func logServerStopping(
 }
 
 func logServerStop(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	err error,
 ) {

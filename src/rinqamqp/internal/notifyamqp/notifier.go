@@ -3,6 +3,7 @@ package notifyamqp
 import (
 	"context"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/internal/notify"
 	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/rinq/rinq-go/src/rinq"
@@ -18,14 +19,14 @@ type notifier struct {
 
 	peerID   ident.PeerID
 	channels amqputil.ChannelPool
-	logger   rinq.Logger
+	logger   twelf.Logger
 }
 
 // newNotifier creates, initializes and returns a new notifier.
 func newNotifier(
 	peerID ident.PeerID,
 	channels amqputil.ChannelPool,
-	logger rinq.Logger,
+	logger twelf.Logger,
 ) notify.Notifier {
 	n := &notifier{
 		peerID:   peerID,

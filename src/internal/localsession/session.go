@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/internal/attributes"
@@ -30,7 +31,7 @@ type Session struct {
 	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
-	logger   rinq.Logger
+	logger   twelf.Logger
 	tracer   opentracing.Tracer
 
 	mutex       sync.RWMutex
@@ -48,7 +49,7 @@ func NewSession(
 	invoker command.Invoker,
 	notifier notify.Notifier,
 	listener notify.Listener,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) *Session {
 	logCreated(logger, id)

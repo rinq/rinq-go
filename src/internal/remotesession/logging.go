@@ -1,12 +1,12 @@
 package remotesession
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 func logCacheAdd(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	sessID ident.SessionID,
 ) {
@@ -22,7 +22,7 @@ func logCacheAdd(
 }
 
 func logCacheMark(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	sessID ident.SessionID,
 ) {
@@ -38,7 +38,7 @@ func logCacheMark(
 }
 
 func logCacheRemove(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	sessID ident.SessionID,
 ) {

@@ -1,10 +1,12 @@
-hash: e549cb50d07d86b058713c1d6fbccd1be43dcc26bd4311266d9f3270596c55ad
-updated: 2017-09-29T14:24:05.422991532+10:00
+hash: 1318cd3a7336c47f7d1e583c51c3bd4a7b364bfa54a1186327ea24589be4236a
+updated: 2018-02-13T12:42:46.063902649+10:00
 imports:
 - name: github.com/hashicorp/go-version
   version: 03c5bf6be031b6dd45afec16b1cf94fc8938bc77
+- name: github.com/jmalloc/twelf
+  version: ffe2c64ef8c5e93b1410e818808fe4fddfb5e02d
 - name: github.com/onsi/ginkgo
-  version: 11459a886d9cd66b319dac7ef1e917ee221372c9
+  version: 747514b53ddd06d5d37d096c1cb313cfe620d7d4
   subpackages:
   - config
   - extensions/table
@@ -25,7 +27,7 @@ imports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: dcabb60a477c2b6f456df65037cb6708210fbb02
+  version: a9c79f175573664afefe4fe0f3827c66263abcbb
   subpackages:
   - format
   - internal/assertion
@@ -44,7 +46,7 @@ imports:
   - ext
   - log
 - name: github.com/streadway/amqp
-  version: 2cbfe40c9341ad63ba23e53013b3ddc7989d801c
+  version: fc7fda2371f5327ad39211e09482845b8734cc72
 - name: github.com/ugorji/go
   version: 5efa3251c7f7d05e5d9704a69a984ec9f1386a40
   subpackages:

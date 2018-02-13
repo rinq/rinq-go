@@ -1,12 +1,12 @@
 package notifyamqp
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 func logInvalidMessageID(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID string,
 ) {
@@ -22,7 +22,7 @@ func logInvalidMessageID(
 }
 
 func logIgnoredMessage(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	err error,
@@ -40,7 +40,7 @@ func logIgnoredMessage(
 }
 
 func logListenerStart(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	preFetch uint,
 ) {
@@ -56,7 +56,7 @@ func logListenerStart(
 }
 
 func logListenerStopping(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	pending uint,
 ) {
@@ -72,7 +72,7 @@ func logListenerStopping(
 }
 
 func logListenerStop(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	err error,
 ) {

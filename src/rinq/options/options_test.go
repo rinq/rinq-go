@@ -4,10 +4,10 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/options"
 )
 
@@ -20,7 +20,7 @@ var _ = Describe("NewOptions", func() {
 			DefaultTimeout: 5 * time.Second,
 			CommandWorkers: uint(runtime.GOMAXPROCS(0)),
 			SessionWorkers: uint(runtime.GOMAXPROCS(0)) * 10,
-			Logger:         rinq.NewLogger(false),
+			Logger:         &twelf.StandardLogger{},
 			PruneInterval:  3 * time.Minute,
 			Product:        "",
 			Tracer:         opentracing.NoopTracer{},

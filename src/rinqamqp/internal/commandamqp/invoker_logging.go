@@ -1,12 +1,13 @@
 package commandamqp
 
 import (
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 func logInvokerInvalidMessageID(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID string,
 ) {
@@ -22,7 +23,7 @@ func logInvokerInvalidMessageID(
 }
 
 func logInvokerIgnoredMessage(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	err error,
@@ -40,7 +41,7 @@ func logInvokerIgnoredMessage(
 }
 
 func logUnicastCallBegin(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	target ident.PeerID,
@@ -66,7 +67,7 @@ func logUnicastCallBegin(
 }
 
 func logBalancedCallBegin(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	ns string,
@@ -90,7 +91,7 @@ func logBalancedCallBegin(
 }
 
 func logCallEnd(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	ns string,
@@ -145,7 +146,7 @@ func logCallEnd(
 }
 
 func logAsyncRequest(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	ns string,
@@ -170,7 +171,7 @@ func logAsyncRequest(
 }
 
 func logAsyncResponse(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	ns string,
@@ -195,7 +196,7 @@ func logAsyncResponse(
 }
 
 func logBalancedExecute(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	ns string,
@@ -220,7 +221,7 @@ func logBalancedExecute(
 }
 
 func logMulticastExecute(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	ns string,
@@ -245,7 +246,7 @@ func logMulticastExecute(
 }
 
 func logInvokerStart(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	preFetch uint,
 ) {
@@ -261,7 +262,7 @@ func logInvokerStart(
 }
 
 func logInvokerStopping(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	pending int,
 ) {
@@ -277,7 +278,7 @@ func logInvokerStopping(
 }
 
 func logInvokerStop(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	err error,
 ) {

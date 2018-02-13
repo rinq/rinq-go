@@ -3,14 +3,14 @@ package options
 import (
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/rinq/rinq-go/src/rinq"
 )
 
 // Options is a structure representing a resolved set of options.
 type Options struct {
 	DefaultTimeout time.Duration
-	Logger         rinq.Logger
+	Logger         twelf.Logger
 	CommandWorkers uint
 	SessionWorkers uint
 	PruneInterval  time.Duration
@@ -32,7 +32,7 @@ func (o *Options) applyDefaultTimeout(v time.Duration) error {
 }
 
 // applyLogger sets the Logger value.
-func (o *Options) applyLogger(v rinq.Logger) error {
+func (o *Options) applyLogger(v twelf.Logger) error {
 	if v == nil {
 		panic("logger must not be nil")
 	}

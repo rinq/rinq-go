@@ -1,12 +1,12 @@
 package notifyamqp
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 func logNotifierStart(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 ) {
 	if !logger.IsDebug() {
@@ -20,7 +20,7 @@ func logNotifierStart(
 }
 
 func logNotifierStop(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	err error,
 ) {

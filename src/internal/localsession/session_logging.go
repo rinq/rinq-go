@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
@@ -12,7 +13,7 @@ import (
 )
 
 func logCreated(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	id ident.SessionID,
 ) {
 	logger.Log(
@@ -22,7 +23,7 @@ func logCreated(
 }
 
 func logCall(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	msgID ident.MessageID,
 	ns string,
 	cmd string,
@@ -84,7 +85,7 @@ func logCall(
 }
 
 func logAsyncRequest(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	msgID ident.MessageID,
 	ns string,
 	cmd string,
@@ -108,7 +109,7 @@ func logAsyncRequest(
 
 func logAsyncResponse(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	msgID ident.MessageID,
 	ns string,
 	cmd string,
@@ -148,7 +149,7 @@ func logAsyncResponse(
 }
 
 func logExecute(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	msgID ident.MessageID,
 	ns string,
 	cmd string,
@@ -171,7 +172,7 @@ func logExecute(
 }
 
 func logNotify(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	msgID ident.MessageID,
 	ns string,
 	t string,
@@ -196,7 +197,7 @@ func logNotify(
 }
 
 func logNotifyMany(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	msgID ident.MessageID,
 	ns string,
 	t string,
@@ -221,7 +222,7 @@ func logNotifyMany(
 }
 
 func logNotifyRecv(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	ref ident.Ref,
 	n rinq.Notification,
 	traceID string,
@@ -238,7 +239,7 @@ func logNotifyRecv(
 }
 
 func logListen(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	ref ident.Ref,
 	ns string,
 ) {
@@ -250,7 +251,7 @@ func logListen(
 }
 
 func logUnlisten(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	ref ident.Ref,
 	ns string,
 ) {
@@ -262,7 +263,7 @@ func logUnlisten(
 }
 
 func logSessionDestroy(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	ref ident.Ref,
 	attrs attributes.Catalog,
 	traceID string,

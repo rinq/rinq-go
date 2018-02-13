@@ -3,15 +3,15 @@ package localsession
 import (
 	"context"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/internal/attributes"
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
 func logUpdate(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	ref ident.Ref,
 	diff *attributes.Diff,
 ) {
@@ -33,7 +33,7 @@ func logUpdate(
 
 func logClear(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	ref ident.Ref,
 	diff *attributes.Diff,
 ) {
