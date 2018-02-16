@@ -2,13 +2,13 @@ package notifications
 
 import (
 	"github.com/jmalloc/twelf/src/twelf"
-	"github.com/rinq/rinq-go/src/internal/notifications"
+	"github.com/rinq/rinq-go/src/internal/transport"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/marshaling"
 	"github.com/streadway/amqp"
 )
 
-func logSpanMarshalError(l twelf.Logger, n *notifications.Notification, err error) {
+func logSpanMarshalError(l twelf.Logger, n *transport.Notification, err error) {
 	l.Debug(
 		"%s ignored outbound span context: %s [%s]",
 		n.ID.ShortString(),

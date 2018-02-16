@@ -11,10 +11,10 @@ import (
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/namespaces"
-	"github.com/rinq/rinq-go/src/internal/notifications"
 	"github.com/rinq/rinq-go/src/internal/notify"
 	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/rinq/rinq-go/src/internal/revisions"
+	"github.com/rinq/rinq-go/src/internal/transport"
 	"github.com/rinq/rinq-go/src/internal/x/syncx"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
@@ -29,11 +29,12 @@ import (
 // lower-level API for manipulating the session state which is used throughout
 // the Rinq internals.
 type Session struct {
-	invoker  command.Invoker
-	sink     notifications.Sink
-	listener notify.Listener
-	logger   twelf.Logger
-	tracer   opentracing.Tracer
+	invoker    command.Invoker
+	publisher  transport.Publisher
+	subscriber transport.Subscriber
+	listener   notify.Listener
+	logger     twelf.Logger
+	tracer     opentracing.Tracer
 
 	mutex       sync.RWMutex
 	ref         ident.Ref
@@ -48,7 +49,7 @@ type Session struct {
 func NewSession(
 	id ident.SessionID,
 	invoker command.Invoker,
-	sink notifications.Sink,
+	publisher transport.Publisher,
 	listener notify.Listener,
 	logger twelf.Logger,
 	tracer opentracing.Tracer,
@@ -56,11 +57,11 @@ func NewSession(
 	logCreated(logger, id)
 
 	return &Session{
-		invoker:  invoker,
-		sink:     sink,
-		listener: listener,
-		logger:   logger,
-		tracer:   tracer,
+		invoker:   invoker,
+		publisher: publisher,
+		listener:  listener,
+		logger:    logger,
+		tracer:    tracer,
 
 		ref:  id.At(0),
 		done: make(chan struct{}),
@@ -259,7 +260,7 @@ func (s *Session) Notify(ctx context.Context, ns, t string, target ident.Session
 	opentr.AddTraceID(span, traceID)
 	opentr.LogNotifierUnicast(span, s.attrs, target, p)
 
-	n := &notifications.Notification{
+	n := &transport.Notification{
 		ID:            msgID,
 		TraceID:       traceID,
 		SpanContext:   span.Context(),
@@ -269,7 +270,7 @@ func (s *Session) Notify(ctx context.Context, ns, t string, target ident.Session
 		UnicastTarget: target,
 	}
 
-	err := s.sink.Send(n)
+	err := s.publisher.Publish(n)
 
 	if err == nil {
 		logNotify(s.logger, n)
@@ -301,7 +302,7 @@ func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 	opentr.AddTraceID(span, traceID)
 	opentr.LogNotifierMulticast(span, s.attrs, con, p)
 
-	n := &notifications.Notification{
+	n := &transport.Notification{
 		ID:                  msgID,
 		TraceID:             traceID,
 		SpanContext:         span.Context(),
@@ -312,7 +313,7 @@ func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 		MulticastConstraint: con,
 	}
 
-	err := s.sink.Send(n)
+	err := s.publisher.Publish(n)
 
 	if err == nil {
 		logNotifyMany(s.logger, n)

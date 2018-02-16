@@ -5,7 +5,7 @@ import (
 
 	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/rinq/rinq-go/src/internal/notifications"
+	"github.com/rinq/rinq-go/src/internal/transport"
 	"github.com/rinq/rinq-go/src/internal/x/cbor"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -36,7 +36,7 @@ type Encoder struct {
 // sb and cb are buffers used to encode the OpenTracing span context and
 // multicast notification constraint, respectively. They must remain valid
 // until the AMQP message is published.
-func (e *Encoder) Marshal(n *notifications.Notification, sb, cb *bytes.Buffer) (*amqp.Publishing, error) {
+func (e *Encoder) Marshal(n *transport.Notification, sb, cb *bytes.Buffer) (*amqp.Publishing, error) {
 	msg := &amqp.Publishing{
 		MessageId: n.ID.String(),
 		Type:      n.Type,
@@ -68,8 +68,8 @@ type Decoder struct {
 }
 
 // Unmarshal returns a notification based on msg.
-func (d *Decoder) Unmarshal(msg *amqp.Delivery) (*notifications.Notification, error) {
-	n := &notifications.Notification{
+func (d *Decoder) Unmarshal(msg *amqp.Delivery) (*transport.Notification, error) {
+	n := &transport.Notification{
 		TraceID: marshaling.UnpackTrace(msg),
 		Type:    msg.Type,
 		Payload: rinq.NewPayloadFromBytes(msg.Body),

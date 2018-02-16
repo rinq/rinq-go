@@ -3,21 +3,21 @@ package notifications
 import (
 	"bytes"
 
-	"github.com/rinq/rinq-go/src/internal/notifications"
+	"github.com/rinq/rinq-go/src/internal/transport"
 	"github.com/rinq/rinq-go/src/internal/x/bufferpool"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
 	"github.com/streadway/amqp"
 )
 
-// Publisher is an implementation of notifications.Sink that sends notifications
-// as AMQP messages.
+// Publisher is an implementation of transport.Publisher that sends
+// notifications as AMQP messages.
 type Publisher struct {
 	Channels amqpx.ChannelPool
 	Encoder  *Encoder
 }
 
-// Send publishes a notification.
-func (p *Publisher) Send(n *notifications.Notification) error {
+// Publish sends a notification.
+func (p *Publisher) Publish(n *transport.Notification) error {
 	var sb, cb *bytes.Buffer
 
 	sb = bufferpool.Get()
@@ -41,7 +41,7 @@ func (p *Publisher) Send(n *notifications.Notification) error {
 }
 
 // unicast publishes a unicast notification.
-func (p *Publisher) unicast(msg *amqp.Publishing, n *notifications.Notification) error {
+func (p *Publisher) unicast(msg *amqp.Publishing, n *transport.Notification) error {
 	return p.publish(
 		unicastExchange,
 		unicastRoutingKey(n.Namespace, n.UnicastTarget.Peer),
@@ -50,7 +50,7 @@ func (p *Publisher) unicast(msg *amqp.Publishing, n *notifications.Notification)
 }
 
 // multicast publishes a multicast notification.
-func (p *Publisher) multicast(msg *amqp.Publishing, n *notifications.Notification) error {
+func (p *Publisher) multicast(msg *amqp.Publishing, n *transport.Notification) error {
 	return p.publish(
 		multicastExchange,
 		multicastRoutingKey(n.Namespace),
