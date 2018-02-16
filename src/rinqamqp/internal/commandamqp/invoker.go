@@ -27,7 +27,7 @@ type invoker struct {
 	preFetch       uint
 	defaultTimeout time.Duration
 	sessions       *localsession.Store
-	queues         *queueSet
+	queues         *QueueSet
 	channels       amqputil.ChannelPool
 	channel        *amqp.Channel // channel used for consuming
 	logger         twelf.Logger
@@ -58,7 +58,7 @@ func newInvoker(
 	preFetch uint,
 	defaultTimeout time.Duration,
 	sessions *localsession.Store,
-	queues *queueSet,
+	queues *QueueSet,
 	channels amqputil.ChannelPool,
 	logger twelf.Logger,
 	tracer opentracing.Tracer,
@@ -436,7 +436,7 @@ func (i *invoker) publish(
 	defer i.channels.Put(channel)
 
 	if exchange == balancedExchange {
-		if _, err = i.queues.Get(channel, key); err != nil {
+		if _, err = i.queues.Get(key); err != nil {
 			return err
 		}
 	}

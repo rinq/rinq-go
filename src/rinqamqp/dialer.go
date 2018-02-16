@@ -186,7 +186,8 @@ func (d *Dialer) Dial(
 		nil, // Remote revision store depends on invoker, created below
 	)
 
-	invoker, server, err := commandamqp.New(peerID, opts, localStore, revStore, channels)
+	queues := &commandamqp.QueueSet{Channels: channels}
+	invoker, server, err := commandamqp.New(peerID, opts, localStore, revStore, channels, queues)
 	if err != nil {
 		return nil, err
 	}
@@ -210,6 +211,7 @@ func (d *Dialer) Dial(
 		remoteStore,
 		invoker,
 		server,
+		queues,
 		notifier,
 		listener,
 		opts.Logger,

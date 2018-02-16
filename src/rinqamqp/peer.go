@@ -16,6 +16,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/commandamqp"
 	"github.com/streadway/amqp"
 )
 
@@ -30,6 +31,7 @@ type peer struct {
 	remoteStore remotesession.Store
 	invoker     command.Invoker
 	server      command.Server
+	queues      *commandamqp.QueueSet
 	notifier    notify.Notifier
 	listener    notify.Listener
 	logger      twelf.Logger
@@ -46,6 +48,7 @@ func newPeer(
 	remoteStore remotesession.Store,
 	invoker command.Invoker,
 	server command.Server,
+	queues *commandamqp.QueueSet,
 	notifier notify.Notifier,
 	listener notify.Listener,
 	logger twelf.Logger,
@@ -58,6 +61,7 @@ func newPeer(
 		remoteStore: remoteStore,
 		invoker:     invoker,
 		server:      server,
+		queues:      queues,
 		notifier:    notifier,
 		listener:    listener,
 		logger:      logger,
@@ -227,6 +231,13 @@ func (p *peer) finalize(err error) error {
 		p.server,
 		p.listener,
 	)
+
+	deleteErr := p.queues.DeleteUnused()
+
+	// only report the deleteErr if there's no causal error.
+	if err == nil {
+		return deleteErr
+	}
 
 	closeErr := p.broker.Close()
 

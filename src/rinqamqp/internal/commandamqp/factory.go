@@ -16,6 +16,7 @@ func New(
 	sessions *localsession.Store,
 	revs revisions.Store,
 	channels amqputil.ChannelPool,
+	queues *QueueSet,
 ) (command.Invoker, command.Server, error) {
 	channel, err := channels.Get()
 	if err != nil {
@@ -26,8 +27,6 @@ func New(
 	if err = declareExchanges(channel); err != nil {
 		return nil, nil, err
 	}
-
-	queues := &queueSet{}
 
 	invoker, err := newInvoker(
 		peerID,

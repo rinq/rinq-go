@@ -64,7 +64,10 @@ func Example_mathService() {
 	if err != nil {
 		panic(err)
 	}
-	defer serverPeer.Stop()
+	defer func() {
+		serverPeer.GracefulStop()
+		<-serverPeer.Done()
+	}()
 	serverPeer.Listen("math", mathHandler)
 
 	// create a new peer to act as the "client", and a session to make the
@@ -73,7 +76,10 @@ func Example_mathService() {
 	if err != nil {
 		panic(err)
 	}
-	defer clientPeer.Stop()
+	defer func() {
+		clientPeer.GracefulStop()
+		<-clientPeer.Done()
+	}()
 
 	sess := clientPeer.Session()
 	defer sess.Destroy()

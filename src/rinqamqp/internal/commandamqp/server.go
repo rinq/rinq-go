@@ -23,7 +23,7 @@ type server struct {
 	peerID    ident.PeerID
 	preFetch  uint
 	revisions revisions.Store
-	queues    *queueSet
+	queues    *QueueSet
 	channels  amqputil.ChannelPool
 	logger    twelf.Logger
 	tracer    opentracing.Tracer
@@ -46,7 +46,7 @@ func newServer(
 	peerID ident.PeerID,
 	preFetch uint,
 	revs revisions.Store,
-	queues *queueSet,
+	queues *QueueSet,
 	channels amqputil.ChannelPool,
 	logger twelf.Logger,
 	tracer opentracing.Tracer,
@@ -126,7 +126,7 @@ func (s *server) bind(ns string) error {
 		return err
 	}
 
-	queue, err := s.queues.Get(s.channel, ns)
+	queue, err := s.queues.Get(ns)
 	if err != nil {
 		return err
 	}
@@ -159,10 +159,14 @@ func (s *server) unbind(ns string) error {
 		return err
 	}
 
-	return s.channel.Cancel(
+	if err := s.channel.Cancel(
 		balancedRequestQueue(ns), // use queue name as consumer tag
 		false, // noWait
-	)
+	); err != nil {
+		return err
+	}
+
+	return s.queues.DeleteIfUnused(ns)
 }
 
 // initialize prepares the AMQP channel
