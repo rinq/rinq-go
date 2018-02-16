@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/internal/notifications"
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
 	"github.com/streadway/amqp"
@@ -20,7 +20,7 @@ type Consumer struct {
 	PeerID        ident.PeerID
 	Notifications chan<- notifications.Inbound
 	Decoder       *Decoder
-	Logger        rinq.Logger
+	Logger        twelf.Logger
 
 	channel    *amqp.Channel
 	closed     chan *amqp.Error

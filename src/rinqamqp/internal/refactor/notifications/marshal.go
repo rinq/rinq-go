@@ -3,6 +3,7 @@ package notifications
 import (
 	"bytes"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/internal/notifications"
 	"github.com/rinq/rinq-go/src/internal/x/cbor"
@@ -28,7 +29,7 @@ const (
 type Encoder struct {
 	PeerID ident.PeerID
 	Tracer opentracing.Tracer
-	Logger rinq.Logger
+	Logger twelf.Logger
 }
 
 // Marshal returns an AMQP message representing n.
@@ -63,7 +64,7 @@ func (e *Encoder) Marshal(n *notifications.Notification, sb, cb *bytes.Buffer) (
 type Decoder struct {
 	PeerID ident.PeerID
 	Tracer opentracing.Tracer
-	Logger rinq.Logger
+	Logger twelf.Logger
 }
 
 // Unmarshal returns a notification based on msg.
