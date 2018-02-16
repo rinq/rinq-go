@@ -2,129 +2,53 @@ package notifications
 
 import (
 	"context"
-	"errors"
 
 	"github.com/jmalloc/twelf/src/twelf"
-	"github.com/rinq/rinq-go/src/internal/notifications"
+	"github.com/rinq/rinq-go/src/internal/transport"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
 	"github.com/streadway/amqp"
-	"github.com/uber-go/multierr"
 )
 
-// Consumer consumes AMQP notification messages and sends them to a channel
-// compatible with notifications.Source.
+// Consumer is a partial implementation of transport.Subscriber that decodes
+// AMQP messages to produce notifications.
 type Consumer struct {
-	Context       context.Context
-	Broker        *amqp.Connection
-	PeerID        ident.PeerID
-	Notifications chan<- notifications.Inbound
-	Decoder       *Decoder
-	Logger        twelf.Logger
+	PeerID  ident.PeerID
+	Broker  *amqp.Connection
+	Decoder *Decoder
+	Logger  twelf.Logger
 
-	channel    *amqp.Channel
-	closed     chan *amqp.Error
-	deliveries <-chan amqp.Delivery
+	ctx           context.Context
+	notifications chan<- *transport.Notification
+	acks          chan ident.MessageID
+	pending       map[ident.MessageID]*amqp.Delivery
 }
 
-// Run processes incoming notifications until c.Context is canceled.
-// c.Notifications is closed when Run returns.
-func (c *Consumer) Run() error {
-	defer close(c.Notifications)
+// Consume begins accepting notifications and sends them to n.
+func (c *Consumer) Consume(ctx context.Context, n chan<- *transport.Notification) error {
+	defer close(n)
 
-	if err := c.initChannel(); err != nil {
-		return err
-	}
-
-	if err := c.startConsumer(); err != nil {
-		return err
-	}
-
-	logConsumerStart(c.Logger, c.PeerID, cap(c.Notifications))
-
-	var err error
-	for err != nil {
-		select {
-		case msg, ok := <-c.deliveries:
-			if ok {
-				c.process(&msg)
-			} else {
-				// if the consumer channel is closed before we call
-				// stopConsumer() then there must be an AMQP error.
-				c.deliveries = nil
-			}
-
-		case err = <-c.closed:
-			if err == nil {
-				err = errors.New("AMQP channel closed unexpectedly")
-			}
-
-		case <-c.Context.Done():
-			err = c.Context.Err()
-
-			// canceling the context is the standard way to stop the consumer, and
-			// hence is not an error.
-			if err == context.Canceled {
-				err = nil
-			}
-
-			if e := c.stopConsumer(); e != nil {
-				err = multierr.Append(err, e)
-			}
-		}
-	}
-
-	logConsumerStop(c.Logger, c.PeerID, err)
-
-	return err
-}
-
-// initChannel opens a new AMQP channel and configures if for consuming.
-func (c *Consumer) initChannel() error {
-	preFetch := cap(c.Notifications)
+	preFetch := cap(n)
 	if preFetch == 0 {
-		// preFetch of zero means unlimited. instead, if the target channel is
-		// unbuffered we only accept one AMQP message at a time.
-		preFetch = 1
+		panic("expected buffered channel")
 	}
 
-	var err error
-	c.channel, err = amqpx.ChannelWithPreFetch(c.Broker, preFetch)
+	c.ctx = ctx
+	c.notifications = n
+	c.acks = make(chan ident.MessageID, preFetch)
+	c.pending = map[ident.MessageID]*amqp.Delivery{}
+
+	ch, err := amqpx.ChannelWithPreFetch(c.Broker, preFetch)
 	if err != nil {
 		return err
 	}
+	defer ch.Close()
 
-	c.closed = make(chan *amqp.Error, 1) // buffer of 1 as we may never read this
-	c.channel.NotifyClose(c.closed)
+	closed := make(chan *amqp.Error)
+	ch.NotifyClose(closed)
 
-	return nil
-}
-
-// process decodes msg and sends the resulting notification to c.Notifications.
-func (c *Consumer) process(msg *amqp.Delivery) {
-	n, err := c.Decoder.Unmarshal(msg)
-	if err != nil {
-		_ = msg.Reject(false) // false = don't requeue
-		logIgnoredMessage(c.Logger, c.PeerID, msg, err)
-		return
-	}
-
-	// this cannot block, as the AMQP channel's pre-fetch count is set to
-	// the Go channel's capacity
-	c.Notifications <- notifications.Inbound{
-		Notification: n,
-		Ack: func() {
-			_ = msg.Ack(false) // false = single message
-		},
-	}
-}
-
-// startConsumer starts the AMQP consumer that receives notification messages.
-func (c *Consumer) startConsumer() error {
 	queue := notifyQueue(c.PeerID)
-
-	var err error
-	c.deliveries, err = c.channel.Consume(
+	deliveries, err := ch.Consume(
 		queue,
 		queue, // use queue name as consumer tag
 		false, // autoAck
@@ -133,26 +57,58 @@ func (c *Consumer) startConsumer() error {
 		false, // noWait
 		nil,   // args
 	)
+	if err != nil {
+		return err
+	}
+
+	logConsumerStart(c.Logger, c.PeerID, preFetch)
+
+	for err != nil {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		case msg := <-deliveries:
+			err = c.dispatch(&msg)
+		case id := <-c.acks:
+			err = c.ack(id)
+		case err = <-closed:
+			return err // err != nil because channel is only closed in defer.
+		}
+	}
+
+	logConsumerStop(c.Logger, c.PeerID, err)
 
 	return err
 }
 
-// stopConsumer cancels the AMQP consumer and rejects any new messages that are
-// received while the cancelation is in progress.
-func (c *Consumer) stopConsumer() error {
-	if err := c.channel.Cancel(
-		notifyQueue(c.PeerID), // use queue name as consumer tag
-		false, // noWait
-	); err != nil {
-		return err
+// Ack acknowledges the notification with the given ID, it MUST be called
+// after each notification has been handled.
+func (c *Consumer) Ack(id ident.MessageID) {
+	select {
+	case <-c.ctx.Done():
+	case c.acks <- id:
 	}
+}
 
-	// reject any messages that have already been delivered.
-	// s.deliveries is eventually closed due to the call to Cancel() above.
-	for msg := range c.deliveries {
+func (c *Consumer) dispatch(msg *amqp.Delivery) error {
+	n, err := c.Decoder.Unmarshal(msg)
+	if err != nil {
+		logIgnoredMessage(c.Logger, c.PeerID, msg, err)
 		if err := msg.Reject(false); err != nil { // false = don't requeue
 			return err
 		}
+	}
+
+	c.pending[n.ID] = msg
+	c.notifications <- n
+
+	return nil
+}
+
+func (c *Consumer) ack(id ident.MessageID) error {
+	if msg, ok := c.pending[id]; ok {
+		delete(c.pending, id)
+		return msg.Ack(false) // false = single message
 	}
 
 	return nil

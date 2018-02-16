@@ -1,6 +1,8 @@
 package transport
 
 import (
+	"context"
+
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
@@ -37,8 +39,8 @@ type Subscriber interface {
 	// notifications from ns are stopped.
 	Unlisten(ns string) error
 
-	// Consume begins accepting notifications and sends them to n.
-	Consume(n chan<- *Notification)
+	// Consume accepts notifications and sends them to n until ctx is canceled.
+	Consume(ctx context.Context, n chan<- *Notification) error
 
 	// Ack acknowledges the notification with the given ID, it MUST be called
 	// after each notification has been handled.
