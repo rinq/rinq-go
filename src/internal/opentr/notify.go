@@ -42,6 +42,7 @@ func notification(
 
 // SentNotification returns a span representing an outbound notification.
 // attrs is the session's attributes at the time the notification was sent.
+// n.SpanContext is set to the span context for the returned span.
 func SentNotification(
 	t opentracing.Tracer,
 	n *transport.Notification,
@@ -51,14 +52,8 @@ func SentNotification(
 		ext.SpanKindProducer,
 	}
 
-	if n.SpanContext != nil {
-		opts = append(
-			opts,
-			opentracing.FollowsFrom(n.SpanContext),
-		)
-	}
-
 	s := notification(t, n, opts)
+	n.SpanContext = s.Context()
 
 	var fields []log.Field
 
@@ -92,7 +87,6 @@ func SentNotification(
 
 // ReceivedNotification returns a span representing an inbound notification.
 // ref is the session's ref at the time the notification was received.
-// n.SpanContext is set to the span context for the returned span.
 func ReceivedNotification(
 	t opentracing.Tracer,
 	ref ident.Ref,
@@ -101,9 +95,15 @@ func ReceivedNotification(
 	opts := []opentracing.StartSpanOption{
 		ext.SpanKindConsumer,
 	}
-	s := notification(t, n, opts)
 
-	n.SpanContext = s.Context()
+	if n.SpanContext != nil {
+		opts = append(
+			opts,
+			opentracing.FollowsFrom(n.SpanContext),
+		)
+	}
+
+	s := notification(t, n, opts)
 
 	fields := []log.Field{
 		listenerReceiveEvent,
