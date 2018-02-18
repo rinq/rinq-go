@@ -7,19 +7,19 @@ import (
 )
 
 var _ = Describe("AddTraceID", func() {
-	It("adds the traceID tag to the span", func() {
+	It("adds the trace_id tag to the span", func() {
 		span := &mockSpan{}
 
 		opentr.AddTraceID(span, "<id>")
 
-		Expect(span.tags).Should(HaveKeyWithValue("traceID", "<id>"))
+		Expect(span.tags).Should(HaveKeyWithValue("trace_id", "<id>"))
 	})
 
-	It("does not add the traceID tag to the span if the id is empty", func() {
+	It("does not add the trace_id tag to the span if the id is empty", func() {
 		span := &mockSpan{}
 
 		opentr.AddTraceID(span, "")
 
-		Expect(span.tags).ShouldNot(HaveKey("traceID"))
+		Expect(span.tags).ShouldNot(HaveKey("trace_id"))
 	})
 })

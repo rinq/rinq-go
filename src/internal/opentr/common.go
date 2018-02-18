@@ -13,6 +13,6 @@ var (
 // AddTraceID configures span s to have traceID set to the given id.
 func AddTraceID(s opentracing.Span, id string) {
 	if id != "" {
-		s.SetTag("traceID", id)
+		s.SetTag("trace_id", id)
 	}
 }
