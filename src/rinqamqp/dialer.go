@@ -17,9 +17,8 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/options"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/commandamqp"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/notifyamqp"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/notifications"
 	"github.com/streadway/amqp"
 )
@@ -167,7 +166,7 @@ func (d *Dialer) Dial(
 		poolSize = DefaultPoolSize
 	}
 
-	channels := amqputil.NewChannelPool(broker, poolSize)
+	channels := amqpx.NewChannelPool(broker, poolSize)
 	peerID, err := d.declareResources(ctx, channels, opts.Logger)
 	if err != nil {
 		return nil, err
@@ -192,19 +191,32 @@ func (d *Dialer) Dial(
 		return nil, err
 	}
 
-	listener, err := notifyamqp.New(peerID, opts, localStore, revStore, channels)
-	if err != nil {
-		return nil, err
-	}
-
-	publisher := &notifications.Publisher{
-		Channels: channels,
-		Encoder: &notifications.Encoder{
+	publisher := notifications.NewPublisher(
+		channels,
+		&notifications.Encoder{
 			PeerID: peerID,
 			Tracer: opts.Tracer,
 			Logger: opts.Logger,
 		},
+	)
+	subscriber := notifications.NewSubscriber(peerID, channels)
+	consumer := notifications.NewConsumer(
+		peerID,
+		channels,
+		&notifications.Decoder{
+			PeerID: peerID,
+			Tracer: opts.Tracer,
+			Logger: opts.Logger,
+		},
+		opts.Logger,
+		opts.SessionWorkers,
+	)
+
+	dispatcher := localsession.Dispatcher{
+		Consumer: consumer,
+		Sessions: localStore,
 	}
+	go dispatcher.Run()
 
 	remoteStore := remotesession.NewStore(peerID, invoker, opts.PruneInterval, opts.Logger, opts.Tracer)
 	revStore.Remote = remoteStore
@@ -218,10 +230,12 @@ func (d *Dialer) Dial(
 		broker,
 		localStore,
 		remoteStore,
+		revStore,
 		invoker,
 		server,
 		publisher,
-		listener,
+		subscriber,
+		consumer,
 		opts.Logger,
 		opts.Tracer,
 	), nil
@@ -230,7 +244,7 @@ func (d *Dialer) Dial(
 // declareResources creates all exhanges and queues required by the peer.
 func (d *Dialer) declareResources(
 	ctx context.Context,
-	channels amqputil.ChannelPool,
+	channels amqpx.ChannelPool,
 	logger twelf.Logger,
 ) (id ident.PeerID, err error) {
 	var channel *amqp.Channel

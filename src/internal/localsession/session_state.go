@@ -184,7 +184,6 @@ func (s *Session) destroy() {
 	s.isDestroyed = true
 
 	s.invoker.SetAsyncHandler(s.ref.ID, nil)
-	_ = s.listener.UnlistenAll(s.ref.ID)
 
 	go func() {
 		// close the done channel only after all pending calls have finished

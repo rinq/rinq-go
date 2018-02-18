@@ -37,14 +37,14 @@ func logConsumerStop(
 	}
 }
 
-func logIgnoredMessage(
+func logConsumerIgnoredMessage(
 	logger twelf.Logger,
 	peerID ident.PeerID,
 	msg *amqp.Delivery,
 	err error,
 ) {
 	logger.Debug(
-		"%s ignored AMQP notification message %s, %s",
+		"%s notification consumer ignored AMQP message %s, %s",
 		peerID.ShortString(),
 		msg.MessageId,
 		err,

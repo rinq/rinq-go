@@ -87,6 +87,8 @@ func (d *Decoder) Unmarshal(msg *amqp.Delivery) (*transport.Notification, error)
 	}
 
 	if msg.Exchange == multicastExchange {
+		n.IsMulticast = true
+
 		var buf []byte
 		buf, err = amqpx.GetHeaderBytes(msg, constraintHeader)
 		if err != nil {

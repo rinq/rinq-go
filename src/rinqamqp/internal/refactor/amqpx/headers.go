@@ -47,3 +47,19 @@ func GetHeaderBytes(msg *amqp.Delivery, key string) ([]byte, error) {
 
 	return b, nil
 }
+
+// GetHeaderBytesOptional returns the header with the given key, asserting that
+// it is a byte slice.
+func GetHeaderBytesOptional(msg *amqp.Delivery, key string) ([]byte, bool, error) {
+	v, ok := msg.Headers[key]
+	if !ok {
+		return nil, false, nil
+	}
+
+	b, ok := v.([]byte)
+	if !ok {
+		return nil, false, fmt.Errorf("%s header is not a byte slice", key)
+	}
+
+	return b, true, nil
+}

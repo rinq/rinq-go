@@ -15,6 +15,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
 	"github.com/streadway/amqp"
 )
 
@@ -28,7 +29,7 @@ type invoker struct {
 	defaultTimeout time.Duration
 	sessions       *localsession.Store
 	queues         *queueSet
-	channels       amqputil.ChannelPool
+	channels       amqpx.ChannelPool
 	channel        *amqp.Channel // channel used for consuming
 	logger         twelf.Logger
 	tracer         opentracing.Tracer
@@ -59,7 +60,7 @@ func newInvoker(
 	defaultTimeout time.Duration,
 	sessions *localsession.Store,
 	queues *queueSet,
-	channels amqputil.ChannelPool,
+	channels amqpx.ChannelPool,
 	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) (command.Invoker, error) {

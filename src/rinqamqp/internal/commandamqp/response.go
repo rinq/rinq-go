@@ -8,6 +8,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
 	"github.com/streadway/amqp"
 )
 
@@ -15,7 +16,7 @@ import (
 // rinq.Response.
 type response struct {
 	context  context.Context
-	channels amqputil.ChannelPool
+	channels amqpx.ChannelPool
 	request  rinq.Request
 
 	mutex     sync.RWMutex
@@ -25,7 +26,7 @@ type response struct {
 
 func newResponse(
 	ctx context.Context,
-	channels amqputil.ChannelPool,
+	channels amqpx.ChannelPool,
 	request rinq.Request,
 	replyMode replyMode,
 ) (rinq.Response, func() bool) {

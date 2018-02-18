@@ -41,9 +41,11 @@ func PackSpanContext(
 // UnpackSpanContext extracts a span context from the headers of msg. If no
 // span context is packed in the headers, nil is returned.
 func UnpackSpanContext(msg *amqp.Delivery, t opentracing.Tracer) (opentracing.SpanContext, error) {
-	b, err := amqpx.GetHeaderBytes(msg, spanContextHeader)
+	b, ok, err := amqpx.GetHeaderBytesOptional(msg, spanContextHeader)
 	if err != nil {
 		return nil, err
+	} else if !ok {
+		return nil, nil
 	}
 
 	buf := bytes.NewBuffer(b)

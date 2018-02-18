@@ -12,8 +12,19 @@ import (
 // Publisher is an implementation of transport.Publisher that sends
 // notifications as AMQP messages.
 type Publisher struct {
-	Channels amqpx.ChannelPool
-	Encoder  *Encoder
+	channels amqpx.ChannelPool
+	encoder  *Encoder
+}
+
+// NewPublisher returns a new AMQP-based notification publisher.
+func NewPublisher(
+	channels amqpx.ChannelPool,
+	encoder *Encoder,
+) *Publisher {
+	return &Publisher{
+		channels: channels,
+		encoder:  encoder,
+	}
 }
 
 // Publish sends a notification.
@@ -28,7 +39,7 @@ func (p *Publisher) Publish(n *transport.Notification) error {
 		defer bufferpool.Put(cb)
 	}
 
-	msg, err := p.Encoder.Marshal(n, sb, cb)
+	msg, err := p.encoder.Marshal(n, sb, cb)
 	if err != nil {
 		return err
 	}
@@ -60,11 +71,11 @@ func (p *Publisher) multicast(msg *amqp.Publishing, n *transport.Notification) e
 
 // publish publishes a message using a channel from the pool.
 func (p *Publisher) publish(exchange, key string, msg *amqp.Publishing) error {
-	c, err := p.Channels.Get()
+	c, err := p.channels.Get()
 	if err != nil {
 		return err
 	}
-	defer p.Channels.Put(c)
+	defer p.channels.Put(c)
 
 	return c.Publish(
 		exchange,

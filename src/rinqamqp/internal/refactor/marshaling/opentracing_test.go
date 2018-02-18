@@ -27,6 +27,15 @@ var _ = Describe("PackSpanContext and UnpackSpanContext", func() {
 
 		Expect(sc).To(Equal(spanContext("<span context>")))
 	})
+
+	It("returns a nil context if there is no header", func() {
+		t := tracer{}
+		del := &amqp.Delivery{}
+		sc, err := UnpackSpanContext(del, t)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		Expect(sc).To(BeNil())
+	})
 })
 
 type spanContext string

@@ -1,8 +1,6 @@
 package transport
 
 import (
-	"context"
-
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
@@ -23,13 +21,22 @@ type Notification struct {
 	MulticastConstraint constraint.Constraint
 }
 
+// InboundNotification is a notification received from a consumer.
+// Done() must be called once the notification has been handled by all target
+// sessions.
+type InboundNotification struct {
+	*Notification
+	Done func()
+}
+
 // Publisher is an interface for sending inter-session notifications.
 type Publisher interface {
 	// Publish sends a notification.
 	Publish(*Notification) error
 }
 
-// Subscriber is an interface for receiving inter-session notifications.
+// Subscriber is an interface for subscribing to and unsubscribing from
+// notifications on a per-namespace basis.
 type Subscriber interface {
 	// Listen starts listening for notifications in the ns namespace.
 	Listen(ns string) error
@@ -38,11 +45,10 @@ type Subscriber interface {
 	// It must be called once for each prior call to Listen() before
 	// notifications from ns are stopped.
 	Unlisten(ns string) error
+}
 
-	// Consume accepts notifications and sends them to n until ctx is canceled.
-	Consume(ctx context.Context, n chan<- *Notification) error
-
-	// Ack acknowledges the notification with the given ID, it MUST be called
-	// after each notification has been handled.
-	Ack(ident.MessageID)
+// Consumer is an interface for receiving inter-session notifications.
+type Consumer interface {
+	// Queue returns a channel on which inbound notifications are delivered.
+	Queue() <-chan InboundNotification
 }

@@ -101,3 +101,40 @@ var _ = Describe("GetHeaderBytes", func() {
 		Expect(err).Should(HaveOccurred())
 	})
 })
+
+var _ = Describe("GetHeaderBytesOptional", func() {
+	It("returns the header if it is a string", func() {
+		msg := &amqp.Delivery{
+			Headers: amqp.Table{
+				"a": []byte{'1'},
+			},
+		}
+
+		v, ok, err := GetHeaderBytesOptional(msg, "a")
+
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(v).To(Equal([]byte{'1'}))
+		Expect(ok).To(BeTrue())
+	})
+
+	It("returns false if the header is not set", func() {
+		msg := &amqp.Delivery{}
+
+		_, ok, err := GetHeaderBytesOptional(msg, "a")
+
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(ok).To(BeFalse())
+	})
+
+	It("returns an error if the header is not a string", func() {
+		msg := &amqp.Delivery{
+			Headers: amqp.Table{
+				"a": 1,
+			},
+		}
+
+		_, _, err := GetHeaderBytesOptional(msg, "a")
+
+		Expect(err).Should(HaveOccurred())
+	})
+})
