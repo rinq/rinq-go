@@ -5,7 +5,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/internal/transport"
 	"github.com/rinq/rinq-go/src/internal/x/bufferpool"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
 	"github.com/streadway/amqp"
 )
 

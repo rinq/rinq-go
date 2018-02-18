@@ -8,7 +8,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
 	"github.com/streadway/amqp"
 )
 

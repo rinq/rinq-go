@@ -3,7 +3,7 @@ package amqpx_test
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
+	. "github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
 	"github.com/streadway/amqp"
 )
 

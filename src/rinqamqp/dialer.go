@@ -17,9 +17,9 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/options"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/commandamqp"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/notifications"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/notifications"
 	"github.com/streadway/amqp"
 )
 

@@ -6,7 +6,7 @@ import (
 	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/options"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
 )
 
 // New returns a pair of invoker and server.

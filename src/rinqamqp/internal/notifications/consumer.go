@@ -5,7 +5,7 @@ import (
 	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/rinq/rinq-go/src/internal/transport"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
 	"github.com/streadway/amqp"
 )
 

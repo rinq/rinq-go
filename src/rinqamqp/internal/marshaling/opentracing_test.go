@@ -8,8 +8,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqptest"
-	. "github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/marshaling"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqptest"
+	. "github.com/rinq/rinq-go/src/rinqamqp/internal/marshaling"
 	"github.com/streadway/amqp"
 )
 

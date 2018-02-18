@@ -9,8 +9,8 @@ import (
 	"github.com/rinq/rinq-go/src/internal/x/cbor"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/marshaling"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/marshaling"
 	"github.com/streadway/amqp"
 )
 

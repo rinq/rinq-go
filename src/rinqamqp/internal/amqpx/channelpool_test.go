@@ -5,8 +5,8 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqptest"
-	. "github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqptest"
+	. "github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
 	"github.com/streadway/amqp"
 )
 

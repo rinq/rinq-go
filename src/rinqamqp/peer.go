@@ -16,7 +16,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/notifications"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/notifications"
 	"github.com/streadway/amqp"
 )
 

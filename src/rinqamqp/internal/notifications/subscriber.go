@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/rinq/rinq-go/src/rinq/ident"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/refactor/amqpx"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
 )
 
 // Subscriber is an implementation of transport.Subscriber that adds and removes
