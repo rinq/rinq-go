@@ -1,12 +1,12 @@
 package rinqamqp
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 func logStartedListening(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	namespace string,
 ) {
@@ -18,7 +18,7 @@ func logStartedListening(
 }
 
 func logStoppedListening(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	namespace string,
 ) {

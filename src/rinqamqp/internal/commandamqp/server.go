@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/internal/command"
@@ -24,7 +25,7 @@ type server struct {
 	revisions revisions.Store
 	queues    *queueSet
 	channels  amqputil.ChannelPool
-	logger    rinq.Logger
+	logger    twelf.Logger
 	tracer    opentracing.Tracer
 
 	parentCtx context.Context // parent of all contexts passed to handlers
@@ -47,7 +48,7 @@ func newServer(
 	revs revisions.Store,
 	queues *queueSet,
 	channels amqputil.ChannelPool,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) (command.Server, error) {
 	s := &server{

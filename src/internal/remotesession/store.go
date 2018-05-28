@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/revisions"
@@ -25,7 +26,7 @@ type store struct {
 	peerID   ident.PeerID
 	client   *client
 	interval time.Duration
-	logger   rinq.Logger
+	logger   twelf.Logger
 
 	mutex sync.Mutex
 	cache map[ident.SessionID]*cacheEntry
@@ -36,7 +37,7 @@ func NewStore(
 	peerID ident.PeerID,
 	invoker command.Invoker,
 	pruneInterval time.Duration,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) Store {
 	s := &store{

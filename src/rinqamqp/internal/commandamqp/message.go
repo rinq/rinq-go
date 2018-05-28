@@ -94,6 +94,7 @@ func unpackReplyMode(msg *amqp.Delivery) replyMode {
 
 func packRequest(
 	msg *amqp.Publishing,
+	traceID string,
 	ns string,
 	cmd string,
 	p *rinq.Payload,
@@ -101,6 +102,7 @@ func packRequest(
 ) {
 	packNamespaceAndCommand(msg, ns, cmd)
 	packReplyMode(msg, m)
+	amqputil.PackTrace(msg, traceID)
 	msg.Body = p.Bytes()
 }
 

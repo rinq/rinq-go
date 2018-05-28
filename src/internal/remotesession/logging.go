@@ -1,20 +1,16 @@
 package remotesession
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 func logCacheAdd(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	sessID ident.SessionID,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s discovered remote session %s ",
 		peerID.ShortString(),
 		sessID.ShortString(),
@@ -22,15 +18,11 @@ func logCacheAdd(
 }
 
 func logCacheMark(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	sessID ident.SessionID,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s marked remote session %s for removal from the store",
 		peerID.ShortString(),
 		sessID.ShortString(),
@@ -38,15 +30,11 @@ func logCacheMark(
 }
 
 func logCacheRemove(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	sessID ident.SessionID,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s removed remote session %s from the store",
 		peerID.ShortString(),
 		sessID.ShortString(),

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/internal/attributes"
@@ -30,7 +31,7 @@ type Session struct {
 	invoker  command.Invoker
 	notifier notify.Notifier
 	listener notify.Listener
-	logger   rinq.Logger
+	logger   twelf.Logger
 	tracer   opentracing.Tracer
 
 	mutex       sync.RWMutex
@@ -48,7 +49,7 @@ func NewSession(
 	invoker command.Invoker,
 	notifier notify.Notifier,
 	listener notify.Listener,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) *Session {
 	logCreated(logger, id)
@@ -96,7 +97,7 @@ func (s *Session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 		return nil, rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID := s.nextMessageID()
+	msgID, traceID := s.nextMessageID(ctx)
 	attrs := s.attrs // capture for logging/tracing while mutex is locked
 
 	s.calls.Add(1)
@@ -110,10 +111,11 @@ func (s *Session) Call(ctx context.Context, ns, cmd string, out *rinq.Payload) (
 	defer span.Finish()
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogInvokerCall(span, attrs, out)
 
 	start := time.Now()
-	traceID, in, err := s.invoker.CallBalanced(ctx, msgID, ns, cmd, out)
+	in, err := s.invoker.CallBalanced(ctx, msgID, traceID, ns, cmd, out)
 	elapsed := time.Since(start) / time.Millisecond
 
 	if err == nil {
@@ -138,15 +140,16 @@ func (s *Session) CallAsync(ctx context.Context, ns, cmd string, out *rinq.Paylo
 		return ident.MessageID{}, rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID := s.nextMessageID()
+	msgID, traceID := s.nextMessageID(ctx)
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogInvokerCallAsync(span, s.attrs, out)
 
-	traceID, err := s.invoker.CallBalancedAsync(ctx, msgID, ns, cmd, out)
+	err := s.invoker.CallBalancedAsync(ctx, msgID, traceID, ns, cmd, out)
 
 	if err != nil {
 		opentr.LogInvokerError(span, err)
@@ -182,6 +185,7 @@ func (s *Session) SetAsyncHandler(h rinq.AsyncHandler) error {
 		) {
 			span := opentracing.SpanFromContext(ctx)
 			opentr.SetupCommand(span, msgID, ns, cmd)
+			opentr.AddTraceID(span, trace.Get(ctx))
 
 			if err == nil {
 				opentr.LogInvokerSuccess(span, in)
@@ -209,31 +213,22 @@ func (s *Session) Execute(ctx context.Context, ns, cmd string, p *rinq.Payload) 
 		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID := s.nextMessageID()
+	msgID, traceID := s.nextMessageID(ctx)
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindRPCClient)
 	defer span.Finish()
 
 	opentr.SetupCommand(span, msgID, ns, cmd)
-	opentr.LogInvokerCallAsync(span, s.attrs, p)
+	opentr.AddTraceID(span, traceID)
+	opentr.LogInvokerExecute(span, s.attrs, p)
 
-	traceID, err := s.invoker.ExecuteBalanced(ctx, msgID, ns, cmd, p)
+	err := s.invoker.ExecuteBalanced(ctx, msgID, traceID, ns, cmd, p)
 
 	if err != nil {
 		opentr.LogInvokerError(span, err)
 	}
 
-	// TODO: move to function
-	if err == nil {
-		s.logger.Log(
-			"%s executed '%s::%s' command (%d/o) [%s]",
-			msgID.ShortString(),
-			ns,
-			cmd,
-			p.Len(),
-			traceID,
-		)
-	}
+	logExecute(s.logger, msgID, ns, cmd, p, err, traceID)
 
 	return err
 }
@@ -253,32 +248,22 @@ func (s *Session) Notify(ctx context.Context, ns, t string, target ident.Session
 		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID := s.nextMessageID()
+	msgID, traceID := s.nextMessageID(ctx)
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	opentr.SetupNotification(span, msgID, ns, t)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogNotifierUnicast(span, s.attrs, target, p)
 
-	traceID, err := s.notifier.NotifyUnicast(ctx, msgID, target, ns, t, p)
+	err := s.notifier.NotifyUnicast(ctx, msgID, traceID, target, ns, t, p)
 
 	if err != nil {
 		opentr.LogNotifierError(span, err)
 	}
 
-	// TODO: move to function
-	if err == nil {
-		s.logger.Log(
-			"%s sent '%s::%s' notification to %s (%d/o) [%s]",
-			msgID.ShortString(),
-			ns,
-			t,
-			target.ShortString(),
-			p.Len(),
-			traceID,
-		)
-	}
+	logNotify(s.logger, msgID, ns, t, target, p, err, traceID)
 
 	return err
 }
@@ -294,32 +279,22 @@ func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	msgID := s.nextMessageID()
+	msgID, traceID := s.nextMessageID(ctx)
 
 	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
 	defer span.Finish()
 
 	opentr.SetupNotification(span, msgID, ns, t)
+	opentr.AddTraceID(span, traceID)
 	opentr.LogNotifierMulticast(span, s.attrs, con, p)
 
-	traceID, err := s.notifier.NotifyMulticast(ctx, msgID, con, ns, t, p)
+	err := s.notifier.NotifyMulticast(ctx, msgID, traceID, con, ns, t, p)
 
 	if err != nil {
 		opentr.LogNotifierError(span, err)
 	}
 
-	// TODO: move to function
-	if err == nil {
-		s.logger.Log(
-			"%s sent '%s::%s' notification to sessions matching %s (%d/o) [%s]",
-			msgID.ShortString(),
-			ns,
-			t,
-			con,
-			p.Len(),
-			traceID,
-		)
-	}
+	logNotifyMany(s.logger, msgID, ns, t, con, p, err, traceID)
 
 	return err
 }
@@ -354,19 +329,14 @@ func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 			s.mutex.RUnlock()
 
 			span := opentracing.SpanFromContext(ctx)
+
+			traceID := trace.Get(ctx)
+
 			opentr.SetupNotification(span, n.ID, n.Namespace, n.Type)
+			opentr.AddTraceID(span, traceID)
 			opentr.LogListenerReceived(span, ref, n)
 
-			// TODO: move to function
-			s.logger.Log(
-				"%s received '%s::%s' notification from %s (%d/i) [%s]",
-				ref.ShortString(),
-				n.Namespace,
-				n.Type,
-				n.ID.Ref.ShortString(),
-				n.Payload.Len(),
-				trace.Get(ctx),
-			)
+			logNotifyRecv(s.logger, ref, n, traceID)
 
 			h(ctx, target, n)
 		},
@@ -374,12 +344,8 @@ func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 
 	if err != nil {
 		return err
-	} else if changed && s.logger.IsDebug() {
-		s.logger.Log(
-			"%s started listening for notifications in '%s' namespace",
-			s.ref.ShortString(),
-			ns,
-		)
+	} else if changed {
+		logListen(s.logger, s.ref, ns)
 	}
 
 	return nil
@@ -400,12 +366,8 @@ func (s *Session) Unlisten(ns string) error {
 
 	if err != nil {
 		return err
-	} else if changed && s.logger.IsDebug() {
-		s.logger.Log(
-			"%s stopped listening for notifications in '%s' namespace",
-			s.ref.ShortString(),
-			ns,
-		)
+	} else if changed {
+		logUnlisten(s.logger, s.ref, ns)
 	}
 
 	return nil

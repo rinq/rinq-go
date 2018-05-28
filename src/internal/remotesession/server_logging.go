@@ -3,16 +3,16 @@ package remotesession
 import (
 	"context"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/internal/localsession"
-	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
 )
 
 func logRemoteUpdate(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	ref ident.Ref,
 	peerID ident.PeerID,
 	diff *attributes.Diff,
@@ -28,7 +28,7 @@ func logRemoteUpdate(
 
 func logRemoteClear(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	ref ident.Ref,
 	peerID ident.PeerID,
 	diff *attributes.Diff,
@@ -44,7 +44,7 @@ func logRemoteClear(
 
 func logRemoteDestroy(
 	ctx context.Context,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	sess *localsession.Session,
 	peerID ident.PeerID,
 ) {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	version "github.com/hashicorp/go-version"
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/internal/localsession"
 	"github.com/rinq/rinq-go/src/internal/remotesession"
 	"github.com/rinq/rinq-go/src/internal/revisions"
@@ -220,7 +221,7 @@ func (d *Dialer) Dial(
 func (d *Dialer) establishIdentity(
 	ctx context.Context,
 	channels amqputil.ChannelPool,
-	logger rinq.Logger,
+	logger twelf.Logger,
 ) (id ident.PeerID, err error) {
 	var channel *amqp.Channel
 
@@ -253,12 +254,10 @@ func (d *Dialer) establishIdentity(
 			err = ctx.Err()
 			return
 		default:
-			if logger.IsDebug() {
-				logger.Log(
-					"%s already registered, retrying with a different peer ID",
-					id.ShortString(),
-				)
-			}
+			logger.Debug(
+				"%s already registered, retrying with a different peer ID",
+				id.ShortString(),
+			)
 		}
 	}
 }

@@ -3,6 +3,7 @@ package functest
 import (
 	"sync"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/options"
 	"github.com/rinq/rinq-go/src/rinqamqp"
@@ -28,7 +29,9 @@ func SharedPeer() rinq.Peer {
 // NewPeer returns a new peer for use in functional tests.
 func NewPeer() rinq.Peer {
 	peer, err := rinqamqp.DialEnv(
-		options.Logger(rinq.NewLogger(true)),
+		options.Logger(
+			&twelf.StandardLogger{CaptureDebug: true},
+		),
 	)
 
 	if err != nil {

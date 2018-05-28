@@ -1,20 +1,16 @@
 package notifyamqp
 
 import (
-	"github.com/rinq/rinq-go/src/rinq"
+	"github.com/jmalloc/twelf/src/twelf"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
 func logInvalidMessageID(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID string,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s listener ignored AMQP message, '%s' is not a valid message ID",
 		peerID.ShortString(),
 		msgID,
@@ -22,16 +18,12 @@ func logInvalidMessageID(
 }
 
 func logIgnoredMessage(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	msgID ident.MessageID,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s listener ignored AMQP message %s, %s",
 		peerID.ShortString(),
 		msgID.ShortString(),
@@ -40,15 +32,11 @@ func logIgnoredMessage(
 }
 
 func logListenerStart(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	preFetch uint,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s listener started (pre-fetch: %d)",
 		peerID.ShortString(),
 		preFetch,
@@ -56,15 +44,11 @@ func logListenerStart(
 }
 
 func logListenerStopping(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	pending uint,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
-	logger.Log(
+	logger.Debug(
 		"%s listener stopping gracefully (pending: %d)",
 		peerID.ShortString(),
 		pending,
@@ -72,21 +56,17 @@ func logListenerStopping(
 }
 
 func logListenerStop(
-	logger rinq.Logger,
+	logger twelf.Logger,
 	peerID ident.PeerID,
 	err error,
 ) {
-	if !logger.IsDebug() {
-		return
-	}
-
 	if err == nil {
-		logger.Log(
+		logger.Debug(
 			"%s listener stopped",
 			peerID.ShortString(),
 		)
 	} else {
-		logger.Log(
+		logger.Debug(
 			"%s listener stopped: %s",
 			peerID.ShortString(),
 			err,

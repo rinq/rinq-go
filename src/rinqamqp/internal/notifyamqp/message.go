@@ -6,6 +6,8 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/internal/opentr"
+	"github.com/rinq/rinq-go/src/internal/x/bufferpool"
+	"github.com/rinq/rinq-go/src/internal/x/cbor"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
 	"github.com/rinq/rinq-go/src/rinq/ident"
@@ -30,6 +32,7 @@ func unicastRoutingKey(ns string, p ident.PeerID) string {
 
 func packCommonAttributes(
 	msg *amqp.Publishing,
+	traceID string,
 	ns string,
 	t string,
 	p *rinq.Payload,
@@ -42,6 +45,8 @@ func packCommonAttributes(
 	}
 
 	msg.Headers[namespaceHeader] = ns
+
+	amqputil.PackTrace(msg, traceID)
 }
 
 func unpackCommonAttributes(msg *amqp.Delivery) (ns, t string, p *rinq.Payload, err error) {
@@ -75,22 +80,21 @@ func unpackTarget(msg *amqp.Delivery) (id ident.SessionID, err error) {
 }
 
 func packConstraint(msg *amqp.Publishing, con constraint.Constraint) {
-	p := rinq.NewPayload(con)
-	defer p.Close()
-
 	if msg.Headers == nil {
 		msg.Headers = amqp.Table{}
 	}
 
-	msg.Headers[constraintHeader] = p.Bytes()
+	// don't return buf to the pool as it's internal buffer is retained inside
+	// the msg header.
+	buf := bufferpool.Get()
+	cbor.MustEncode(buf, con)
+
+	msg.Headers[constraintHeader] = buf.Bytes()
 }
 
 func unpackConstraint(msg *amqp.Delivery) (con constraint.Constraint, err error) {
 	if buf, ok := msg.Headers[constraintHeader].([]byte); ok {
-		p := rinq.NewPayloadFromBytes(buf)
-		defer p.Close()
-
-		err = p.Decode(&con)
+		err = cbor.DecodeBytes(buf, &con)
 	} else {
 		err = errors.New("constraint header is not a byte slice")
 	}

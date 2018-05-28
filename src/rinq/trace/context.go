@@ -23,14 +23,20 @@ func With(parent context.Context, t string) context.Context {
 }
 
 // WithRoot returns a new context derived from parent that includes an
-// application-defined "trace ID" value, only if the context does not already
-// contain such a trace ID. Otherwise; it returns parent.
-func WithRoot(parent context.Context, t string) (context.Context, bool) {
-	if parent.Value(key) == nil {
-		return With(parent, t), true
+// application-defined "trace ID" value, only if the parent does not already
+// contain such a trace ID.
+//
+// If parent already contains a trace ID, ctx is parent, id is the trace ID from
+// parent and ok is false. Otherwise, ctx is the derived context containing  t
+// as the trace ID, id is t and ok is true.
+func WithRoot(parent context.Context, t string) (ctx context.Context, id string, ok bool) {
+	existing := parent.Value(key)
+
+	if existing == nil {
+		return With(parent, t), t, true
 	}
 
-	return parent, false
+	return parent, existing.(string), false
 }
 
 // Get returns the trace identifier from ctx, or an empty string if none is

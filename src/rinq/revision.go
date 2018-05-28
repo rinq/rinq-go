@@ -22,8 +22,10 @@ type Revision interface {
 
 	// Refresh returns the latest revision of the session.
 	//
-	// If IsNotFound(err) returns true, the session has been destroyed and rev is
-	// invalid.
+	// If the session has been destroyed, err is nil, but any operations on rev
+	// will return an error e such that IsNotFound(e) is true. This means that
+	// any non-nil err indicates an unexpected error occurred when querying the
+	// session state.
 	Refresh(ctx context.Context) (rev Revision, err error)
 
 	// Get returns the attribute with key k within the ns namespace of the

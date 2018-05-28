@@ -3,6 +3,7 @@ package command
 import (
 	"time"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/rinq/rinq-go/src/rinq"
@@ -17,7 +18,7 @@ type response struct {
 
 	peerID    ident.PeerID
 	traceID   string
-	logger    rinq.Logger
+	logger    twelf.Logger
 	span      opentracing.Span
 	startedAt time.Time
 }
@@ -28,7 +29,7 @@ func NewResponse(
 	res rinq.Response,
 	peerID ident.PeerID,
 	traceID string,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	span opentracing.Span,
 ) rinq.Response {
 	return &response{

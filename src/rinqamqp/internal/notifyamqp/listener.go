@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/jmalloc/twelf/src/twelf"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/rinq/rinq-go/src/internal/localsession"
 	"github.com/rinq/rinq-go/src/internal/notify"
@@ -24,7 +25,7 @@ type listener struct {
 	preFetch  uint
 	sessions  *localsession.Store
 	revisions revisions.Store
-	logger    rinq.Logger
+	logger    twelf.Logger
 	tracer    opentracing.Tracer
 
 	parentCtx context.Context // parent of all contexts passed to handlers
@@ -48,7 +49,7 @@ func newListener(
 	sessions *localsession.Store,
 	revs revisions.Store,
 	channel *amqp.Channel,
-	logger rinq.Logger,
+	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) (notify.Listener, error) {
 	l := &listener{

@@ -5,6 +5,7 @@ import (
 
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/internal/namespaces"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
@@ -19,7 +20,13 @@ func (r *revision) SessionID() ident.SessionID {
 }
 
 func (r *revision) Refresh(ctx context.Context) (rinq.Revision, error) {
-	return r.session.Head(ctx)
+	rev, err := r.session.Head(ctx)
+
+	if rinq.IsNotFound(err) {
+		return revisions.Closed(r.ref.ID), nil
+	}
+
+	return rev, err
 }
 
 func (r *revision) Get(ctx context.Context, ns, key string) (rinq.Attr, error) {
