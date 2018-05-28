@@ -39,9 +39,6 @@ type Session interface {
 	ID() ident.SessionID
 
 	// CurrentRevision returns the current revision of this session.
-	//
-	// If the session has been destroyed, any operation on the returned revision
-	// will return a NotFoundError.
 	CurrentRevision() Revision
 
 	// Call sends a command request to the next available peer listening to the
