@@ -5,8 +5,7 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/rinq/rinq-go/src/internal/attributes"
-	"github.com/rinq/rinq-go/src/rinq"
-	"github.com/rinq/rinq-go/src/rinq/constraint"
+	"github.com/rinq/rinq-go/src/internal/transport"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 )
 
@@ -16,73 +15,96 @@ var (
 	listenerReceiveEvent   = log.String("event", "notification")
 )
 
-// SetupNotification configures span as a command-related span.
-func SetupNotification(
-	s opentracing.Span,
-	id ident.MessageID,
-	ns string,
-	t string,
-) {
-	s.SetOperationName(ns + "::" + t + " notification")
+// notification configures s as a notification-related span.
+func notification(
+	t opentracing.Tracer,
+	n *transport.Notification,
+	opts []opentracing.StartSpanOption,
+) opentracing.Span {
+	opts = append(
+		CommonSpanOptions,
+		opts...,
+	)
+
+	s := t.StartSpan(
+		n.Namespace+"::"+n.Type+" notification",
+		opts...,
+	)
 
 	s.SetTag("subsystem", "notify")
-	s.SetTag("message_id", id.String())
-	s.SetTag("namespace", ns)
-	s.SetTag("type", t)
+	s.SetTag("message_id", n.ID.String())
+	s.SetTag("namespace", n.Namespace)
+	s.SetTag("type", n.Type)
+	s.SetTag("trace_id", n.TraceID)
+
+	return s
 }
 
-// LogNotifierUnicast logs information about a unicast notification to s.
-func LogNotifierUnicast(
-	s opentracing.Span,
+// SentNotification returns a span representing an outbound notification.
+// attrs is the session's attributes at the time the notification was sent.
+// n.SpanContext is set to the span context for the returned span.
+func SentNotification(
+	t opentracing.Tracer,
+	n *transport.Notification,
 	attrs attributes.Catalog,
-	target ident.SessionID,
-	p *rinq.Payload,
-) {
-	fields := []log.Field{
-		notifierUnicastEvent,
-		log.String("target", target.String()),
-		log.Int("size", p.Len()),
+) opentracing.Span {
+	opts := []opentracing.StartSpanOption{
+		ext.SpanKindProducer,
 	}
 
-	if len(attrs) > 0 {
-		fields = append(fields, lazyString("attributes", attrs.String))
+	s := notification(t, n, opts)
+	n.SpanContext = s.Context()
+
+	var fields []log.Field
+
+	if n.IsMulticast {
+		fields = append(
+			fields,
+			notifierMulticastEvent,
+			log.String("constraint", n.MulticastConstraint.String()),
+		)
+	} else {
+		fields = append(
+			fields,
+			notifierUnicastEvent,
+			log.String("target", n.UnicastTarget.String()),
+		)
 	}
 
-	s.LogFields(fields...)
-}
-
-// LogNotifierMulticast logs informatin about a multicast notification to s.
-func LogNotifierMulticast(
-	s opentracing.Span,
-	attrs attributes.Catalog,
-	con constraint.Constraint,
-	p *rinq.Payload,
-) {
-	fields := []log.Field{
-		notifierMulticastEvent,
-		log.String("constraint", con.String()),
-		log.Int("size", p.Len()),
-	}
-
-	if len(attrs) > 0 {
-		fields = append(fields, lazyString("attributes", attrs.String))
-	}
-
-	s.LogFields(fields...)
-}
-
-// LogNotifierError logs information about err to s.
-func LogNotifierError(s opentracing.Span, err error) {
-	ext.Error.Set(s, true)
-
-	s.LogFields(
-		errorEvent,
-		log.String("message", err.Error()),
+	fields = append(
+		fields,
+		log.Int("size", n.Payload.Len()),
 	)
+
+	if len(attrs) > 0 {
+		fields = append(fields, lazyString("attributes", attrs.String))
+	}
+
+	s.LogFields(fields...)
+
+	return s
 }
 
-// LogListenerReceived logs information about a received notification to s.
-func LogListenerReceived(s opentracing.Span, ref ident.Ref, n rinq.Notification) {
+// ReceivedNotification returns a span representing an inbound notification.
+// ref is the session's ref at the time the notification was received.
+func ReceivedNotification(
+	t opentracing.Tracer,
+	ref ident.Ref,
+	n *transport.Notification,
+) opentracing.Span {
+	opts := []opentracing.StartSpanOption{
+		ext.SpanKindConsumer,
+	}
+
+	if n.SpanContext != nil {
+		opts = append(
+			opts,
+			opentracing.FollowsFrom(n.SpanContext),
+		)
+	}
+
+	s := notification(t, n, opts)
+
 	fields := []log.Field{
 		listenerReceiveEvent,
 		log.String("recipient", ref.String()),
@@ -93,9 +115,21 @@ func LogListenerReceived(s opentracing.Span, ref ident.Ref, n rinq.Notification)
 	if n.IsMulticast {
 		fields = append(
 			fields,
-			log.String("constraint", n.Constraint.String()),
+			log.String("constraint", n.MulticastConstraint.String()),
 		)
 	}
 
 	s.LogFields(fields...)
+
+	return s
+}
+
+// LogNotificationError logs information about err to s.
+func LogNotificationError(s opentracing.Span, err error) {
+	ext.Error.Set(s, true)
+
+	s.LogFields(
+		errorEvent,
+		log.String("message", err.Error()),
+	)
 }

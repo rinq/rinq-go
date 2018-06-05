@@ -10,10 +10,11 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rinq/rinq-go/src/internal/attributes"
 	"github.com/rinq/rinq-go/src/internal/command"
+	"github.com/rinq/rinq-go/src/internal/logging"
 	"github.com/rinq/rinq-go/src/internal/namespaces"
-	"github.com/rinq/rinq-go/src/internal/notify"
 	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/rinq/rinq-go/src/internal/revisions"
+	"github.com/rinq/rinq-go/src/internal/transport"
 	"github.com/rinq/rinq-go/src/internal/x/syncx"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/constraint"
@@ -28,11 +29,12 @@ import (
 // lower-level API for manipulating the session state which is used throughout
 // the Rinq internals.
 type Session struct {
-	invoker  command.Invoker
-	notifier notify.Notifier
-	listener notify.Listener
-	logger   twelf.Logger
-	tracer   opentracing.Tracer
+	invoker    command.Invoker
+	publisher  transport.Publisher
+	subscriber transport.Subscriber
+	receiver   *receiver
+	logger     twelf.Logger
+	tracer     opentracing.Tracer
 
 	mutex       sync.RWMutex
 	ref         ident.Ref
@@ -47,23 +49,35 @@ type Session struct {
 func NewSession(
 	id ident.SessionID,
 	invoker command.Invoker,
-	notifier notify.Notifier,
-	listener notify.Listener,
+	publisher transport.Publisher,
+	subscriber transport.Subscriber,
+	consumer transport.Consumer,
+	revs revisions.Store,
 	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) *Session {
 	logCreated(logger, id)
 
-	return &Session{
-		invoker:  invoker,
-		notifier: notifier,
-		listener: listener,
-		logger:   logger,
-		tracer:   tracer,
+	s := &Session{
+		invoker:    invoker,
+		publisher:  publisher,
+		subscriber: subscriber,
+		receiver: newReceiver(
+			revs,
+			tracer,
+			logger,
+			cap(consumer.Queue()),
+		),
+		logger: logger,
+		tracer: tracer,
 
 		ref:  id.At(0),
 		done: make(chan struct{}),
 	}
+
+	go s.receiver.Run(s)
+
+	return s
 }
 
 // ID implements rinq.Session.ID()
@@ -250,20 +264,25 @@ func (s *Session) Notify(ctx context.Context, ns, t string, target ident.Session
 
 	msgID, traceID := s.nextMessageID(ctx)
 
-	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
-	defer span.Finish()
-
-	opentr.SetupNotification(span, msgID, ns, t)
-	opentr.AddTraceID(span, traceID)
-	opentr.LogNotifierUnicast(span, s.attrs, target, p)
-
-	err := s.notifier.NotifyUnicast(ctx, msgID, traceID, target, ns, t, p)
-
-	if err != nil {
-		opentr.LogNotifierError(span, err)
+	n := &transport.Notification{
+		ID:            msgID,
+		TraceID:       traceID,
+		Namespace:     ns,
+		Type:          t,
+		Payload:       p,
+		UnicastTarget: target,
 	}
 
-	logNotify(s.logger, msgID, ns, t, target, p, err, traceID)
+	span := opentr.SentNotification(s.tracer, n, s.attrs)
+	defer span.Finish()
+
+	err := s.publisher.Publish(n)
+
+	if err == nil {
+		logging.SentNotification(s.logger, n)
+	} else {
+		opentr.LogNotificationError(span, err)
+	}
 
 	return err
 }
@@ -281,20 +300,26 @@ func (s *Session) NotifyMany(ctx context.Context, ns, t string, con constraint.C
 
 	msgID, traceID := s.nextMessageID(ctx)
 
-	span, ctx := opentr.ChildOf(ctx, s.tracer, ext.SpanKindProducer)
-	defer span.Finish()
-
-	opentr.SetupNotification(span, msgID, ns, t)
-	opentr.AddTraceID(span, traceID)
-	opentr.LogNotifierMulticast(span, s.attrs, con, p)
-
-	err := s.notifier.NotifyMulticast(ctx, msgID, traceID, con, ns, t, p)
-
-	if err != nil {
-		opentr.LogNotifierError(span, err)
+	n := &transport.Notification{
+		ID:                  msgID,
+		TraceID:             traceID,
+		Namespace:           ns,
+		Type:                t,
+		Payload:             p,
+		IsMulticast:         true,
+		MulticastConstraint: con,
 	}
 
-	logNotifyMany(s.logger, msgID, ns, t, con, p, err, traceID)
+	span := opentr.SentNotification(s.tracer, n, s.attrs)
+	defer span.Finish()
+
+	err := s.publisher.Publish(n)
+
+	if err == nil {
+		logging.SentNotification(s.logger, n)
+	} else {
+		opentr.LogNotificationError(span, err)
+	}
 
 	return err
 }
@@ -316,37 +341,11 @@ func (s *Session) Listen(ns string, h rinq.NotificationHandler) error {
 		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	changed, err := s.listener.Listen(
-		s.ref.ID,
-		ns,
-		func(
-			ctx context.Context,
-			target rinq.Session,
-			n rinq.Notification,
-		) {
-			s.mutex.RLock()
-			ref := s.ref
-			s.mutex.RUnlock()
-
-			span := opentracing.SpanFromContext(ctx)
-
-			traceID := trace.Get(ctx)
-
-			opentr.SetupNotification(span, n.ID, n.Namespace, n.Type)
-			opentr.AddTraceID(span, traceID)
-			opentr.LogListenerReceived(span, ref, n)
-
-			logNotifyRecv(s.logger, ref, n, traceID)
-
-			h(ctx, target, n)
-		},
-	)
-
-	if err != nil {
+	if err := s.subscriber.Listen(ns); err != nil {
 		return err
-	} else if changed {
-		logListen(s.logger, s.ref, ns)
 	}
+
+	s.receiver.SetHandler(ns, h)
 
 	return nil
 }
@@ -362,13 +361,11 @@ func (s *Session) Unlisten(ns string) error {
 		return rinq.NotFoundError{ID: s.ref.ID}
 	}
 
-	changed, err := s.listener.Unlisten(s.ref.ID, ns)
-
-	if err != nil {
+	if err := s.subscriber.Unlisten(ns); err != nil {
 		return err
-	} else if changed {
-		logUnlisten(s.logger, s.ref, ns)
 	}
+
+	s.receiver.SetHandler(ns, nil)
 
 	return nil
 }

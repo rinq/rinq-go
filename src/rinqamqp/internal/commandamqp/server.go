@@ -13,6 +13,7 @@ import (
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
 	"github.com/streadway/amqp"
 )
 
@@ -24,7 +25,7 @@ type server struct {
 	preFetch  uint
 	revisions revisions.Store
 	queues    *queueSet
-	channels  amqputil.ChannelPool
+	channels  amqpx.ChannelPool
 	logger    twelf.Logger
 	tracer    opentracing.Tracer
 
@@ -47,7 +48,7 @@ func newServer(
 	preFetch uint,
 	revs revisions.Store,
 	queues *queueSet,
-	channels amqputil.ChannelPool,
+	channels amqpx.ChannelPool,
 	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) (command.Server, error) {

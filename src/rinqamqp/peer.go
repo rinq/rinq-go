@@ -9,13 +9,14 @@ import (
 	"github.com/rinq/rinq-go/src/internal/command"
 	"github.com/rinq/rinq-go/src/internal/localsession"
 	"github.com/rinq/rinq-go/src/internal/namespaces"
-	"github.com/rinq/rinq-go/src/internal/notify"
 	"github.com/rinq/rinq-go/src/internal/opentr"
 	"github.com/rinq/rinq-go/src/internal/remotesession"
+	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/internal/service"
 	"github.com/rinq/rinq-go/src/rinq"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/trace"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/notifications"
 	"github.com/streadway/amqp"
 )
 
@@ -28,10 +29,12 @@ type peer struct {
 	broker      *amqp.Connection
 	localStore  *localsession.Store
 	remoteStore remotesession.Store
+	revs        revisions.Store // aggregate of localStore and remoteStore
 	invoker     command.Invoker
 	server      command.Server
-	notifier    notify.Notifier
-	listener    notify.Listener
+	publisher   *notifications.Publisher
+	subscriber  *notifications.Subscriber
+	consumer    *notifications.Consumer
 	logger      twelf.Logger
 	tracer      opentracing.Tracer
 
@@ -44,10 +47,12 @@ func newPeer(
 	broker *amqp.Connection,
 	localStore *localsession.Store,
 	remoteStore remotesession.Store,
+	revs revisions.Store,
 	invoker command.Invoker,
 	server command.Server,
-	notifier notify.Notifier,
-	listener notify.Listener,
+	publisher *notifications.Publisher,
+	subscriber *notifications.Subscriber,
+	consumer *notifications.Consumer,
 	logger twelf.Logger,
 	tracer opentracing.Tracer,
 ) *peer {
@@ -56,10 +61,12 @@ func newPeer(
 		broker:      broker,
 		localStore:  localStore,
 		remoteStore: remoteStore,
+		revs:        revs,
 		invoker:     invoker,
 		server:      server,
-		notifier:    notifier,
-		listener:    listener,
+		publisher:   publisher,
+		subscriber:  subscriber,
+		consumer:    consumer,
 		logger:      logger,
 		tracer:      tracer,
 
@@ -88,8 +95,10 @@ func (p *peer) Session() rinq.Session {
 	sess := localsession.NewSession(
 		id,
 		p.invoker,
-		p.notifier,
-		p.listener,
+		p.publisher,
+		p.subscriber,
+		p.consumer,
+		p.revs,
 		p.logger,
 		p.tracer,
 	)
@@ -171,8 +180,8 @@ func (p *peer) run() (service.State, error) {
 	case <-p.server.Done():
 		return nil, p.server.Err()
 
-	case <-p.listener.Done():
-		return nil, p.listener.Err()
+	case <-p.consumer.Done():
+		return nil, p.consumer.Err()
 
 	case <-p.sm.Graceful:
 		return p.graceful, nil
@@ -189,13 +198,13 @@ func (p *peer) graceful() (service.State, error) {
 	p.server.GracefulStop()
 	p.invoker.GracefulStop()
 	p.remoteStore.GracefulStop()
-	p.listener.GracefulStop()
+	p.consumer.GracefulStop()
 
 	done := service.WaitAll(
 		p.remoteStore,
 		p.invoker,
 		p.server,
-		p.listener,
+		p.consumer,
 	)
 
 	select {
@@ -214,7 +223,7 @@ func (p *peer) finalize(err error) error {
 	p.server.Stop()
 	p.invoker.Stop()
 	p.remoteStore.Stop()
-	p.listener.Stop()
+	p.consumer.Stop()
 
 	p.localStore.Each(func(sess *localsession.Session) {
 		sess.Destroy()
@@ -225,7 +234,7 @@ func (p *peer) finalize(err error) error {
 		p.remoteStore,
 		p.invoker,
 		p.server,
-		p.listener,
+		p.consumer,
 	)
 
 	closeErr := p.broker.Close()

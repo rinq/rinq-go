@@ -6,7 +6,7 @@ import (
 	"github.com/rinq/rinq-go/src/internal/revisions"
 	"github.com/rinq/rinq-go/src/rinq/ident"
 	"github.com/rinq/rinq-go/src/rinq/options"
-	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqputil"
+	"github.com/rinq/rinq-go/src/rinqamqp/internal/amqpx"
 )
 
 // New returns a pair of invoker and server.
@@ -15,7 +15,7 @@ func New(
 	opts options.Options,
 	sessions *localsession.Store,
 	revs revisions.Store,
-	channels amqputil.ChannelPool,
+	channels amqpx.ChannelPool,
 ) (command.Invoker, command.Server, error) {
 	channel, err := channels.Get()
 	if err != nil {

@@ -1,12 +1,14 @@
-hash: 1318cd3a7336c47f7d1e583c51c3bd4a7b364bfa54a1186327ea24589be4236a
-updated: 2018-02-13T12:42:46.063902649+10:00
+hash: c835991c367b0b59f06c9eb9e76914cd4a64f5dcd5979807ffafee6fdde021af
+updated: 2018-02-16T14:14:33.242853+10:00
 imports:
 - name: github.com/hashicorp/go-version
-  version: 03c5bf6be031b6dd45afec16b1cf94fc8938bc77
+  version: 4fe82ae3040f80a03d04d2cccb5606a626b8e1ee
 - name: github.com/jmalloc/twelf
   version: ffe2c64ef8c5e93b1410e818808fe4fddfb5e02d
+  subpackages:
+  - src/twelf
 - name: github.com/onsi/ginkgo
-  version: 747514b53ddd06d5d37d096c1cb313cfe620d7d4
+  version: ae6829de29c3af4e009138c7bae3be0f67175ef8
   subpackages:
   - config
   - extensions/table
@@ -27,7 +29,7 @@ imports:
   - reporters/stenographer/support/go-isatty
   - types
 - name: github.com/onsi/gomega
-  version: a9c79f175573664afefe4fe0f3827c66263abcbb
+  version: 7c333ae4191282b0f034a8e1dcb2dcb62b4cf723
   subpackages:
   - format
   - internal/assertion
@@ -47,12 +49,16 @@ imports:
   - log
 - name: github.com/streadway/amqp
   version: fc7fda2371f5327ad39211e09482845b8734cc72
+- name: github.com/uber-go/multierr
+  version: 3c4937480c32f4c13a875a1829af76c98ca3d40a
 - name: github.com/ugorji/go
-  version: 5efa3251c7f7d05e5d9704a69a984ec9f1386a40
+  version: b5b949564861e43a03568a0b134c135cf318e5c8
   subpackages:
   - codec
+- name: go.uber.org/atomic
+  version: 8474b86a5a6f79c443ce4b2992817ff32cf208b8
 - name: golang.org/x/net
-  version: 4f2fc6c1e69d41baf187332ee08fbd2b296f21ed
+  version: f5dfe339be1d06f81b22525fe34671ee7d2c8904
   subpackages:
   - context
   - html
@@ -64,16 +70,17 @@ testImports:
   subpackages:
   - spew
 - name: github.com/uber/jaeger-client-go
-  version: 3e3870040def0ebdaf65a003863fa64f5cb26139
+  version: d7f08d5091e1f6a16d4467c2b7c4c3080e874195
 - name: golang.org/x/sys
-  version: d9157a9621b69ad1d8d77a1933590c416593f24f
+  version: 37707fdb30a5b38865cfb95e5aab41707daec7fd
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: d69c40b4be55797923cec7457fac7a244d91a9b6
+  version: 4e4a3210bb54bb31f6ab2cdca2edcc0b50c420c1
   subpackages:
   - encoding
   - encoding/charmap
+  - encoding/htmlindex
   - encoding/internal
   - encoding/internal/identifier
   - encoding/japanese
@@ -81,8 +88,10 @@ testImports:
   - encoding/simplifiedchinese
   - encoding/traditionalchinese
   - encoding/unicode
+  - internal/tag
   - internal/utf8internal
+  - language
   - runes
   - transform
 - name: gopkg.in/yaml.v2
-  version: bef53efd0c76e49e6de55ead051f886bea7e9420
+  version: d670f9405373e636a5a2765eea47fac0c9bc91a4
